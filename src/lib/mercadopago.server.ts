@@ -72,8 +72,11 @@ export async function createPreference(args: {
     console.error('Mercado Pago preference error', res.status, await res.text());
     throw new Error('Falha ao criar pagamento no Mercado Pago');
   }
-  const data = (await res.json()) as { init_point: string; sandbox_init_point?: string };
-  return process.env['MP_USE_SANDBOX'] === 'true' && data.sandbox_init_point ? data.sandbox_init_point : data.init_point;
+  const data = (await res.json()) as { id: string | number; init_point: string; sandbox_init_point?: string };
+  return {
+    preferenceId: String(data.id),
+    url: process.env['MP_USE_SANDBOX'] === 'true' && data.sandbox_init_point ? data.sandbox_init_point : data.init_point,
+  };
 }
 
 export async function getPayment(id: string) {
