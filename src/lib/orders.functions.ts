@@ -2,8 +2,6 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { meals, tomorrowMenu } from '@/lib/restaurant-data';
 import { deliveryFeeForKm } from '@/lib/orders';
-import { buildPreferenceItems, createPreference, priceForSizeLabel, type PaymentItemInput } from '@/lib/mercadopago.server';
-import { insertOrderRecord, supabaseRequest } from '@/lib/supabase.server';
 
 const schema = z.object({
   when: z.enum(['hoje', 'amanha']),
@@ -38,6 +36,8 @@ function findMeal(name: string, sizeLabel: string) {
 export const createOrder = createServerFn({ method: 'POST' })
   .inputValidator((input: unknown) => schema.parse(input))
   .handler(async ({ data }) => {
+    const { buildPreferenceItems, createPreference, priceForSizeLabel, type PaymentItemInput } = await import('@/lib/mercadopago.server');
+    const { insertOrderRecord, supabaseRequest } = await import('@/lib/supabase.server');
     if (data.fulfillment === 'entrega' && (!data.address || data.distanceKm == null || data.distanceKm > 30)) {
       throw new Error('Informe um endereço válido e calcule a entrega.');
     }
