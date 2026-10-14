@@ -1,5 +1,8 @@
-import mealBeef from '@/assets/meal-beef.jpg';
-import mealChicken from '@/assets/meal-chicken.jpg';
+import videoCaseirinho from '@/assets/video-caseirinho.mp4.asset.json';
+import posterCaseirinho from '@/assets/poster-caseirinho.jpg.asset.json';
+import photoFeijoada from '@/assets/feijoada.jpg.asset.json';
+import videoTropeiro from '@/assets/video-tropeiro.mp4.asset.json';
+import posterTropeiro from '@/assets/poster-tropeiro.jpg.asset.json';
 
 export type MealSize = { id: string; label: string; price: number };
 export type Meal = {
@@ -14,12 +17,14 @@ export type Meal = {
 };
 
 // Pratos do dia na ordem em que aparecem no site: tropeiro primeiro, depois o caseirinho.
+// "Só tropeiro" e "só feijoada" (sem acompanhamentos) custam 20 (pequena) e 25 (grande); a completa é preço normal.
 export const meals: Meal[] = [
   {
     id: 'tropeiro',
     name: 'Feijão Tropeiro',
     description: 'Tropeiro caprichado com torresmo, couve e ovo.',
-    image: mealBeef,
+    video: videoTropeiro.url,
+    poster: posterTropeiro.url,
     badge: 'O mais pedido',
     sizes: [
       { id: 'pequena', label: 'Completa pequena · 500ml', price: 16 },
@@ -32,7 +37,8 @@ export const meals: Meal[] = [
     id: 'caseirinho',
     name: 'Arroz, feijão, macarronada e linguiça',
     description: 'O clássico completo, do jeitinho de casa.',
-    image: mealChicken,
+    video: videoCaseirinho.url,
+    poster: posterCaseirinho.url,
     badge: null,
     sizes: [
       { id: 'pequena', label: 'Pequena · 500ml', price: 16 },
@@ -40,13 +46,12 @@ export const meals: Meal[] = [
     ],
   },
 ];
-export const feijoadaPhotoUrl = mealBeef;
-
-// Pratos que saem amanhã: a feijoada e o caseirinho.
+export const feijoadaPhotoUrl = photoFeijoada.url;
+// Pratos que saem amanhã: a feijoada (só neste dia) e o caseirinho, que sai todo dia — amanhã também.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string; video?: string; poster?: string };
 export const tomorrowDishes: TomorrowDish[] = [
-  { id: 'feijoada-amanha', name: 'Feijoada', description: 'Feijoada encorpada, cheia de sabor e carinho.', badge: 'Amanhã', image: mealBeef },
-  { id: 'caseirinho-amanha', name: 'Arroz, feijão, macarronada e linguiça', description: 'Sai todo dia, amanhã também. O clássico completo, do jeitinho de casa.', badge: 'Todo dia', image: mealChicken },
+  { id: 'feijoada-amanha', name: 'Feijoada', description: 'Feijoada encorpada, cheia de sabor e carinho.', badge: 'Amanhã', image: photoFeijoada.url },
+  { id: 'caseirinho-amanha', name: 'Arroz, feijão, macarronada e linguiça', description: 'Sai todo dia, amanhã também. O clássico completo, do jeitinho de casa.', badge: 'Todo dia', video: videoCaseirinho.url, poster: posterCaseirinho.url },
 ];
 // Opções para reservar amanhã (mesma regra de preço: completa 16/18, só feijoada 20/25).
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
