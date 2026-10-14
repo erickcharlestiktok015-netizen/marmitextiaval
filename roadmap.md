@@ -1,0 +1,3 @@
+- [ ] Reserva/pedido pelo site com entrega R$1/km e pagamento agora ou na entrega (API depois)
+- [ ] Endereço completo (rua, número, complemento) no cálculo da entrega
+- [ ] Capa: tirar faixa preta, vídeo em quadros ocupando tudo
