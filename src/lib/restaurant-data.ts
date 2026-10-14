@@ -16,6 +16,8 @@ export type Meal = {
   sizes: MealSize[];
 };
 
+const assetUrl = (url: string) => new URL(url, 'https://tia-val-eats-digital.lovable.app').toString();
+
 // Pratos do dia na ordem em que aparecem no site: tropeiro primeiro, depois o caseirinho.
 // "Só tropeiro" e "só feijoada" (sem acompanhamentos) custam 20 (pequena) e 25 (grande); a completa é preço normal.
 export const meals: Meal[] = [
@@ -23,8 +25,8 @@ export const meals: Meal[] = [
     id: 'tropeiro',
     name: 'Feijão Tropeiro',
     description: 'Tropeiro caprichado com torresmo, couve e ovo.',
-    video: videoTropeiro.url,
-    poster: posterTropeiro.url,
+    video: assetUrl(videoTropeiro.url),
+    poster: assetUrl(posterTropeiro.url),
     badge: 'O mais pedido',
     sizes: [
       { id: 'pequena', label: 'Completa pequena · 500ml', price: 16 },
@@ -37,8 +39,8 @@ export const meals: Meal[] = [
     id: 'caseirinho',
     name: 'Arroz, feijão, macarronada e linguiça',
     description: 'O clássico completo, do jeitinho de casa.',
-    video: videoCaseirinho.url,
-    poster: posterCaseirinho.url,
+    video: assetUrl(videoCaseirinho.url),
+    poster: assetUrl(posterCaseirinho.url),
     badge: null,
     sizes: [
       { id: 'pequena', label: 'Pequena · 500ml', price: 16 },
@@ -46,12 +48,12 @@ export const meals: Meal[] = [
     ],
   },
 ];
-export const feijoadaPhotoUrl = photoFeijoada.url;
+export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
 // Pratos que saem amanhã: a feijoada (só neste dia) e o caseirinho, que sai todo dia — amanhã também.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string; video?: string; poster?: string };
 export const tomorrowDishes: TomorrowDish[] = [
-  { id: 'feijoada-amanha', name: 'Feijoada', description: 'Feijoada encorpada, cheia de sabor e carinho.', badge: 'Amanhã', image: photoFeijoada.url },
-  { id: 'caseirinho-amanha', name: 'Arroz, feijão, macarronada e linguiça', description: 'Sai todo dia, amanhã também. O clássico completo, do jeitinho de casa.', badge: 'Todo dia', video: videoCaseirinho.url, poster: posterCaseirinho.url },
+  { id: 'feijoada-amanha', name: 'Feijoada', description: 'Feijoada encorpada, cheia de sabor e carinho.', badge: 'Amanhã', image: assetUrl(photoFeijoada.url) },
+  { id: 'caseirinho-amanha', name: 'Arroz, feijão, macarronada e linguiça', description: 'Sai todo dia, amanhã também. O clássico completo, do jeitinho de casa.', badge: 'Todo dia', video: assetUrl(videoCaseirinho.url), poster: assetUrl(posterCaseirinho.url) },
 ];
 // Opções para reservar amanhã (mesma regra de preço: completa 16/18, só feijoada 20/25).
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
