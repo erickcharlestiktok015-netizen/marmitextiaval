@@ -36,7 +36,12 @@ export async function isAdminRequest(request: Request) {
     const raw = cookieHeader.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${COOKIE_NAME}=`))?.slice(COOKIE_NAME.length + 1);
     if (!raw) return false;
     const [payload, signature] = raw.split('.');
-    if (!payload || !signature || !(await sign(payload)).split('').every((char, index) => char === signature[index]) || signature.length !== (await sign(payload)).length) return false;
+    if (!payload || !signature) return false;
+    const expected = await sign(payload);
+    if (expected.length !== signature.length) return false;
+    let difference = 0;
+    for (let i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+    if (difference !== 0) return false;
     const data = JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as { exp?: number };
     return typeof data.exp === 'number' && data.exp > Date.now();
   } catch {
@@ -49,11 +54,12 @@ export function clearAdminCookie() {
 }
 
 export function verifyAdminPassword(value: string) {
-  const expected = process.env['ADMIN_PASSWORD'];
-  if (!expected) throw new Error('Configure ADMIN_PASSWORD no servidor.');
-  // Compare without early exit to avoid a simple timing leak.
-  let diff = value.length ^ expected.length;
-  const length = Math.max(value.length, expected.length);
-  for (let i = 0; i < length; i++) diff |= (value.charCodeAt(i) || 0) ^ (expected.charCodeAt(i) || 0);
-  return diff === 0;
+  const candidates = [process.env['ADMIN_PASSWORD'], process.env['MOTHER_ADMIN_PASSWORD']].filter((candidate): candidate is string => Boolean(candidate));
+  if (candidates.length === 0) throw new Error('Configure ADMIN_PASSWORD e/ou MOTHER_ADMIN_PASSWORD no servidor.');
+  return candidates.some((expected) => {
+    let diff = value.length ^ expected.length;
+    const length = Math.max(value.length, expected.length);
+    for (let i = 0; i < length; i++) diff |= (value.charCodeAt(i) || 0) ^ (expected.charCodeAt(i) || 0);
+    return diff === 0;
+  });
 }
