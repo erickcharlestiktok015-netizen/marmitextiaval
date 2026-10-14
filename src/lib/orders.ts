@@ -1,5 +1,4 @@
-// Pedidos do site. Ainda não há servidor: submitOrder é o ponto único onde a API
-// (pedidos + Mercado Pago) será conectada depois. Tudo que a tela precisa já está no objeto Order.
+// Tipos e cálculos de pedidos. A gravação real ocorre em orders.functions.ts, no servidor.
 import { deliveryFeePerKm } from '@/lib/restaurant-data';
 
 export type OrderItem = { name: string; sizeLabel: string; unitPrice: number; quantity: number; notes?: string };
@@ -27,20 +26,16 @@ export function calculateTotals(items: OrderItem[], fulfillment: 'entrega' | 're
 
 export type SubmitResult = { code: string; paymentUrl: string | null };
 
-const newCode = () => Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, '0');
-
-// Pagamento online: cria a cobrança no Mercado Pago e devolve o link do checkout.
-// Pagamento na entrega: só gera o código do pedido.
 export async function submitOrder(order: Order): Promise<SubmitResult> {
-  const code = newCode();
-  if (order.payment !== 'online') return { code, paymentUrl: null };
-  const { createMercadoPagoCheckout } = await import('@/lib/payments.functions');
-  const { url } = await createMercadoPagoCheckout({ data: {
-    code,
-    items: order.items.map(i => ({ name: i.name, sizeLabel: i.sizeLabel, quantity: i.quantity })),
+  const { createOrder } = await import('@/lib/orders.functions');
+  return createOrder({ data: {
+    when: order.when,
+    items: order.items,
+    customer: { name: order.customer.name.trim(), phone: order.customer.phone.replace(/\D/g, '') },
     fulfillment: order.fulfillment,
+    address: order.address,
     distanceKm: order.fulfillment === 'entrega' ? order.distanceKm : null,
-    customer: { name: order.customer.name, phone: order.customer.phone.replace(/\D/g, '') },
+    payment: order.payment,
+    changeFor: order.changeFor ?? null,
   } });
-  return { code, paymentUrl: url };
 }
