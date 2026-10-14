@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 const assets = import.meta.glob<{ url: string }>('../../assets/frames/*.asset.json', { eager: true, import: 'default' });
-const frames = Object.entries(assets).sort(([a], [b]) => a.localeCompare(b)).map(([, value]) => value.url);
+const frames = Object.entries(assets).sort(([a], [b]) => a.localeCompare(b)).map(([, value]) => new URL(value.url, 'https://tia-val-eats-digital.lovable.app').toString());
 
 export function ScrollAnimation() {
   const canvas = useRef<HTMLCanvasElement>(null);
