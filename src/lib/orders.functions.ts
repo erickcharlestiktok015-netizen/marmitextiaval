@@ -36,7 +36,7 @@ function findMeal(name: string, sizeLabel: string) {
 export const createOrder = createServerFn({ method: 'POST' })
   .inputValidator((input: unknown) => schema.parse(input))
   .handler(async ({ data }) => {
-    const { buildPreferenceItems, createPreference, priceForSizeLabel, type PaymentItemInput } = await import('@/lib/mercadopago.server');
+    const { buildPreferenceItems, createPreference, priceForSizeLabel } = await import('@/lib/mercadopago.server');
     const { insertOrderRecord, supabaseRequest } = await import('@/lib/supabase.server');
     if (data.fulfillment === 'entrega' && (!data.address || data.distanceKm == null || data.distanceKm > 30)) {
       throw new Error('Informe um endereço válido e calcule a entrega.');
@@ -52,7 +52,7 @@ export const createOrder = createServerFn({ method: 'POST' })
     const deliveryFee = data.fulfillment === 'entrega' && data.distanceKm != null ? deliveryFeeForKm(data.distanceKm) : 0;
     const total = subtotal + deliveryFee;
     const code = newCode();
-    const itemsForPayment: PaymentItemInput[] = verifiedItems.map(({ name, sizeLabel, quantity }) => ({ name, sizeLabel, quantity }));
+    const itemsForPayment = verifiedItems.map(({ name, sizeLabel, quantity }) => ({ name, sizeLabel, quantity }));
 
     const orderId = await insertOrderRecord({
       code,
