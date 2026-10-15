@@ -19,12 +19,23 @@ export const Route = createFileRoute('/api/public/tracking')({
           );
           const order = rows[0];
           if (!order) return Response.json({ error: 'Pedido não encontrado.' }, { status: 404 });
+          // A fila pública revela apenas contagens, nunca os dados de outros clientes.
+          const activeDeliveries = order.order_status === 'saiu_entrega'
+            ? await supabaseRequest<Array<{ id: string; created_at: string }>>(
+                "orders?select=id,created_at&order_status=eq.saiu_entrega&fulfillment=eq.entrega&order=created_at.asc&limit=100",
+              )
+            : [];
+          const activeIndex = activeDeliveries.findIndex(item => item.id === order.id);
+          const deliveriesInProgress = activeDeliveries.length;
+          const deliveriesAhead = activeIndex >= 0 ? activeIndex : 0;
           const items = await supabaseRequest<Array<{ meal_name: string; size_label: string; quantity: number }>>(
             `order_items?select=meal_name,size_label,quantity&order_id=eq.${encodeURIComponent(order.id)}&order=created_at.asc`,
           );
           return Response.json({
             order: {
               ...order,
+              deliveries_in_progress: deliveriesInProgress,
+              deliveries_ahead: deliveriesAhead,
               id: undefined,
               confirmation_code: order.courier_status === 'cheguei' ? order.confirmation_code : null,
               items,
