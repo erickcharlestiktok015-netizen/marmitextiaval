@@ -7,7 +7,10 @@ const validId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-
 export const Route = createFileRoute('/api/courier/orders')({
   server: { handlers: {
     GET: async ({ request }) => {
-      if (!(await isCourierRequest(request))) return Response.json({ error: 'Faça login como motoboy.' }, { status: 401 });
+      if (!(await isCourierRequest(request))) {
+        console.warn('[courier-orders] GET bloqueado: sessão ausente ou inválida.');
+        return Response.json({ error: 'Faça login como motoboy.' }, { status: 401 });
+      }
       try {
         const orders = await supabaseRequest<OrderRow[]>(
           "orders?select=id,code,customer_name,customer_phone,address,order_status,payment_method,payment_status,total,delivery_fee,estimated_delivery_at,courier_status,courier_latitude,courier_longitude,courier_location_updated_at,created_at,confirmation_code&fulfillment=eq.entrega&order=created_at.asc&limit=100",
@@ -33,10 +36,16 @@ export const Route = createFileRoute('/api/courier/orders')({
             items: items.filter(i => i.order_id === o.id),
           })),
         }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
-      } catch { return Response.json({ error: 'Não foi possível carregar as entregas.' }, { status: 503 }); }
+      } catch (error) {
+        console.error('[courier-orders] Falha ao carregar fila:', error instanceof Error ? { name: error.name, message: error.message } : { error: String(error) });
+        return Response.json({ error: 'Não foi possível carregar as entregas.' }, { status: 503 });
+      }
     },
     PATCH: async ({ request }) => {
-      if (!(await isCourierRequest(request))) return Response.json({ error: 'Faça login como motoboy.' }, { status: 401 });
+      if (!(await isCourierRequest(request))) {
+        console.warn('[courier-orders] PATCH bloqueado: sessão ausente ou inválida.');
+        return Response.json({ error: 'Faça login como motoboy.' }, { status: 401 });
+      }
       let body: { action?: unknown; id?: unknown; latitude?: unknown; longitude?: unknown; code?: unknown };
       try { body = await request.json() as typeof body; } catch { return Response.json({ error: 'Requisição inválida.' }, { status: 400 }); }
       const action = body.action;
@@ -52,7 +61,10 @@ export const Route = createFileRoute('/api/courier/orders')({
             body: JSON.stringify({ courier_latitude: body.latitude, courier_longitude: body.longitude, courier_location_updated_at: new Date().toISOString() }),
           })));
           return Response.json({ ok: true, active: active.length });
-        } catch { return Response.json({ error: 'Não foi possível atualizar a localização.' }, { status: 503 }); }
+        } catch (error) {
+          console.error('[courier-orders] Falha ao atualizar GPS:', error instanceof Error ? { name: error.name, message: error.message } : { error: String(error) });
+          return Response.json({ error: 'Não foi possível atualizar a localização.' }, { status: 503 });
+        }
       }
       if (!validId(body.id) || !['start', 'arrived', 'delivered'].includes(String(action))) return Response.json({ error: 'Ação inválida.' }, { status: 400 });
       try {
@@ -74,7 +86,10 @@ export const Route = createFileRoute('/api/courier/orders')({
         }
         await supabaseRequest(`orders?id=eq.${encodeURIComponent(order.id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch) });
         return Response.json({ ok: true });
-      } catch { return Response.json({ error: 'Não foi possível atualizar esta entrega.' }, { status: 503 }); }
+      } catch (error) {
+        console.error('[courier-orders] Falha ao atualizar entrega:', error instanceof Error ? { name: error.name, message: error.message } : { error: String(error) });
+        return Response.json({ error: 'Não foi possível atualizar esta entrega.' }, { status: 503 });
+      }
     },
   } },
 });
