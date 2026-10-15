@@ -80,7 +80,7 @@ export function isRestaurantOpen(date = new Date()) {
 export const contacts = {
   phone: 'tel:+553134454042',
   phoneLabel: '(31) 3445-4042',
-  whatsapp: null as string | null,
+  whatsapp: 'https://wa.me/553134454042' as string | null,
   instagram: null as string | null,
 };
 export const reviews = [
