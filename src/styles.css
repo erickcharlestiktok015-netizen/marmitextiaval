@@ -880,3 +880,55 @@ svg {
 .courier-screen.courier-light input { background: #fff !important; color: #17191d !important; border-color: #d9dde3 !important; }
 .courier-screen.courier-light iframe { opacity: 1 !important; }
 .courier-screen.courier-light header { border-color: #d9dde3 !important; }
+
+
+/* Acabamento visual da área do motoboy: marca vermelha, cartões consistentes e tema claro legível. */
+.courier-screen {
+  background-image: radial-gradient(ellipse at 8% 0%, rgba(220,16,37,.09), transparent 34%);
+}
+.courier-screen header img { display:block; object-fit:cover; }
+.courier-screen button, .courier-screen a { -webkit-tap-highlight-color: transparent; }
+.courier-screen button { touch-action: manipulation; }
+.courier-screen article { box-shadow: 0 8px 24px rgba(0,0,0,.10); }
+.courier-screen [class*="rounded-3xl"] { border-radius: 22px; }
+.courier-screen button:focus-visible,
+.courier-screen a:focus-visible,
+.courier-screen input:focus-visible { outline: 2px solid #ef3348; outline-offset: 2px; }
+
+.courier-screen.courier-light {
+  background-image: radial-gradient(ellipse at 8% 0%, rgba(220,16,37,.07), transparent 34%) !important;
+}
+.courier-screen.courier-light [class*="bg-gradient-to-br"],
+.courier-screen.courier-light [class*="bg-gradient-to-r"] {
+  background-image: linear-gradient(135deg, #fff, #f0f2f5) !important;
+}
+.courier-screen.courier-light [class*="from-red-950"],
+.courier-screen.courier-light [class*="via-slate-900"],
+.courier-screen.courier-light [class*="to-slate-800"] {
+  background-color: #f2f3f5 !important;
+}
+.courier-screen.courier-light [class*="text-white"]:not([class*="bg-red-"]):not([class*="bg-emerald-"]) {
+  color: #191c22 !important;
+}
+.courier-screen.courier-light [class*="text-emerald-100"],
+.courier-screen.courier-light [class*="text-emerald-200"],
+.courier-screen.courier-light [class*="text-emerald-300"] { color: #087443 !important; }
+.courier-screen.courier-light [class*="text-amber-100"],
+.courier-screen.courier-light [class*="text-amber-300"] { color: #8a5700 !important; }
+.courier-screen.courier-light [class*="text-sky-300"] { color: #075b91 !important; }
+.courier-screen.courier-light [class*="text-red-200"],
+.courier-screen.courier-light [class*="text-red-300"],
+.courier-screen.courier-light [class*="text-red-400"] { color: #c61027 !important; }
+.courier-screen.courier-light [class*="bg-slate-800"],
+.courier-screen.courier-light [class*="bg-slate-700"] { background: #e8ebef !important; color: #303641 !important; }
+.courier-screen.courier-light [class*="bg-emerald-400/"] { background: #e5f7ee !important; }
+.courier-screen.courier-light [class*="bg-amber-300/"] { background: #fff6dc !important; }
+.courier-screen.courier-light [class*="bg-sky-400"] { color: #fff !important; }
+.courier-screen.courier-light article,
+.courier-screen.courier-light section,
+.courier-screen.courier-light aside {
+  border-color: #dce0e6;
+}
+.courier-screen.courier-light article { box-shadow: 0 6px 20px rgba(20,30,45,.06); }
+.courier-screen.courier-light [class*="border-dashed"] { border-color: #c9ced6 !important; }
+.courier-screen.courier-light [class*="shadow-black"] { --tw-shadow-color: rgba(20,30,45,.06) !important; }
