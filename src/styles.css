@@ -586,3 +586,158 @@ button, input, select, textarea {
     width: 100%;
   }
 }
+
+
+/* Correção final de viewport mobile: checkout estável ao abrir e ao focar campos. */
+@media (max-width: 700px) {
+  .checkout-dialog {
+    position: fixed !important;
+    top: max(8px, env(safe-area-inset-top)) !important;
+    right: max(8px, env(safe-area-inset-right)) !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    left: max(8px, env(safe-area-inset-left)) !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    transform: none !important;
+    translate: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    border-radius: 16px;
+    box-sizing: border-box;
+  }
+
+  .checkout-dialog > .detail-content {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 18px 14px max(18px, env(safe-area-inset-bottom));
+  }
+
+  .checkout-dialog .checkout,
+  .checkout-dialog .checkout fieldset,
+  .checkout-dialog .checkout-items,
+  .checkout-dialog .checkout-pay,
+  .checkout-dialog .checkout-choice,
+  .checkout-dialog .delivery-fee,
+  .checkout-dialog .delivery-form,
+  .checkout-dialog .checkout-done {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .checkout-dialog .checkout-items li {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .checkout-dialog .checkout-items li > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .checkout-dialog .checkout-items li > strong {
+    flex-shrink: 0;
+  }
+
+  .checkout-dialog .checkout input,
+  .checkout-dialog .checkout select,
+  .checkout-dialog .checkout textarea,
+  .checkout-dialog .checkout button {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .checkout-dialog .checkout input,
+  .checkout-dialog .checkout select,
+  .checkout-dialog .checkout textarea {
+    font-size: 16px !important;
+  }
+
+  .checkout-dialog .checkout .delivery-address {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 84px;
+    gap: 8px;
+  }
+
+  .checkout-dialog .checkout .delivery-address .da-cep,
+  .checkout-dialog .checkout .delivery-address .da-btn {
+    grid-column: 1 / -1 !important;
+  }
+
+  .checkout-dialog .checkout .checkout-choice,
+  .checkout-dialog .checkout .checkout-pay {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .checkout-dialog .checkout .checkout-pay button {
+    min-height: 52px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .checkout-dialog .checkout .online-payment-selected {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .checkout-dialog .checkout .cart-actions,
+  .checkout-dialog .checkout .detail-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .checkout-dialog > .detail-content {
+    padding-inline: 12px;
+  }
+
+  .checkout-dialog .checkout .delivery-fee {
+    padding: 10px;
+  }
+
+  .checkout-dialog .checkout .delivery-address {
+    grid-template-columns: minmax(0, 1fr) 76px;
+  }
+}
+
+/* A página não pode criar uma segunda largura ao arrastar na horizontal. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+@supports not (overflow: clip) {
+  html,
+  body,
+  #root {
+    overflow-x: hidden;
+  }
+}
+
+img,
+video,
+canvas,
+iframe,
+svg {
+  max-width: 100%;
+}
