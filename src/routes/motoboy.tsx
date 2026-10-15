@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useRouterState, createFileRoute } from '@tanstack/react-router';
 import { Bike, LockKeyhole, Smartphone, Stethoscope } from 'lucide-react';
 
@@ -16,6 +16,25 @@ function CourierLogin() {
   const [error, setError] = useState('');
   const [diagnosing, setDiagnosing] = useState(false);
   const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
+
+  useEffect(() => {
+    void checkSession();
+  }, []);
+
+  async function checkSession() {
+    try {
+      const response = await fetch('/api/courier/orders?checkSession=1', {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok && response.status !== 401) {
+        window.location.assign('/motoboy/entregas');
+      }
+    } catch {
+      // Ignore errors, let the login form show
+    }
+  }
 
   async function diagnose() {
     setDiagnosing(true);

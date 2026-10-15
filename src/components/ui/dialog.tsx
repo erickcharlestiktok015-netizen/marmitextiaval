@@ -41,7 +41,7 @@ const DialogContent = React.forwardRef<
         "fixed z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:rounded-lg",
         className,
       )}
-      style={{ position: "fixed", top: "50%", left: "50%", right: "auto", bottom: "auto", translate: "-50% -50%", transform: "none", margin: 0, maxHeight: "min(90dvh, calc(100dvh - 2rem))", overflowY: "auto", ...style }}
+      style={{ position: "fixed", top: "50%", left: "50%", right: "auto", bottom: "auto", transform: "translate(-50%, -50%)", margin: 0, maxHeight: "min(90dvh, calc(100dvh - 2rem))", overflowY: "auto", ...style }}
       {...props}
     >
       {children}
