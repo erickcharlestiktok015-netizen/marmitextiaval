@@ -301,3 +301,47 @@
   .hero { height:calc(100svh - 66px); max-height:none; }
   .hero-media:after { background:linear-gradient(180deg,color-mix(in oklch,var(--hero-background) 80%,transparent),transparent 30%),linear-gradient(0deg,color-mix(in oklch,var(--hero-background) 55%,transparent),transparent 18%); }
 }
+
+
+/* Modal de seleção de pagamento online */
+.payment-method-dialog { width:min(94vw, 520px); max-height:88dvh; overflow-y:auto; border-radius:18px; }
+.payment-method-dialog .detail-content { display:grid; gap:14px; }
+.payment-method-dialog [data-slot="dialog-title"] { font-size:25px; line-height:1.2; }
+.online-payment-options { display:grid; gap:9px; margin-top:4px; }
+.online-payment-option { display:flex; align-items:center; gap:12px; width:100%; min-width:0; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--background); color:var(--foreground); text-align:left; cursor:pointer; transition:border-color .15s,background .15s; }
+.online-payment-option:hover { border-color:var(--primary); }
+.online-payment-option.selected { border-color:var(--primary); background:var(--accent); box-shadow:inset 0 0 0 1px var(--primary); }
+.payment-brand { width:66px; min-width:66px; min-height:44px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; background:var(--card); border:1px solid var(--border); font-size:10px; font-weight:800; letter-spacing:.02em; }
+.payment-brand-pix { color:#168b75; flex-direction:row; gap:3px; }
+.payment-brand-credit_card { color:#2449a5; }
+.payment-brand-credit_card b+b { color:#d14a38; font-size:8px; }
+.payment-brand-debit_card { color:#2449a5; }
+.payment-brand-ticket { color:#52525b; }
+.payment-brand-account_money { color:#009ee3; }
+.online-payment-copy { flex:1; min-width:0; display:grid; gap:4px; }
+.online-payment-copy strong { font-size:14px; }
+.online-payment-copy small { color:var(--muted-foreground); font-size:11px; line-height:1.35; }
+.payment-radio { display:grid; place-items:center; width:21px; height:21px; min-width:21px; border:1px solid var(--border); border-radius:50%; }
+.online-payment-option.selected .payment-radio { background:var(--primary); color:var(--primary-foreground); border-color:var(--primary); }
+.payment-method-note { display:flex; gap:7px; align-items:flex-start; color:var(--muted-foreground); font-size:11px; line-height:1.5; }
+.payment-method-note svg { flex-shrink:0; margin-top:1px; }
+.online-payment-selected { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:12px; }
+.online-payment-selected strong { color:var(--foreground); }
+@media(max-width:520px) {
+  .payment-method-dialog { padding:20px 16px; }
+  .payment-method-dialog [data-slot="dialog-title"] { font-size:22px; }
+  .online-payment-option { gap:9px; padding:10px; }
+  .payment-brand { width:54px; min-width:54px; }
+}
+
+
+/* Pix no próprio checkout */
+.pix-payment-content { justify-items:stretch; text-align:center; }
+.pix-payment-content [data-slot="dialog-description"] { line-height:1.6; }
+.pix-qr-image { display:block; width:min(100%,260px); aspect-ratio:1; object-fit:contain; margin:0 auto; padding:10px; background:#fff; border:1px solid var(--border); border-radius:12px; }
+.pix-copy-label { text-align:left; font-size:12px; font-weight:700; }
+.pix-copy-code { width:100%; resize:vertical; border:1px solid var(--border); border-radius:8px; background:var(--background); color:var(--foreground); padding:10px; font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; }
+.pix-waiting-note { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted-foreground); font-size:12px; }
+.pix-approved-message { display:grid; justify-items:center; gap:8px; padding:22px 12px; color:var(--primary); }
+.pix-approved-message strong { color:var(--foreground); font-size:18px; }
+.pix-approved-message span { color:var(--muted-foreground); font-size:13px; line-height:1.6; }

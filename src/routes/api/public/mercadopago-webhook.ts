@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { supabaseRequest } from '@/lib/supabase.server';
 
 // Endereço para colar no painel do Mercado Pago (Suas integrações → Webhooks):
 // https://SEU-DOMINIO/api/public/mercadopago-webhook  — evento "Pagamentos".
@@ -20,7 +21,35 @@ export const Route = createFileRoute('/api/public/mercadopago-webhook')({
         if (type === 'payment' && dataId && /^\d+$/.test(dataId)) {
           // Confirma direto na API (não confia só no aviso).
           const p = await getPayment(dataId);
-          console.log(`[Mercado Pago] pedido #${p.external_reference} · ${p.status} (${p.status_detail}) · ${p.payment_method_id} · R$ ${p.transaction_amount}`);
+          const code = p.external_reference;
+          if (code && /^[A-Z0-9]{5,10}$/.test(code)) {
+            const matching = await supabaseRequest<Array<{ id: string; total: number }>>(
+              `orders?select=id,total&code=eq.${encodeURIComponent(code)}&limit=1`,
+            );
+            const order = matching[0];
+            if (order && Math.round(Number(order.total) * 100) === Math.round(Number(p.transaction_amount) * 100)) {
+              const statusMap: Record<string, string> = {
+                approved: 'approved',
+                pending: 'pending',
+                in_process: 'pending',
+                rejected: 'rejected',
+                cancelled: 'cancelled',
+                refunded: 'refunded',
+                charged_back: 'refunded',
+              };
+              const paymentStatus = statusMap[p.status];
+              if (paymentStatus) {
+                await supabaseRequest(
+                  `orders?id=eq.${encodeURIComponent(order.id)}`,
+                  {
+                    method: 'PATCH',
+                    headers: { Prefer: 'return=minimal' },
+                    body: JSON.stringify({ payment_status: paymentStatus, mp_payment_id: String(p.id) }),
+                  },
+                );
+              }
+            }
+          }
         }
         return new Response('ok');
       },
