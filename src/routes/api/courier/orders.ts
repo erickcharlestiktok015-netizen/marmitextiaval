@@ -15,9 +15,12 @@ export const Route = createFileRoute('/api/courier/orders')({
         const orders = await supabaseRequest<OrderRow[]>(
           "orders?select=id,code,customer_name,customer_phone,address,order_status,payment_method,payment_status,total,delivery_fee,estimated_delivery_at,courier_status,courier_latitude,courier_longitude,courier_location_updated_at,created_at,confirmation_code&fulfillment=eq.entrega&order=created_at.asc&limit=100",
         );
+        // Mostrar o pedido ao motoboy assim que entrar na operação de entrega,
+        // mas a tela só permite iniciar a saída quando a cozinha marcar pronto_entrega.
+        const visibleStatuses = ['novo', 'confirmado', 'preparando', 'pronto_entrega', 'saiu_entrega'];
         const queue = orders.filter(o =>
-          (o.order_status === 'pronto_entrega' || o.order_status === 'saiu_entrega') &&
-          o.order_status !== 'cancelado' &&
+          visibleStatuses.includes(String(o.order_status)) &&
+          (o.fulfillment === 'entrega') &&
           (o.payment_method !== 'online' || o.payment_status === 'approved')
         );
         const ids = queue.map(o => o.id);
