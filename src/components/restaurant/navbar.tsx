@@ -3,7 +3,7 @@ import { Heart, Menu, Phone, X } from 'lucide-react';
 import { isRestaurantOpen } from '@/lib/restaurant-data';
 import { Button } from '@/components/ui/button';
 
-const links = [['Início', '#inicio'], ['Nossa cozinha', '#horarios'], ['Pratos do dia', '#pratos'], ['Como pedir', '#como-pedir']];
+const links = [['Início', '#inicio'], ['Nossa cozinha', '#horarios'], ['Pratos do dia', '#pratos'], ['Como pedir', '#como-pedir'], ['Meus pedidos', '/acompanhar']];
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
