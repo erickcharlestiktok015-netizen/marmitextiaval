@@ -116,7 +116,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
           <div className="online-payment-options">
             {onlinePaymentOptions.map(option => {
               const Icon = option.icon;
-              return <button type="button" key={option.id} className={`online-payment-option${onlineMethod === option.id ? ' selected' : ''}`} aria-pressed={onlineMethod === option.id} onClick={() => { setOnlineMethod(option.id); setPayment('online'); setPaymentDialog(false); setError(null); }}>
+              return <button type="button" key={option.id} className={`online-payment-option${onlineMethod === option.id ? ' selected' : ''}`} aria-pressed={onlineMethod === option.id} onClick={() => { setOnlineMethod(option.id); setError(null); }}>
                 <span className={`payment-brand payment-brand-${option.id}`} aria-hidden="true">{option.id === 'pix' ? <><Icon size={22} /><b>pix</b></> : option.id === 'credit_card' ? <><Icon size={21} /><b>VISA</b><b>Mastercard</b></> : option.id === 'debit_card' ? <><Icon size={21} /><b>DÉBITO</b></> : <><Icon size={21} /><b>{option.brand}</b></>}</span>
                 <span className="online-payment-copy"><strong>{option.label}</strong><small>{option.hint}</small></span>
                 <span className="payment-radio">{onlineMethod === option.id && <Check size={15} />}</span>
