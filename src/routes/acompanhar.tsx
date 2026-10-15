@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
-import { Bell, Bike, CheckCircle2, Clock3, CookingPot, MapPin, PackageCheck, RefreshCw } from 'lucide-react';
+import { Bell, Bike, CheckCircle2, Clock3, CookingPot, MapPin, MessageCircle, PackageCheck, RefreshCw } from 'lucide-react';
 
 const searchSchema = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/).catch('') });
 type SavedOrder = { code: string; token: string; savedAt: string };
@@ -185,6 +185,7 @@ function TrackingPage() {
           <div className="mt-2 rounded-2xl bg-[#f7f4ed] p-4 sm:p-5"><p className="text-sm font-bold">Itens do pedido</p>{order.items.map((item, i) => <div key={i} className="mt-3 flex items-start justify-between gap-3 border-b border-[#e8e1d4] pb-3 last:border-0 last:pb-0"><span className="text-sm text-[#5f5a50]">{item.meal_name} · {item.size_label}</span><span className="shrink-0 rounded-lg bg-white px-2 py-1 text-sm font-bold">{item.quantity}×</span></div>)}</div>
         </section>
       </>}
+      <a href={`https://api.whatsapp.com/send/?phone=553134454042&text=${encodeURIComponent(order ? `Olá, Tia Val! Estou falando sobre o pedido #${order.code}.` : 'Olá, Tia Val! Preciso de ajuda com meu pedido.')}&type=phone_number&app_absent=0`} target="_blank" rel="noreferrer" className="flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#168344] px-5 py-4 text-center font-bold text-white shadow-lg transition hover:bg-[#116c36]"><MessageCircle size={21}/> Falar com a Tia Val pelo WhatsApp</a>
       <footer className="pb-2 text-center text-xs text-[#777266]">Feito com carinho pela Marmitex da Tia Val · Horários exibidos no fuso de Brasília.</footer>
     </div>
   </main>;
