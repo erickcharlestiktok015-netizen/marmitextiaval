@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { ArrowLeft, Bike, Check, CreditCard, LoaderCircle, QrCode, ReceiptText, Store, Wallet, Landmark } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, Bike, Check, CheckCircle2, Copy, CreditCard, LoaderCircle, QrCode, ReceiptText, Store, Wallet, Landmark } from 'lucide-react';
 import { DeliveryFee, type FeeResult } from '@/components/restaurant/delivery-fee';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { calculateTotals, submitOrder, type Order, type OrderItem, type PaymentMethod, type SubmitResult, type OnlinePaymentMethod } from '@/lib/orders';
+import { calculateTotals, checkOrderPaymentStatus, submitOrder, type Order, type OrderItem, type PaymentMethod, type SubmitResult, type OnlinePaymentMethod } from '@/lib/orders';
 import { contacts, formatPrice } from '@/lib/restaurant-data';
 
 const paymentOptions: { id: PaymentMethod; label: string; hint: string }[] = [
@@ -31,6 +31,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
   const [fee, setFee] = useState<FeeResult | null>(initialFee ?? null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [payment, setPayment] = useState<PaymentMethod>('entrega-pix');
   const [onlineMethod, setOnlineMethod] = useState<OnlinePaymentMethod>('pix');
   const [paymentDialog, setPaymentDialog] = useState(false);
@@ -38,9 +39,27 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<SubmitResult | null>(null);
+  const [pixStatus, setPixStatus] = useState('pending');
+  const [copiedPix, setCopiedPix] = useState(false);
   const totals = calculateTotals(items, fulfillment, fee?.km ?? null);
   const label = when === 'amanha' ? 'reserva' : 'pedido';
   const selectedOnlineMethod = onlinePaymentOptions.find(option => option.id === onlineMethod)!;
+
+  useEffect(() => {
+    if (!result?.pixPayment) return;
+    let active = true;
+    const checkStatus = async () => {
+      try {
+        const payment = await checkOrderPaymentStatus(result.code);
+        if (active) setPixStatus(payment.status);
+      } catch {
+        // A próxima consulta automática tentará novamente; não interrompe o pagamento.
+      }
+    };
+    void checkStatus();
+    const timer = window.setInterval(() => { void checkStatus(); }, 5000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [result?.code, result?.pixPayment?.paymentId]);
 
   const submit = async () => {
     setError(null);
@@ -61,12 +80,13 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
       const res = await submitOrder(order);
       if (res.paymentUrl) { window.location.href = res.paymentUrl; return; }
       setResult(res);
+      if (res.pixPayment) { setPixStatus(res.pixPayment.status); setCopiedPix(false); setPaymentDialog(true); }
     } catch {
       setError(`Não conseguimos enviar sua ${label}. Tente de novo ou ligue ${contacts.phoneLabel}.`);
     } finally { setSending(false); }
   };
 
-  if (result) return <div className="checkout-done" role="status">
+  if (result && !result.pixPayment) return <div className="checkout-done" role="status">
     <span className="checkout-done-icon"><Check /></span>
     <h3>{when === 'amanha' ? 'Reserva feita!' : 'Pedido feito!'}</h3>
     <p>Código <strong>#{result.code}</strong> · Total {formatPrice(totals.total)}</p>
@@ -82,6 +102,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
       <fieldset><legend>Seus dados</legend>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" autoComplete="name" maxLength={80} aria-label="Nome" />
         <input value={phone} onChange={e => setPhone(maskPhone(e.target.value))} placeholder="(31) 99999-9999" inputMode="tel" autoComplete="tel" aria-label="Telefone" />
+        {payment === 'online' && onlineMethod === 'pix' && <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Seu e-mail para o comprovante Pix" autoComplete="email" maxLength={254} aria-label="E-mail para pagamento Pix" required />}
       </fieldset>
 
       <fieldset><legend>Como vai receber?</legend>
@@ -109,10 +130,22 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
 
     <Dialog open={paymentDialog} onOpenChange={setPaymentDialog}>
       <DialogContent className="payment-method-dialog">
-        <div className="detail-content">
+        {result?.pixPayment ? <div className="detail-content pix-payment-content">
+          <p className="meal-tag">PIX · MERCADO PAGO</p>
+          <DialogTitle>{pixStatus === 'approved' ? 'Pix confirmado!' : 'Pague com Pix'}</DialogTitle>
+          <DialogDescription>{pixStatus === 'approved' ? 'Recebemos a confirmação do pagamento.' : `Pedido #${result.code} · Total ${formatPrice(totals.total)}. Escaneie o QR Code ou copie o código abaixo.`}</DialogDescription>
+          {pixStatus === 'approved' ? <div className="pix-approved-message"><CheckCircle2 size={38} /><strong>Pagamento aprovado</strong><span>Seu pedido foi registrado. A cozinha já pode confirmar o recebimento.</span></div> : <>
+            <img className="pix-qr-image" src={`data:image/png;base64,${result.pixPayment.qrCodeBase64}`} alt="QR Code Pix para pagamento do pedido" />
+            <label className="pix-copy-label" htmlFor="pix-copy-code">Pix copia e cola</label>
+            <textarea id="pix-copy-code" className="pix-copy-code" readOnly value={result.pixPayment.qrCode} rows={4} />
+            <Button type="button" variant="outline" onClick={() => { void navigator.clipboard.writeText(result.pixPayment!.qrCode).then(() => setCopiedPix(true)).catch(() => setError('Não foi possível copiar automaticamente. Selecione e copie o código Pix.')); }}>{copiedPix ? <Check size={16} /> : <Copy size={16} />}{copiedPix ? 'Código copiado' : 'Copiar código Pix'}</Button>
+            <p className="pix-waiting-note"><LoaderCircle size={15} className="animate-spin" /> Aguardando confirmação do pagamento…</p>
+          </>}
+          <Button type="button" size="lg" variant={pixStatus === 'approved' ? 'default' : 'outline'} onClick={() => setPaymentDialog(false)}>{pixStatus === 'approved' ? 'Concluir' : 'Fechar e pagar depois'}</Button>
+        </div> : <div className="detail-content">
           <p className="meal-tag">PAGAMENTO SEGURO</p>
           <DialogTitle>Como você quer pagar?</DialogTitle>
-          <DialogDescription>Escolha uma forma. Você continuará para o ambiente seguro do Mercado Pago.</DialogDescription>
+          <DialogDescription>Escolha uma forma de pagamento. Para Pix, o QR Code será exibido aqui no site.</DialogDescription>
           <div className="online-payment-options">
             {onlinePaymentOptions.map(option => {
               const Icon = option.icon;
@@ -125,7 +158,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
           </div>
           <p className="payment-method-note"><Landmark size={14} /> A disponibilidade depende da conta e do método habilitado pelo Mercado Pago.</p>
           <Button type="button" size="lg" onClick={() => { setPayment('online'); setPaymentDialog(false); }}>Continuar com {selectedOnlineMethod.label}</Button>
-        </div>
+        </div>}
       </DialogContent>
     </Dialog>
   </>;
