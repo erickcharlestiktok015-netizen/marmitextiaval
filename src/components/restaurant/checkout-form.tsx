@@ -51,7 +51,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
     const order: Order = {
       when, items, totals, payment, fulfillment,
       onlineMethod: payment === 'online' ? onlineMethod : undefined,
-      customer: { name: name.trim(), phone },
+      customer: { name: name.trim(), phone: phone.replace(/\\D/g, '') },
       address: fulfillment === 'entrega' && fee ? { cep: fee.cep, street: fee.rua, number: fee.numero, complement: fee.complemento, bairro: fee.bairro } : undefined,
       distanceKm: fulfillment === 'entrega' ? fee?.km ?? null : null,
       changeFor: payment === 'entrega-dinheiro' && changeFor ? Number(changeFor.replace(',', '.')) || null : null,
