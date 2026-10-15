@@ -65,12 +65,13 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
     setError(null);
     if (name.trim().length < 2) return setError('Coloque seu nome.');
     if (phone.replace(/\D/g, '').length < 10) return setError('Coloque um telefone com DDD.');
+    if (payment === 'online' && onlineMethod === 'pix' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Informe um e-mail válido para gerar o Pix.');
     if (fulfillment === 'entrega' && !fee) return setError('Coloque seu endereço e clique em Calcular entrega.');
     if (payment === 'online' && !onlineMethod) return setError('Escolha uma forma de pagamento online.');
     const order: Order = {
       when, items, totals, payment, fulfillment,
       onlineMethod: payment === 'online' ? onlineMethod : undefined,
-      customer: { name: name.trim(), phone: phone.replace(/\D/g, '') },
+      customer: { name: name.trim(), phone: phone.replace(/\D/g, ''), email: payment === 'online' && onlineMethod === 'pix' ? email.trim() : undefined },
       address: fulfillment === 'entrega' && fee ? { cep: fee.cep, street: fee.rua, number: fee.numero, complement: fee.complemento, bairro: fee.bairro } : undefined,
       distanceKm: fulfillment === 'entrega' ? fee?.km ?? null : null,
       changeFor: payment === 'entrega-dinheiro' && changeFor ? Number(changeFor.replace(',', '.')) || null : null,
@@ -102,6 +103,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
       <fieldset><legend>Seus dados</legend>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" autoComplete="name" maxLength={80} aria-label="Nome" />
         <input value={phone} onChange={e => setPhone(maskPhone(e.target.value))} placeholder="(31) 99999-9999" inputMode="tel" autoComplete="tel" aria-label="Telefone" />
+        {payment === 'online' && onlineMethod === 'pix' && <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Seu e-mail para o pagamento Pix" autoComplete="email" maxLength={254} aria-label="E-mail para pagamento Pix" required />}
         {payment === 'online' && onlineMethod === 'pix' && <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Seu e-mail para o comprovante Pix" autoComplete="email" maxLength={254} aria-label="E-mail para pagamento Pix" required />}
       </fieldset>
 
@@ -125,7 +127,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
         <div className="cart-final"><dt>Total</dt><dd>{formatPrice(totals.total)}</dd></div>
       </dl>
       {error && <p className="delivery-error" role="alert">{error}</p>}
-      <Button type="submit" size="lg" disabled={sending}>{sending && <LoaderCircle className="animate-spin" />} {payment === 'online' ? `Pagar com ${selectedOnlineMethod.label}` : when === 'amanha' ? 'Confirmar reserva' : 'Confirmar pedido'} · {formatPrice(totals.total)}</Button>
+      <Button type="submit" size="lg" disabled={sending || Boolean(result)}>{sending && <LoaderCircle className="animate-spin" />} {payment === 'online' ? `Pagar com ${selectedOnlineMethod.label}` : when === 'amanha' ? 'Confirmar reserva' : 'Confirmar pedido'} · {formatPrice(totals.total)}</Button>
     </form>
 
     <Dialog open={paymentDialog} onOpenChange={setPaymentDialog}>
