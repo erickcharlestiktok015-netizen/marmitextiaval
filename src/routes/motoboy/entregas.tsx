@@ -67,6 +67,7 @@ function CourierDeliveries() {
   const ordered = useMemo(() => {
     const active = orders.filter(o => o.order_status === 'saiu_entrega');
     const ready = orders.filter(o => o.order_status === 'pronto_entrega');
+    const waiting = orders.filter(o => ['novo', 'confirmado', 'preparando'].includes(o.order_status)).sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     const nearestSequence = (input: Delivery[], origin: Geo | null) => {
       const remaining = [...input];
       const result: Delivery[] = [];
@@ -93,7 +94,7 @@ function CourierDeliveries() {
     };
     const activeOrdered = nearestSequence(active, location);
     const lastActive = activeOrdered.length ? coords(activeOrdered[activeOrdered.length - 1].address) : location;
-    return [...activeOrdered, ...nearestSequence(ready, lastActive)];
+    return [...activeOrdered, ...nearestSequence(ready, lastActive), ...waiting];
   }, [orders, location]);
 
   const estimatedRouteKm = useMemo(() => {
@@ -189,12 +190,12 @@ function CourierDeliveries() {
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">{error}</div>}
       {ordered.length === 0 && <section className="rounded-2xl border border-[#e5dfd2] bg-white p-8 text-center"><PackageCheck className="mx-auto text-[#9a742a]" size={34}/><h2 className="mt-3 text-lg font-bold">Nenhuma entrega liberada</h2><p className="mt-1 text-sm text-[#777266]">Quando a cozinha marcar um pedido como pronto para entrega, ele aparecerá aqui.</p></section>}
       {ordered.map((order, index) => <article key={order.id} className="space-y-4 rounded-2xl border border-[#e5dfd2] bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[#9a742a]">{order.order_status === 'saiu_entrega' ? 'Em rota' : `Pronto para retirar · parada ${index+1}`}</p><h2 className="mt-1 text-xl font-bold">Pedido #{order.code}</h2><p className="mt-1 text-sm text-[#777266]">{order.customer_name}</p></div><span className="rounded-full bg-[#f8f1df] px-3 py-1 text-xs font-bold">Chegada: {etaText(order.estimated_delivery_at)}</span></div>
+        <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[#9a742a]">{order.order_status === 'saiu_entrega' ? 'Em rota' : order.order_status === 'pronto_entrega' ? `Pronto para sair · parada ${index+1}` : order.order_status === 'preparando' ? 'Em preparação na cozinha' : order.order_status === 'confirmado' ? 'Pedido confirmado · aguardando cozinha' : 'Pedido novo · aguardando confirmação'}</p><h2 className="mt-1 text-xl font-bold">Pedido #{order.code}</h2><p className="mt-1 text-sm text-[#777266]">{order.customer_name}</p></div><span className="rounded-full bg-[#f8f1df] px-3 py-1 text-xs font-bold">Chegada: {etaText(order.estimated_delivery_at)}</span></div>
         <div className="rounded-xl bg-[#f7f4ed] p-3"><p className="flex gap-2 text-sm font-semibold"><MapPin size={17} className="shrink-0"/>{addressText(order.address)}</p>{coords(order.address) && <p className="mt-1 text-xs text-[#777266]">Distância aproximada: {location ? distance(location, coords(order.address)!).toFixed(1)+' km em linha reta' : 'ative o GPS para calcular proximidade'}</p>}<div className="mt-3 flex flex-wrap gap-2"><button onClick={()=>waze(order)} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#25251f] px-3 text-sm font-semibold text-white"><Navigation size={16}/> Abrir no Waze</button>{order.customer_phone && <a href={`tel:${order.customer_phone.replace(/[^+\d]/g,'')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold"><Phone size={16}/> Ligar cliente</a>}</div></div>
         <div><p className="text-sm font-semibold">Itens</p>{order.items.map((item,i)=><p key={i} className="mt-1 text-sm text-[#5f5a50]">{item.quantity}× {item.meal_name} · {item.size_label}{item.notes ? ` — ${item.notes}` : ''}</p>)}</div>
         {order.courier_status === 'cheguei' ? <div className="space-y-3 rounded-xl border border-[#e9c878] bg-[#fff9e8] p-4"><p className="font-semibold">Você marcou que chegou. Peça o código de 6 dígitos ao cliente.</p><input inputMode="numeric" maxLength={6} value={confirmation[order.id] || ''} onChange={e=>setConfirmation(v=>({...v,[order.id]:e.target.value.replace(/\D/g,'').slice(0,6)}))} placeholder="000000" className="min-h-12 w-full rounded-lg border bg-white px-4 text-center text-2xl tracking-[.3em]"/><button disabled={busy===order.id || (confirmation[order.id]||'').length!==6} onClick={()=>void action(order,'delivered')} className="min-h-11 w-full rounded-lg bg-[#25251f] px-4 font-semibold text-white disabled:opacity-50"><CheckCircle2 className="mr-2 inline" size={18}/> Confirmar entrega</button></div>
         : order.order_status === 'saiu_entrega' ? <button disabled={busy===order.id} onClick={()=>void action(order,'arrived')} className="min-h-12 w-full rounded-xl bg-[#e9c878] px-4 font-bold text-[#25251f] disabled:opacity-50"><MapPin className="mr-2 inline" size={18}/> Cheguei ao endereço</button>
-        : <button disabled={busy===order.id} onClick={()=>void action(order,'start')} className="min-h-12 w-full rounded-xl bg-[#25251f] px-4 font-bold text-white disabled:opacity-50"><Bike className="mr-2 inline" size={18}/> Iniciar entrega e compartilhar GPS</button>}
+        : order.order_status === 'pronto_entrega' ? <button disabled={busy===order.id} onClick={()=>void action(order,'start')} className="min-h-12 w-full rounded-xl bg-[#25251f] px-4 font-bold text-white disabled:opacity-50"><Bike className="mr-2 inline" size={18}/> Iniciar entrega e compartilhar GPS</button> : <p className="rounded-xl bg-[#f7f4ed] p-3 text-center text-sm font-semibold text-[#777266]">Aguardando liberação da cozinha. O botão de saída aparece quando o pedido estiver pronto.</p>}
       </article>)}
       <p className="flex items-center justify-center gap-2 py-3 text-center text-xs text-[#777266]"><Clock3 size={14}/> Por segurança, confirme a entrega somente após receber o código do cliente.</p>
     </div>
