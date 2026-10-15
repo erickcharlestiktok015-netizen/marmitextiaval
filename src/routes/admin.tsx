@@ -223,7 +223,22 @@ function AdminPage() {
     }
   };
 
-  const toLocalDateTime = (value?: string | null) => {
+  // Wrapper div for the entire admin panel content
+const adminPanel = () => (
+  <div className="min-h-screen bg-[linear-gradient(to_bottom,_#0f172a,_#1e293b)] text-white flex items-center justify-center p-4">
+    <div className="w-full max-w-md space-y-6">
+      {/* Rest of the content follows */}
+      {filter === "pagamentos-pendentes" ? "Nenhum pagamento pendente" : "Nenhum pedido por aqui"}
+      <p className="text-[#94a3b8] text-sm">
+        {filter === "pagamentos-pendentes" 
+          ? "Pedidos online só são liberados para a cozinha após a confirmação do Mercado Pago."
+          : "Quando houver pedidos liberados, eles aparecerão nesta tela."}
+      </p>
+    </div>
+  </div>
+);
+
+const toLocalDateTime = (value?: string | null) => {
     if (!value) return '';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
@@ -653,11 +668,10 @@ function AdminPage() {
           </div>
         )}
 
-        {/* Footer Info */}
+{/* Footer Info */}
         <p className="mt-8 text-center text-[#64748b] text-xs">
           <Clock3 className="h-4 w-4 mr-1" /> Atualização automática a cada 15 segundos <CheckCircle2 className="h-4 w-4 ml-1" />
         </p>
       </main>
-    </>
-  );
+   );
 }
