@@ -533,3 +533,44 @@ textarea {
   }
 }
 
+
+
+/* Proteção global contra arrasto lateral e layout escapando da viewport */
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+#root, #app, .restaurant-page {
+  min-width: 0;
+  max-width: 100%;
+}
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+img, video, canvas, iframe, svg {
+  max-width: 100%;
+}
+button, input, select, textarea {
+  font: inherit;
+}
+@media (max-width: 700px) {
+  html, body {
+    overscroll-behavior-x: none;
+  }
+  .restaurant-page,
+  main,
+  header,
+  footer,
+  section {
+    max-width: 100%;
+  }
+}
