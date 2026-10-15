@@ -45,10 +45,14 @@ function CourierDeliveries() {
 
   const load = useCallback(async () => {
     try {
-      const response = await fetch('/api/courier/orders', { cache: 'no-store' });
-      const data = await response.json() as { orders?: Delivery[]; error?: string };
-      if (response.status === 401) { window.location.href = '/motoboy'; return; }
-      if (!response.ok) throw new Error(data.error || 'Falha ao carregar entregas.');
+      const response = await fetch('/api/courier/orders?diagnostic=' + Date.now(), { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      const data = await response.json().catch(() => ({})) as { orders?: Delivery[]; error?: string };
+      if (response.status === 401) {
+        setOrders([]);
+        setError('A sessão do motoboy não foi reconhecida pelo servidor (HTTP 401). A página não vai mais redirecionar silenciosamente. Volte ao login, entre novamente e, se continuar, use o botão de diagnóstico na tela de login.');
+        return;
+      }
+      if (!response.ok) throw new Error((data.error || 'Falha ao carregar entregas.') + ' (HTTP ' + response.status + ')');
       setOrders(data.orders || []); setUpdated(new Date().toLocaleTimeString('pt-BR')); setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao consultar entregas.'); }
   }, []);
