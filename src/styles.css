@@ -267,7 +267,7 @@
 .checkout { display:grid; gap:18px; margin-top:18px; }
 .checkout fieldset { border:0; padding:0; margin:0; display:grid; gap:10px; }
 .checkout legend { display:flex; align-items:center; gap:6px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-foreground); margin-bottom:10px; }
-.checkout input { height:44px; border:1px solid var(--border); border-radius:6px; background:var(--background); color:var(--foreground); padding:0 12px; font:inherit; font-size:14px; width:100%; }
+.checkout input { height:48px; min-width:0; border:1px solid var(--border); border-radius:8px; background:var(--background); color:var(--foreground); padding:0 12px; font:inherit; font-size:16px; width:100%; }
 .checkout input:focus-visible { outline:2px solid var(--primary); outline-offset:1px; }
 .checkout .delivery-fee { margin:0; padding:16px; background:var(--background); border-color:var(--border); }
 .checkout .delivery-form input { border-color:var(--border); }
@@ -358,4 +358,26 @@
   .contact-dock { left:auto; right:14px; bottom:18px; display:flex; flex-direction:column; gap:10px; padding:0; background:transparent; border:0; backdrop-filter:none; }
   .contact-dock .contact-dock__icon { width:50px; height:50px; min-height:50px; padding:0; }
   .contact-dock .contact-dock__icon svg { width:25px; height:25px; }
+}
+
+
+/* Checkout mobile: modal contido na viewport, rolável e sem zoom automático ao focar campos */
+.checkout-dialog { width:min(680px, calc(100vw - 24px)); max-width:none; max-height:calc(100dvh - 24px); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; padding:0; }
+.checkout-dialog > .detail-content { min-width:0; padding:clamp(16px, 3.5vw, 26px); }
+.checkout-dialog .checkout { min-width:0; overflow-wrap:anywhere; }
+.checkout-dialog .checkout button, .checkout-dialog .checkout input, .checkout-dialog .checkout textarea { max-width:100%; }
+@media (max-width:700px) {
+  .checkout-dialog { position:fixed; top:max(10px, env(safe-area-inset-top)); bottom:max(10px, env(safe-area-inset-bottom)); left:50%; width:calc(100vw - 20px); max-height:none; height:auto; transform:translateX(-50%); margin:0; border-radius:16px; }
+  .checkout-dialog > .detail-content { padding:18px 14px max(18px, env(safe-area-inset-bottom)); }
+  .checkout-dialog [data-slot="dialog-title"] { font-size:clamp(22px, 6vw, 28px); line-height:1.2; }
+  .checkout-dialog .checkout { gap:16px; }
+  .checkout-dialog .checkout input { font-size:16px; min-height:48px; }
+  .checkout-dialog .checkout .delivery-fee { padding:12px; }
+  .checkout-dialog .checkout .delivery-address { grid-template-columns:minmax(0,1fr) 88px; }
+  .checkout-dialog .checkout .checkout-choice, .checkout-dialog .checkout .checkout-pay { grid-template-columns:minmax(0,1fr); }
+  .checkout-dialog .checkout .checkout-pay button { min-height:54px; }
+}
+@media (max-width:380px) {
+  .checkout-dialog { width:calc(100vw - 12px); top:max(6px, env(safe-area-inset-top)); bottom:max(6px, env(safe-area-inset-bottom)); }
+  .checkout-dialog > .detail-content { padding:16px 12px max(16px, env(safe-area-inset-bottom)); }
 }
