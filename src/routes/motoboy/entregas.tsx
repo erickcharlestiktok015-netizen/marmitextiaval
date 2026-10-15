@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Bike, CheckCircle2, Clock3, LogOut, MapPin, Navigation, PackageCheck, Phone, MessageCircle, RefreshCw, Route as RouteIcon, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
+import { Bike, CheckCircle2, Clock3, LogOut, MapPin, Navigation, PackageCheck, Phone, MessageCircle, RefreshCw, Route as RouteIcon, Wifi, WifiOff, Sun, Moon, AlertTriangle } from 'lucide-react';
 
 type Delivery = {
   id: string; code: string; customer_name: string; customer_phone: string; address: unknown;
@@ -60,8 +60,8 @@ function CourierDeliveries() {
       const response = await fetch('/api/courier/orders', { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' } });
       const data = await response.json().catch(() => ({})) as { orders?: Delivery[]; dailyEarnings?: number; error?: string };
       if (response.status === 401) {
-        setOrders([]);
-        setError('A sessão do motoboy não foi reconhecida pelo servidor (HTTP 401). A página não vai mais redirecionar silenciosamente. Volte ao login, entre novamente e, se continuar, use o botão de diagnóstico na tela de login.');
+        // Auto-redirect para login se sessão expirar
+        window.location.assign('/motoboy');
         return;
       }
       if (!response.ok) throw new Error((data.error || 'Falha ao carregar entregas.') + ' (HTTP ' + response.status + ')');
@@ -412,7 +412,7 @@ function CourierDeliveries() {
           </div>
           <div className="rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-400/10 to-[#101722] p-4"><div className="flex items-center justify-between gap-2 text-emerald-200"><span className="text-sm font-bold">Ganhos de hoje</span><span className="text-xs">Taxas de entrega</span></div><p className="mt-3 text-3xl font-black text-white">{currency(dailyEarnings)}</p><p className="mt-1 text-xs leading-5 text-slate-400">Soma das taxas das entregas concluídas hoje. O pagamento do motoboy continua sendo feito pela sua mãe.</p></div>
           <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><div className="flex items-center gap-2 text-slate-300"><Clock3 size={18} className="text-red-400"/><span className="font-bold">Expediente</span></div><p className="mt-2 text-2xl font-black">11h–14h</p><p className="mt-1 text-sm capitalize text-slate-500">{todayLabel}</p></div>
-          <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><p className="font-bold">GPS e navegação</p><p className="mt-2 text-sm leading-6 text-slate-400">{geoMessage}</p><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={getLocation} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-bold hover:bg-white/10"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-3 text-sm font-bold text-white hover:bg-red-400"><RouteIcon size={16}/> Iniciar rota</button><button onClick={() => void load()} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-semibold text-slate-300 hover:bg-white/5"><RefreshCw size={15}/> Atualizar pedidos</button></div><p className="mt-3 text-xs text-slate-500">{routeCalculation} {updated && `· Atualizado às ${updated}`}</p></div>
+          <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><p className="font-bold text-slate-200 mb-3">Segmentar entregas por KM (mais perto primeiro)</p><p className="mt-1 text-sm text-slate-400 mb-3">{geoMessage}</p><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={getLocation} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-bold hover:bg-white/10"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-3 text-sm font-bold text-white hover:bg-red-400 shadow-lg shadow-red-950/40"><RouteIcon size={16}/> Ajustar Ordem</button><button onClick={() => void load()} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-semibold text-slate-300 hover:bg-white/5"><RefreshCw size={15}/> Atualizar pedidos</button></div><p className="mt-3 text-xs text-slate-500">{routeCalculation} {updated && `· Atualizado às ${updated}`}</p></div>
         </div>
 
         <div className="min-w-0 space-y-4">
