@@ -56,7 +56,7 @@ function CourierDeliveries() {
       setOrders(data.orders || []); setUpdated(new Date().toLocaleTimeString('pt-BR')); setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao consultar entregas.'); }
   }, []);
-  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 15000); return () => window.clearInterval(timer); }, [load]);
+  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 5000); return () => window.clearInterval(timer); }, [load]);
 
   const readyCount = orders.filter(o => o.order_status === 'pronto_entrega').length;
   const activeCount = orders.filter(o => o.order_status === 'saiu_entrega').length;
@@ -163,8 +163,8 @@ function CourierDeliveries() {
       <header className="rounded-2xl bg-[#25251f] p-5 text-[#fffaf0] sm:p-7">
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10 text-[#e9c878]"><Bike size={26}/></div><div><p className="text-xs uppercase tracking-[.18em] text-[#e9c878]">Marmitex da Tia Val</p><h1 className="text-2xl font-bold">Minhas entregas</h1></div></div><button onClick={logout} aria-label="Sair" className="rounded-lg p-2 hover:bg-white/10"><LogOut size={20}/></button></div>
         <p className="mt-3 text-sm text-[#e0d9c9]">Pedidos liberados pela cozinha. A lista atualiza automaticamente.</p>
-        <div className="mt-4 flex flex-wrap gap-2"><button onClick={getLocation} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e9c878] px-3 text-sm font-bold text-[#25251f]"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RouteIcon size={16}/> Calcular rota e abrir Waze</button><button onClick={()=>void load()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RefreshCw size={16}/> Atualizar</button></div>
-        <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {location && ordered.length > 0 && `Estimativa da sequência: ${estimatedRouteKm.toFixed(1)} km em linha reta; distância real depende das ruas e do trânsito.`} {updated && `Atualizado às ${updated}.`}</p>
+        <div className="mt-4 flex flex-wrap gap-2"><button onClick={getLocation} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e9c878] px-3 text-sm font-bold text-[#25251f]"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RouteIcon size={16}/> Iniciar/continuar rota</button><button onClick={()=>void load()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RefreshCw size={16}/> Atualizar</button></div>
+        <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {location && ordered.length > 0 && `Estimativa da sequência: ${estimatedRouteKm.toFixed(1)} km em linha reta; distância real depende das ruas e do trânsito.`} {routeMode && 'Modo de rota ativo: conclua a parada atual e abra a próxima sugerida.'} {updated && `Atualizado às ${updated}.`}</p>
       </header>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-[#e5dfd2] bg-white p-4 shadow-sm sm:p-5">
@@ -184,8 +184,8 @@ function CourierDeliveries() {
         </div>
       </section>
       <section className="flex flex-col gap-3 rounded-2xl border border-[#e5dfd2] bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <div><h2 className="text-lg font-bold">Painel de hoje</h2><p className="mt-1 text-sm text-[#777266]">Sua operação em um só lugar. Os pedidos são atualizados automaticamente.</p></div>
-        <div className="flex items-center gap-2 rounded-xl bg-[#f7f4ed] px-3 py-2 text-sm"><span className="h-2 w-2 rounded-full bg-[#2e8b57]"></span><span>Atualização automática a cada 15 s</span></div>
+        <div><h2 className="text-lg font-bold">Painel de hoje</h2><p className="mt-1 text-sm text-[#777266]">Sua operação em um só lugar. A fila atualiza a cada 5 segundos. Entregas em andamento ficam separadas das próximas.</p></div>
+        <div className="flex items-center gap-2 rounded-xl bg-[#f7f4ed] px-3 py-2 text-sm"><span className="h-2 w-2 rounded-full bg-[#2e8b57]"></span><span>Atualização automática a cada 5 s</span></div>
       </section>
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">{error}</div>}
       {ordered.length === 0 && <section className="rounded-2xl border border-[#e5dfd2] bg-white p-8 text-center"><PackageCheck className="mx-auto text-[#9a742a]" size={34}/><h2 className="mt-3 text-lg font-bold">Nenhum pedido de entrega encontrado</h2><p className="mt-1 text-sm text-[#777266]">Os pedidos de entrega aparecerão aqui assim que forem registrados. A saída só será liberada quando a cozinha marcar como pronto.</p></section>}
