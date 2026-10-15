@@ -37,6 +37,10 @@ function env(name: string) {
 }
 
 export function siteUrl() {
+  // Em Preview, use a URL do próprio deployment para que retorno e webhook usem o ambiente de teste.
+  if (process.env['VERCEL_ENV'] === 'preview' && process.env['VERCEL_URL']) {
+    return `https://${process.env['VERCEL_URL']}`;
+  }
   return (process.env['SITE_URL'] || (process.env['VERCEL_URL'] ? `https://${process.env['VERCEL_URL']}` : '')).replace(/\/$/, '') || env('SITE_URL');
 }
 
