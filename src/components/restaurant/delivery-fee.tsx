@@ -13,21 +13,15 @@ const maskCep = (value: string) => {
 };
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const toRad = (value: number) => (value * Math.PI) / 180;
-  const a = Math.sin(toRad(lat2 - lat1) / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(toRad(lng2 - lng1) / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 async function distanceKm(lat: number, lng: number) {
-  try {
-    const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${restaurantLocation.lng},${restaurantLocation.lat};${lng},${lat}?overview=false`);
-    const data = await response.json();
-    const meters = data?.routes?.[0]?.distance;
-    if (typeof meters === 'number' && meters > 0) return meters / 1000;
-  } catch {
-    // cai no cálculo em linha reta abaixo
+  const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${restaurantLocation.lng},${restaurantLocation.lat};${lng},${lat}?overview=false`);
+  if (!response.ok) throw new Error('Falha ao consultar a rota do motoboy.');
+  const data = await response.json();
+  const meters = data?.routes?.[0]?.distance;
+  if (data?.code !== 'Ok' || typeof meters !== 'number' || !Number.isFinite(meters) || meters <= 0) {
+    throw new Error('Não foi possível encontrar uma rota de entrega para esse endereço.');
   }
-  return haversineKm(restaurantLocation.lat, restaurantLocation.lng, lat, lng) * 1.35;
+  return meters / 1000;
 }
 
 type CepInfo = { rua: string; bairro: string; cidade: string; uf: string };
@@ -58,8 +52,12 @@ export function DeliveryFee({ onResult, compact }: { onResult?: (result: FeeResu
 
   const geocode = async (q: string) => {
     const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error('Falha ao localizar o endereço.');
     const geo = await r.json();
-    return Array.isArray(geo) && geo.length ? { lat: Number(geo[0].lat), lng: Number(geo[0].lon) } : null;
+    if (!Array.isArray(geo) || !geo.length) return null;
+    const lat = Number(geo[0].lat);
+    const lng = Number(geo[0].lon);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
   };
 
   const calculate = async () => {
@@ -69,17 +67,17 @@ export function DeliveryFee({ onResult, compact }: { onResult?: (result: FeeResu
     if (!rua.trim() || !numero.trim()) return setError('Coloque a rua e o número pra calcular os km certinhos.');
     setLoading(true);
     try {
-      const base = [info.bairro, info.cidade, info.uf, 'Brasil'];
+      const base = [info.bairro, info.cidade, info.uf, onlyDigits(cep), 'Brasil'].filter(Boolean);
+      // Never fall back to city center: that can charge a completely wrong distance.
       const point = await geocode([`${rua.trim()}, ${numero.trim()}`, ...base].join(', '))
-        ?? await geocode([rua.trim(), ...base].join(', '))
-        ?? await geocode(base.join(', '));
-      if (!point) throw new Error('sem-coordenadas');
+        ?? await geocode([`${rua.trim()}`, ...base].join(', '));
+      if (!point) throw new Error('endereco-nao-localizado');
       const km = await distanceKm(point.lat, point.lng);
       const next: FeeResult = { cep: onlyDigits(cep), rua: rua.trim(), numero: numero.trim(), complemento: complemento.trim(), bairro: info.bairro, cidade: info.cidade, km, taxa: deliveryFeeForKm(km) };
       setResult(next);
       onResult?.(next);
     } catch {
-      setError('Não conseguimos calcular esse endereço agora. Confere os dados, ou consulta a taxa com a Tia Val.');
+      setError('Não conseguimos localizar o endereço e traçar a rota do motoboy com segurança. Confira rua, número e CEP e tente novamente.');
     } finally {
       setLoading(false);
     }
