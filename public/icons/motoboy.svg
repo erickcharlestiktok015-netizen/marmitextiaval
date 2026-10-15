@@ -1,23 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#25251f"/>
-      <stop offset="1" stop-color="#111510"/>
-    </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffe3a0"/>
-      <stop offset="1" stop-color="#c9943d"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="204" fill="none" stroke="#c9943d" stroke-opacity=".32" stroke-width="4"/>
-  <circle cx="256" cy="256" r="184" fill="#1d241b" stroke="url(#gold)" stroke-width="8"/>
-  <path d="M151 320h210" stroke="#f9f3e5" stroke-width="13" stroke-linecap="round" opacity=".92"/>
-  <circle cx="178" cy="340" r="35" fill="#171b15" stroke="url(#gold)" stroke-width="13"/>
-  <circle cx="337" cy="340" r="35" fill="#171b15" stroke="url(#gold)" stroke-width="13"/>
-  <path d="M178 340l48-80h71l40 80M225 260l-22-39h-30M262 260l-13 43h-46" fill="none" stroke="#fff8e9" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M260 172h74a13 13 0 0 1 13 13v56h-87z" fill="url(#gold)"/>
-  <path d="M272 190h48M272 207h48M272 224h31" stroke="#25251f" stroke-width="8" stroke-linecap="round"/>
-  <path d="M213 145c14-19 34-29 57-29 22 0 43 10 57 29" fill="none" stroke="#fff8e9" stroke-width="10" stroke-linecap="round" opacity=".9"/>
-  <circle cx="256" cy="116" r="7" fill="#e9c878"/>
+  <rect width="512" height="512" rx="112" fill="#e3182d"/>
+  <circle cx="256" cy="226" r="153" fill="#c81025" opacity=".55"/>
+  <g fill="none" stroke="#fff" stroke-width="17" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="156" cy="260" r="49"/>
+    <circle cx="354" cy="260" r="49"/>
+    <path d="M156 260l66-100h72l60 100H243l-43-67M222 160l-30-35h-42"/>
+    <path d="M279 160l-18 62h-43"/>
+    <path d="M290 105h55a14 14 0 0 1 14 14v39h-69z"/>
+  </g>
+  <circle cx="278" cy="81" r="23" fill="#fff"/>
+  <path d="M270 100l-31 29 30 30 29-25" fill="none" stroke="#fff" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="256" y="365" text-anchor="middle" font-family="Arial,sans-serif" font-size="54" font-weight="700" fill="#fff">Tia Val</text>
+  <text x="256" y="408" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="700" letter-spacing="7" fill="#fff">MOTOBOY</text>
 </svg>
