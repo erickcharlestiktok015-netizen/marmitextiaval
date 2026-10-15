@@ -48,25 +48,28 @@ function AdminPage() {
 
   // Initialize audio and notification permission
   useEffect(() => {
-    // Create audio context for the alert sound
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66VVxa3rxyd3T3QDgcCA4=');
-    audioRef.current.volume = 0.8;
+    // Check if we're in browser environment
+    if (typeof window !== 'undefined') {
+      // Create audio context for the alert sound
+      audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66VVxa3rxyd3T3QDgcCA4=');
+      audioRef.current.volume = 0.8;
 
-    // Check notification permission
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    }
-
-    // Resume audio context on first user interaction
-    const resumeAudio = () => {
-      if (audioRef.current) {
-        audioRef.current.play().catch(() => {}).then(() => audioRef.current!.pause());
+      // Check notification permission
+      if ('Notification' in window) {
+        setNotificationPermission(Notification.permission);
       }
-      document.removeEventListener('click', resumeAudio);
-      document.removeEventListener('keydown', resumeAudio);
-    };
-    document.addEventListener('click', resumeAudio);
-    document.addEventListener('keydown', resumeAudio);
+
+      // Resume audio context on first user interaction
+      const resumeAudio = () => {
+        if (audioRef.current) {
+          audioRef.current.play().catch(() => {}).then(() => audioRef.current!.pause());
+        }
+        document.removeEventListener('click', resumeAudio);
+        document.removeEventListener('keydown', resumeAudio);
+      };
+      document.addEventListener('click', resumeAudio);
+      document.addEventListener('keydown', resumeAudio);
+    }
   }, []);
 
   // Session check on mount
@@ -544,7 +547,7 @@ function AdminPage() {
                     
                     <div className="flex items-start gap-3 text-sm text-[#94a3b8]">
                       <span className="font-medium">Pagamento:</span> <span>{order.payment_method === 'online' ? 'Online' : order.payment_method === 'entrega-pix' ? 'Pix na entrega' : order.payment_method === 'entrega-cartao' ? 'Cartão na entrega' : order.payment_method === 'entrega-dinheiro' ? 'Dinheiro na entrega' : order.payment_method}</span>
-                      <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium {order.payment_method === 'online' ? (order.payment_status === 'approved' ? 'bg-[rgba(16,185,129,0.2)] text-[#10b981]' : 'bg-[rgba(250,204,21,0.2)] text-[#f59e0b]') : 'bg-[rgba(107,114,128,0.2)] text-[#6b7280]' }">
+                      <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${order.payment_method === 'online' ? (order.payment_status === 'approved' ? 'bg-[rgba(16,185,129,0.2)] text-[#10b981]' : 'bg-[rgba(250,204,21,0.2)] text-[#f59e0b]') : 'bg-[rgba(107,114,128,0.2)] text-[#6b7280] '}`}>
                         {order.payment_method === 'online' ? (order.payment_status === 'approved' ? 'Pagamento aprovado' : 'Aguardando confirmação') : 'Pagamento na entrega'}
                       </span>
                     </div>
@@ -620,7 +623,7 @@ function AdminPage() {
                         <select
                           value={order.order_status}
                           onChange={(e) => void updateStatus(order, e.target.value)}
-                          className="ml-2 min-w-[120px] px-2 py-1 rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)] text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#e11d48]/50 disabled:{busyUpdate === order.id ? 'opacity-50 cursor-not-allowed' : ''}"
+                          className={`ml-2 min-w-[120px] px-2 py-1 rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)] text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#e11d48]/50 ${busyUpdate === order.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           <option value="" disabled>Escolha o status</option>
                           {statuses.map((s) => (
