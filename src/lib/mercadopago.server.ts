@@ -68,7 +68,9 @@ export async function createPreference(args: {
     payer: { name: args.payer.name, phone: { area_code: args.payer.phone.slice(0, 2), number: args.payer.phone.slice(2) } },
     payment_methods: {
       installments: args.onlineMethod === 'credit_card' ? 12 : 1,
-      excluded_payment_types: allPaymentTypes.filter(type => type !== chosenType).map(id => ({ id })),
+      // O Mercado Pago não permite excluir account_money; mantenha-o fora da lista de exclusões.
+      // Isso evita HTTP 400, embora o Checkout Pro possa continuar oferecendo saldo em conta.
+      excluded_payment_types: allPaymentTypes.filter(type => type !== chosenType && type !== 'account_money').map(id => ({ id })),
       excluded_payment_methods: [],
     },
     back_urls: {
