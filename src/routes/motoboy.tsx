@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { Outlet, useRouterState, createFileRoute } from '@tanstack/react-router';
 import { Bike, LockKeyhole, Smartphone, Stethoscope } from 'lucide-react';
 
 export const Route = createFileRoute('/motoboy')({
@@ -10,6 +10,7 @@ export const Route = createFileRoute('/motoboy')({
 type Diagnostic = { title: string; detail: string; status?: number; ok: boolean };
 
 function CourierLogin() {
+  const pathname = useRouterState({ select: state => state.location.pathname });
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -83,9 +84,6 @@ function CourierLogin() {
       if (!response.ok) {
         throw new Error((data.error || 'Não foi possível entrar.') + ' (HTTP ' + response.status + ')');
       }
-
-      // A senha foi validada pelo servidor: abra o painel mesmo se a API de pedidos
-      // estiver com sessão/cookie inconsistente. O painel mostra o erro sem prender o usuário no login.
       window.location.assign('/motoboy/entregas');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao entrar.');
@@ -93,6 +91,10 @@ function CourierLogin() {
       setBusy(false);
     }
   }
+
+  // A rota de entregas pode ser gerada como filha de /motoboy pelo roteador.
+  // Nesse caso, o componente pai precisa renderizar o Outlet em vez do formulário.
+  if (pathname === '/motoboy/entregas') return <Outlet />;
 
   return <main className="courier-screen flex min-h-screen items-center justify-center bg-[#f7f4ed] px-4 py-10 text-[#25251f]">
     <section className="w-full max-w-md rounded-3xl border border-[#e5dfd2] bg-white p-6 shadow-sm sm:p-8">
