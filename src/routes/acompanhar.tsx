@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Bell, Bike, CheckCircle2, Clock3, CookingPot, MapPin, PackageCheck, RefreshCw } from 'lucide-react';
 
 const searchSchema = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/).catch('') });
+type SavedOrder = { code: string; token: string; savedAt: string };
 type TrackingOrder = {
   code: string; order_status: string; payment_status: string; payment_method: string;
   fulfillment: string; estimated_delivery_at: string | null; courier_status: string;
@@ -35,6 +36,7 @@ export const Route = createFileRoute('/acompanhar')({
 function TrackingPage() {
   const { token } = Route.useSearch();
   const [order, setOrder] = useState<TrackingOrder | null>(null);
+  const [savedOrders, setSavedOrders] = useState<SavedOrder[]>([]);
   const [error, setError] = useState('');
   const [alertsEnabled, setAlertsEnabled] = useState(false);
   const previousStatus = useRef('');
@@ -42,12 +44,19 @@ function TrackingPage() {
   const [clock, setClock] = useState(() => brasiliaTime());
 
   useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('tia-val-meus-pedidos') || '[]') as SavedOrder[];
+      if (Array.isArray(saved)) setSavedOrders(saved.filter(item => item && typeof item.code === 'string' && typeof item.token === 'string' && /^[a-f0-9]{64}$/.test(item.token)).slice(0, 20));
+    } catch { setSavedOrders([]); }
+  }, []);
+
+  useEffect(() => {
     const timer = window.setInterval(() => setClock(brasiliaTime()), 1000);
     return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    if (!token) { setError('Este link de acompanhamento está incompleto. Abra o link que apareceu ao finalizar o pedido.'); return; }
+    if (!token) return;
     let active = true;
     const load = async () => {
       try {
@@ -56,6 +65,14 @@ function TrackingPage() {
         if (!response.ok || !data.order) throw new Error(data.error || 'Pedido não encontrado.');
         if (!active) return;
         const next = data.order;
+        try {
+          const key = 'tia-val-meus-pedidos';
+          const saved = JSON.parse(localStorage.getItem(key) || '[]') as SavedOrder[];
+          const item = { code: next.code, token, savedAt: new Date().toISOString() };
+          const updated = [item, ...saved.filter(order => order.token !== token)].slice(0, 20);
+          localStorage.setItem(key, JSON.stringify(updated));
+          setSavedOrders(updated);
+        } catch { /* A página de acompanhamento continua funcionando sem histórico local. */ }
         if (previousStatus.current && alertsEnabled && (previousStatus.current !== next.order_status || (previousStatus.current !== 'cheguei' && next.courier_status === 'cheguei'))) {
           try {
             const AudioContextClass = window.AudioContext;
@@ -80,6 +97,16 @@ function TrackingPage() {
     const timer = window.setInterval(() => { void load(); }, 30000);
     return () => { active = false; window.clearInterval(timer); };
   }, [token, alertsEnabled]);
+
+  if (!token) return <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fffaf0_0%,_#f7f4ed_52%,_#efe9dc_100%)] px-4 py-8 text-[#25251f] sm:py-12">
+    <section className="mx-auto max-w-2xl rounded-3xl border border-[#e5dfd2] bg-white p-6 shadow-xl sm:p-8">
+      <p className="text-xs font-bold uppercase tracking-[.22em] text-[#9a742a]">Marmitex da Tia Val</p>
+      <h1 className="mt-3 text-3xl font-extrabold">Meus pedidos</h1>
+      <p className="mt-2 text-sm leading-6 text-[#777266]">Você pode sair desta tela e voltar depois. Os pedidos salvos neste celular aparecem aqui para acompanhar o preparo e a entrega.</p>
+      {savedOrders.length ? <div className="mt-6 space-y-3">{savedOrders.map(item => <a key={item.token} href={`/acompanhar?token=${encodeURIComponent(item.token)}`} className="flex min-h-16 items-center justify-between gap-3 rounded-2xl border border-[#e5dfd2] p-4 transition hover:bg-[#fffaf0]"><span><strong className="block">Pedido #{item.code}</strong><small className="mt-1 block text-[#777266]">Abrir acompanhamento</small></span><span className="rounded-xl bg-[#25251f] px-4 py-2 text-sm font-bold text-white">Ver pedido</span></a>)}</div> : <div className="mt-6 rounded-2xl border border-dashed border-[#d9d2c4] p-6 text-center"><p className="font-bold">Nenhum pedido salvo neste celular ainda</p><p className="mt-2 text-sm text-[#777266]">Depois de finalizar um pedido, ele ficará disponível aqui.</p></div>}
+      <a href="/" className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#25251f] px-4 font-bold text-white">Voltar à loja</a>
+    </section>
+  </main>;
 
   const currentStep = order ? orderIndex(order.order_status) : -1;
   const finished = order ? ['concluido', 'cancelado'].includes(order.order_status) : false;
