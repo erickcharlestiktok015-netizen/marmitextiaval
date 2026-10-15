@@ -100,7 +100,7 @@ function CourierLogin() {
       <p className="mt-5 text-xs font-bold uppercase tracking-[.2em] text-[#9a742a]">Marmitex da Tia Val</p>
       <h1 className="mt-2 text-3xl font-bold">Área do motoboy</h1>
       <p className="mt-2 text-sm leading-6 text-[#777266]">Entre para ver entregas liberadas, abrir rotas no Waze e avisar o cliente quando chegar.</p>
-      <form onSubmit={login} className="mt-7 space-y-4">
+      <form method="post" action="/api/courier/login" onSubmit={login} className="mt-7 space-y-4">
         <label className="block text-sm font-semibold">Senha do motoboy
           <span className="mt-2 flex items-center gap-2 rounded-xl border border-[#d9d2c4] px-3"><LockKeyhole size={18} className="text-[#777266]"/><input autoComplete="current-password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required maxLength={256} className="min-h-12 w-full bg-transparent text-base outline-none" placeholder="Digite sua senha"/></span>
         </label>
