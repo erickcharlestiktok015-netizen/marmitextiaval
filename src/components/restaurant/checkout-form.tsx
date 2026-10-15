@@ -92,6 +92,8 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
     <h3>{when === 'amanha' ? 'Reserva feita!' : 'Pedido feito!'}</h3>
     <p>Código <strong>#{result.code}</strong> · Total {formatPrice(totals.total)}</p>
     <p>{fulfillment === 'retirada' ? 'É só pagar quando vier buscar.' : 'É só pagar quando a marmita chegar.'}</p>
+    <a href={`/acompanhar?token=${encodeURIComponent(result.trackingToken)}`} className="inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2 font-semibold">Acompanhar meu pedido</a>
+    <p className="text-sm text-muted-foreground">Guarde este link para acompanhar as atualizações da Tia Val.</p>
     {onDone && <Button onClick={onDone}>Fechar</Button>}
   </div>;
 
@@ -135,6 +137,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
           <p className="meal-tag">PIX · MERCADO PAGO</p>
           <DialogTitle>{pixStatus === 'approved' ? 'Pix confirmado!' : 'Pague com Pix'}</DialogTitle>
           <DialogDescription>{pixStatus === 'approved' ? 'Recebemos a confirmação do pagamento.' : `Pedido #${result.code} · Total ${formatPrice(totals.total)}. Escaneie o QR Code ou copie o código abaixo.`}</DialogDescription>
+          <a href={`/acompanhar?token=${encodeURIComponent(result.trackingToken)}`} className="inline-flex min-h-10 items-center justify-center rounded-lg border px-3 py-2 text-sm font-semibold">Acompanhar meu pedido</a>
           {pixStatus === 'approved' ? <div className="pix-approved-message"><CheckCircle2 size={38} /><strong>Pagamento aprovado</strong><span>Seu pedido foi registrado. A cozinha já pode confirmar o recebimento.</span></div> : <>
             <img className="pix-qr-image" src={`data:image/png;base64,${result.pixPayment.qrCodeBase64}`} alt="QR Code Pix para pagamento do pedido" />
             <label className="pix-copy-label" htmlFor="pix-copy-code">Pix copia e cola</label>
