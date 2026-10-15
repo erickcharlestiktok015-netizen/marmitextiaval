@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Bike, CheckCircle2, Clock3, LogOut, MapPin, Navigation, PackageCheck, Phone, RefreshCw, Route as RouteIcon } from 'lucide-react';
 
 type Delivery = {
   id: string; code: string; customer_name: string; customer_phone: string; address: unknown;
-  order_status: string; payment_method: string; payment_status: string; total: number;
+  order_status: string; payment_method: string; payment_status: string; total: number; delivery_fee?: number;
   estimated_delivery_at: string | null; courier_status: string; created_at: string;
   confirmation_code: string | null; items: Array<{ meal_name: string; size_label: string; quantity: number; notes?: string }>;
 };
@@ -25,7 +25,7 @@ const addressText = (value: unknown) => {
   if (typeof value === 'string') return value;
   if (!value || typeof value !== 'object') return 'Endereço não informado';
   const a = value as Record<string, unknown>;
-  return [a.street ?? a.rua, a.number ?? a.numero, a.complement ?? a.complemento, a.bairro, a.cidade].filter(Boolean).join(', ') || 'Endereço não informado';
+  return [a.street ?? a.rua, a.number ?? a.numero, a.complement ?? a.complemento, a.reference ?? a.referencia, a.bairro, a.cidade, a.state ?? a.estado ?? a.uf, a.cep].filter(Boolean).join(', ') || 'Endereço não informado';
 };
 const etaText = (value: string | null) => value ? new Date(value).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'A combinar';
 
@@ -42,10 +42,13 @@ function CourierDeliveries() {
   const [geoMessage, setGeoMessage] = useState('Ative a localização para ordenar por proximidade.');
   const [updated, setUpdated] = useState('');
   const [routeMode, setRouteMode] = useState(false);
+  const loadingRef = useRef(false);
 
   const load = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     try {
-      const response = await fetch('/api/courier/orders?diagnostic=' + Date.now(), { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      const response = await fetch('/api/courier/orders', { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' } });
       const data = await response.json().catch(() => ({})) as { orders?: Delivery[]; error?: string };
       if (response.status === 401) {
         setOrders([]);
@@ -54,9 +57,24 @@ function CourierDeliveries() {
       }
       if (!response.ok) throw new Error((data.error || 'Falha ao carregar entregas.') + ' (HTTP ' + response.status + ')');
       setOrders(data.orders || []); setUpdated(new Date().toLocaleTimeString('pt-BR')); setError('');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao consultar entregas.'); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao consultar entregas. Verifique a conexão e tente novamente.');
+    } finally {
+      loadingRef.current = false;
+    }
   }, []);
-  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 5000); return () => window.clearInterval(timer); }, [load]);
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load();
+    }, 5000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') void load(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [load]);
 
   const readyCount = orders.filter(o => o.order_status === 'pronto_entrega').length;
   const activeCount = orders.filter(o => o.order_status === 'saiu_entrega').length;
@@ -186,7 +204,13 @@ function CourierDeliveries() {
     if (next) waze(next);
     setRouteMode(true);
   };
-  const logout = async () => { await fetch('/api/courier/logout', { method: 'POST' }); window.location.href = '/motoboy'; };
+  const logout = async () => {
+    try {
+      await fetch('/api/courier/logout', { method: 'POST', credentials: 'same-origin', cache: 'no-store' });
+    } finally {
+      window.location.assign('/motoboy');
+    }
+  };
 
   return <main className="min-h-screen bg-[#f7f4ed] px-3 py-5 text-[#25251f] sm:px-5 sm:py-8">
     <div className="mx-auto max-w-5xl space-y-5">
@@ -217,12 +241,21 @@ function CourierDeliveries() {
         <div><h2 className="text-lg font-bold">Painel de hoje</h2><p className="mt-1 text-sm text-[#777266]">Sua operação em um só lugar. A fila atualiza a cada 5 segundos. A sequência tenta reduzir zigue-zagues entre as paradas.</p></div>
         <div className="flex items-center gap-2 rounded-xl bg-[#f7f4ed] px-3 py-2 text-sm"><span className="h-2 w-2 rounded-full bg-[#2e8b57]"></span><span>Atualização automática a cada 5 s</span></div>
       </section>
-      {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">{error}</div>}
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">
+        <p>{error}</p>
+        {error.includes('401') && <button type="button" onClick={() => window.location.assign('/motoboy')} className="mt-3 min-h-11 rounded-lg bg-[#25251f] px-4 font-semibold text-white">Voltar ao login</button>}
+      </div>}
       {ordered.length === 0 && <section className="rounded-2xl border border-[#e5dfd2] bg-white p-8 text-center"><PackageCheck className="mx-auto text-[#9a742a]" size={34}/><h2 className="mt-3 text-lg font-bold">Nenhum pedido de entrega encontrado</h2><p className="mt-1 text-sm text-[#777266]">Os pedidos de entrega aparecerão aqui assim que forem registrados. A saída só será liberada quando a cozinha marcar como pronto.</p></section>}
       {ordered.map((order, index) => <article key={order.id} className="space-y-4 rounded-2xl border border-[#e5dfd2] bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[#9a742a]">{order.order_status === 'saiu_entrega' ? 'Em rota' : order.order_status === 'pronto_entrega' ? `Pronto para sair · parada ${index+1}` : order.order_status === 'preparando' ? 'Em preparação na cozinha' : order.order_status === 'confirmado' ? 'Pedido confirmado · aguardando cozinha' : 'Pedido novo · aguardando confirmação'}</p><h2 className="mt-1 text-xl font-bold">Pedido #{order.code}</h2><p className="mt-1 text-sm text-[#777266]">{order.customer_name}</p></div><span className="rounded-full bg-[#f8f1df] px-3 py-1 text-xs font-bold">Chegada: {etaText(order.estimated_delivery_at)}</span></div>
         <div className="rounded-xl bg-[#f7f4ed] p-3"><p className="flex gap-2 text-sm font-semibold"><MapPin size={17} className="shrink-0"/>{addressText(order.address)}</p>{coords(order.address) && <p className="mt-1 text-xs text-[#777266]">Distância aproximada: {location ? distance(location, coords(order.address)!).toFixed(1)+' km em linha reta' : 'ative o GPS para calcular proximidade'}</p>}<div className="mt-3 flex flex-wrap gap-2"><button onClick={()=>waze(order)} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#25251f] px-3 text-sm font-semibold text-white"><Navigation size={16}/> Abrir no Waze</button>{order.customer_phone && <a href={`tel:${order.customer_phone.replace(/[^+\d]/g,'')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold"><Phone size={16}/> Ligar cliente</a>}</div></div>
-        <div><p className="text-sm font-semibold">Itens</p>{order.items.map((item,i)=><p key={i} className="mt-1 text-sm text-[#5f5a50]">{item.quantity}× {item.meal_name} · {item.size_label}{item.notes ? ` — ${item.notes}` : ''}</p>)}</div>
+        <div className="grid grid-cols-1 gap-2 rounded-xl border border-[#e5dfd2] p-3 sm:grid-cols-3">
+          <div><p className="text-xs text-[#777266]">Pagamento</p><p className="mt-1 text-sm font-semibold">{order.payment_method === 'online' ? 'Online' : order.payment_method === 'entrega-pix' ? 'Pix na entrega' : order.payment_method === 'entrega-cartao' ? 'Cartão na entrega' : order.payment_method === 'entrega-dinheiro' ? 'Dinheiro na entrega' : order.payment_method}</p><p className="text-xs text-[#777266]">{order.payment_method === 'online' ? (order.payment_status === 'approved' ? 'Pagamento aprovado' : 'Aguardando confirmação') : 'Pagamento na entrega'}</p></div>
+          <div><p className="text-xs text-[#777266]">Taxa de entrega</p><p className="mt-1 text-sm font-semibold">{typeof order.delivery_fee === 'number' ? order.delivery_fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Não informada'}</p></div>
+          <div><p className="text-xs text-[#777266]">Total do pedido</p><p className="mt-1 text-base font-bold">{Number(order.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div>
+        </div>
+        <div><p className="text-sm font-semibold">Itens do pedido</p>{order.items.map((item,i)=><p key={i} className="mt-1 text-sm text-[#5f5a50]">{item.quantity}× {item.meal_name} · {item.size_label}{item.notes ? ` — ${item.notes}` : ''}</p>)}</div>
+        <p className="text-xs text-[#777266]">Pedido recebido em {new Date(order.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p>
         {order.courier_status === 'cheguei' ? <div className="space-y-3 rounded-xl border border-[#e9c878] bg-[#fff9e8] p-4"><p className="font-semibold">Você marcou que chegou. Peça o código de 6 dígitos ao cliente.</p><input inputMode="numeric" maxLength={6} value={confirmation[order.id] || ''} onChange={e=>setConfirmation(v=>({...v,[order.id]:e.target.value.replace(/\D/g,'').slice(0,6)}))} placeholder="000000" className="min-h-12 w-full rounded-lg border bg-white px-4 text-center text-2xl tracking-[.3em]"/><button disabled={busy===order.id || (confirmation[order.id]||'').length!==6} onClick={()=>void action(order,'delivered')} className="min-h-11 w-full rounded-lg bg-[#25251f] px-4 font-semibold text-white disabled:opacity-50"><CheckCircle2 className="mr-2 inline" size={18}/> Confirmar entrega</button></div>
         : order.order_status === 'saiu_entrega' ? <button disabled={busy===order.id} onClick={()=>void action(order,'arrived')} className="min-h-12 w-full rounded-xl bg-[#e9c878] px-4 font-bold text-[#25251f] disabled:opacity-50"><MapPin className="mr-2 inline" size={18}/> Cheguei ao endereço</button>
         : order.order_status === 'pronto_entrega' ? <button disabled={busy===order.id} onClick={()=>void action(order,'start')} className="min-h-12 w-full rounded-xl bg-[#25251f] px-4 font-bold text-white disabled:opacity-50"><Bike className="mr-2 inline" size={18}/> Iniciar entrega e compartilhar GPS</button> : <p className="rounded-xl bg-[#f7f4ed] p-3 text-center text-sm font-semibold text-[#777266]">Aguardando liberação da cozinha. O botão de saída aparece quando o pedido estiver pronto.</p>}
