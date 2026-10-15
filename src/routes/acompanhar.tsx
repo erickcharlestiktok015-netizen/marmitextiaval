@@ -19,7 +19,7 @@ const steps = [
 ];
 const orderIndex = (status: string) => steps.findIndex((step) => step.value === status);
 const brasiliaTime = (value: string | number | Date = new Date()) =>
-  new Date(value).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  (value instanceof Date ? value : new Date(value)).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const estimatedTime = (value: string) =>
   new Date(value).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
