@@ -333,3 +333,15 @@
   .online-payment-option { gap:9px; padding:10px; }
   .payment-brand { width:54px; min-width:54px; }
 }
+
+
+/* Pix no próprio checkout */
+.pix-payment-content { justify-items:stretch; text-align:center; }
+.pix-payment-content [data-slot="dialog-description"] { line-height:1.6; }
+.pix-qr-image { display:block; width:min(100%,260px); aspect-ratio:1; object-fit:contain; margin:0 auto; padding:10px; background:#fff; border:1px solid var(--border); border-radius:12px; }
+.pix-copy-label { text-align:left; font-size:12px; font-weight:700; }
+.pix-copy-code { width:100%; resize:vertical; border:1px solid var(--border); border-radius:8px; background:var(--background); color:var(--foreground); padding:10px; font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; }
+.pix-waiting-note { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted-foreground); font-size:12px; }
+.pix-approved-message { display:grid; justify-items:center; gap:8px; padding:22px 12px; color:var(--primary); }
+.pix-approved-message strong { color:var(--foreground); font-size:18px; }
+.pix-approved-message span { color:var(--muted-foreground); font-size:13px; line-height:1.6; }
