@@ -212,7 +212,7 @@ function CourierDeliveries() {
     }
   };
 
-  return <main className="min-h-screen bg-[#f7f4ed] px-3 py-5 text-[#25251f] sm:px-5 sm:py-8">
+  return <main className="courier-screen min-h-screen bg-[#f7f4ed] px-3 py-5 text-[#25251f] sm:px-5 sm:py-8">
     <div className="mx-auto max-w-5xl space-y-5">
       <header className="rounded-2xl bg-[#25251f] p-5 text-[#fffaf0] sm:p-7">
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10 text-[#e9c878]"><Bike size={26}/></div><div><p className="text-xs uppercase tracking-[.18em] text-[#e9c878]">Marmitex da Tia Val</p><h1 className="text-2xl font-bold">Minhas entregas</h1></div></div><button onClick={logout} aria-label="Sair" className="rounded-lg p-2 hover:bg-white/10"><LogOut size={20}/></button></div>
