@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Bike, CheckCircle2, Clock3, LogOut, MapPin, Navigation, PackageCheck, Phone, RefreshCw, Route as RouteIcon } from 'lucide-react';
+import { Bike, CheckCircle2, Clock3, LogOut, MapPin, Navigation, PackageCheck, Phone, RefreshCw, Route as RouteIcon, Wifi, WifiOff } from 'lucide-react';
 
 type Delivery = {
   id: string; code: string; customer_name: string; customer_phone: string; address: unknown;
@@ -42,6 +42,9 @@ function CourierDeliveries() {
   const [geoMessage, setGeoMessage] = useState('Ative a localização para ordenar por proximidade.');
   const [updated, setUpdated] = useState('');
   const [routeMode, setRouteMode] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
+  const [presenceBusy, setPresenceBusy] = useState(false);
+  const [presenceError, setPresenceError] = useState('');
   const loadingRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -63,18 +66,58 @@ function CourierDeliveries() {
       loadingRef.current = false;
     }
   }, []);
+  const loadPresence = useCallback(async () => {
+    try {
+      const response = await fetch('/api/courier/presence', {
+        cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' },
+      });
+      const data = await response.json().catch(() => ({})) as { is_online?: boolean; error?: string };
+      if (response.status === 401) {
+        setPresenceError('Sua sessão expirou. Entre novamente para alterar sua disponibilidade.');
+        return;
+      }
+      if (!response.ok) throw new Error(data.error || 'Não foi possível consultar a disponibilidade.');
+      setIsOnline(Boolean(data.is_online));
+      setPresenceError('');
+    } catch (e) {
+      setPresenceError(e instanceof Error ? e.message : 'Não foi possível consultar a disponibilidade.');
+    }
+  }, []);
+
+  const togglePresence = async () => {
+    setPresenceBusy(true);
+    setPresenceError('');
+    try {
+      const response = await fetch('/api/courier/presence', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ is_online: !isOnline }),
+      });
+      const data = await response.json().catch(() => ({})) as { is_online?: boolean; error?: string };
+      if (!response.ok) throw new Error(data.error || 'Não foi possível alterar sua disponibilidade.');
+      setIsOnline(Boolean(data.is_online));
+    } catch (e) {
+      setPresenceError(e instanceof Error ? e.message : 'Não foi possível alterar sua disponibilidade.');
+    } finally {
+      setPresenceBusy(false);
+    }
+  };
+
   useEffect(() => {
     void load();
+    void loadPresence();
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void load();
+      if (document.visibilityState === 'visible') { void load(); void loadPresence(); }
     }, 5000);
-    const onVisibility = () => { if (document.visibilityState === 'visible') void load(); };
+    const onVisibility = () => { if (document.visibilityState === 'visible') { void load(); void loadPresence(); } };
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [load]);
+  }, [load, loadPresence]);
 
   const readyCount = orders.filter(o => o.order_status === 'pronto_entrega').length;
   const activeCount = orders.filter(o => o.order_status === 'saiu_entrega').length;
@@ -217,6 +260,22 @@ function CourierDeliveries() {
       <header className="rounded-2xl bg-[#25251f] p-5 text-[#fffaf0] sm:p-7">
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10 text-[#e9c878]"><Bike size={26}/></div><div><p className="text-xs uppercase tracking-[.18em] text-[#e9c878]">Marmitex da Tia Val</p><h1 className="text-2xl font-bold">Minhas entregas</h1></div></div><button onClick={logout} aria-label="Sair" className="rounded-lg p-2 hover:bg-white/10"><LogOut size={20}/></button></div>
         <p className="mt-3 text-sm text-[#e0d9c9]">Pedidos liberados pela cozinha. A lista atualiza automaticamente.</p>
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className={`grid h-11 w-11 place-items-center rounded-full ${isOnline ? 'bg-emerald-400/15 text-emerald-300' : 'bg-white/10 text-white/60'}`}>
+              {isOnline ? <Wifi size={22}/> : <WifiOff size={22}/>}
+            </span>
+            <div>
+              <p className="font-bold">{isOnline ? 'Você está online' : 'Você está offline'}</p>
+              <p className="mt-1 text-xs text-[#d4ccbc]">{isOnline ? 'Disponibilidade ativada. Você pode acompanhar as entregas.' : 'Fique online quando estiver pronto para trabalhar.'}</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => void togglePresence()} disabled={presenceBusy} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 font-bold disabled:opacity-60 ${isOnline ? 'bg-white/10 text-white' : 'bg-[#e9c878] text-[#25251f]'}`}>
+            {isOnline ? <WifiOff size={18}/> : <Wifi size={18}/>}
+            {presenceBusy ? 'Salvando…' : isOnline ? 'Ficar offline' : 'Ficar online'}
+          </button>
+        </div>
+        {presenceError && <p role="alert" className="mt-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-100">{presenceError}</p>}
         <div className="mt-4 flex flex-wrap gap-2"><button onClick={getLocation} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e9c878] px-3 text-sm font-bold text-[#25251f]"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RouteIcon size={16}/> Iniciar/continuar rota</button><button onClick={()=>void load()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RefreshCw size={16}/> Atualizar</button></div>
         <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {location && ordered.length > 0 && `Estimativa: ${estimatedRouteKm.toFixed(1)} km em linha reta; a rota real por ruas e trânsito pode ser diferente.`} {routeMode && 'Modo de rota ativo: conclua a parada atual e abra a próxima sugerida.'} {updated && `Atualizado às ${updated}.`}</p>
       </header>
