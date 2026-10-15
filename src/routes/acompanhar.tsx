@@ -39,7 +39,7 @@ function TrackingPage() {
   const [savedOrders, setSavedOrders] = useState<SavedOrder[]>([]);
   const [error, setError] = useState('');
   const [alertsEnabled, setAlertsEnabled] = useState(false);
-  const previousStatus = useRef('');
+  const previousStatus = useRef<{ order_status: string; courier_status: string } | null>(null);
   const [lastUpdated, setLastUpdated] = useState('');
   const [clock, setClock] = useState(() => brasiliaTime());
 
@@ -73,20 +73,31 @@ function TrackingPage() {
           localStorage.setItem(key, JSON.stringify(updated));
           setSavedOrders(updated);
         } catch { /* A página de acompanhamento continua funcionando sem histórico local. */ }
-        if (previousStatus.current && alertsEnabled && (previousStatus.current !== next.order_status || (previousStatus.current !== 'cheguei' && next.courier_status === 'cheguei'))) {
+        const previous = previousStatus.current;
+        const justArrived = Boolean(previous && previous.courier_status !== 'cheguei' && next.courier_status === 'cheguei');
+        const statusChanged = Boolean(previous && previous.order_status !== next.order_status);
+        if (previous && alertsEnabled && (statusChanged || justArrived)) {
           try {
             const AudioContextClass = window.AudioContext;
             const audio = new AudioContextClass();
             const oscillator = audio.createOscillator();
             const gain = audio.createGain();
-            oscillator.type = 'sine'; oscillator.frequency.value = 880;
+            oscillator.type = 'sine'; oscillator.frequency.value = justArrived ? 1046 : 880;
             gain.gain.value = 0.12;
             oscillator.connect(gain); gain.connect(audio.destination);
-            oscillator.start(); oscillator.stop(audio.currentTime + 0.25);
+            oscillator.start(); oscillator.stop(audio.currentTime + 0.3);
             oscillator.onended = () => { void audio.close(); };
           } catch { /* Sound is optional; visual updates still work. */ }
         }
-        previousStatus.current = next.order_status;
+        if (justArrived && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('O motoboy chegou!', {
+              body: `O motoboy chegou ao endereço do pedido #${next.code}. Confira o acompanhamento para ver o código de confirmação.`,
+              tag: `tia-val-chegou-${next.code}`,
+            });
+          } catch { /* The status remains visible on the tracking page. */ }
+        }
+        previousStatus.current = { order_status: next.order_status, courier_status: next.courier_status };
         setOrder(next); setLastUpdated(brasiliaTime());
         setError('');
       } catch (e) {
@@ -94,7 +105,7 @@ function TrackingPage() {
       }
     };
     void load();
-    const timer = window.setInterval(() => { void load(); }, 30000);
+    const timer = window.setInterval(() => { void load(); }, 10000);
     return () => { active = false; window.clearInterval(timer); };
   }, [token, alertsEnabled]);
 
@@ -125,7 +136,7 @@ function TrackingPage() {
         </div>
         <div className="relative mt-6 flex flex-wrap items-center gap-3">
           {order && <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm font-bold">Pedido #{order.code}</span>}
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-200"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300"/> Atualização a cada 30 s</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-200"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300"/> Atualização a cada 10 s</span>
         </div>
       </header>
 
@@ -138,14 +149,14 @@ function TrackingPage() {
         <div className="rounded-2xl border border-[#e5dfd2] bg-white/90 p-4 shadow-sm sm:p-5">
           <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#777266]"><RefreshCw size={15}/> Sincronização do pedido</p>
           <p className="mt-2 text-xl font-bold">{lastUpdated ? `Atualizado às ${lastUpdated}` : 'Consultando pedido…'}</p>
-          <p className="mt-1 text-xs text-[#777266]">Localização e status atualizados a cada 30 segundos.</p>
+          <p className="mt-1 text-xs text-[#777266]">Localização e status atualizados a cada 10 segundos enquanto esta tela estiver aberta.</p>
         </div>
       </section>
 
       {error && !order && <div role="alert" className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-800 shadow-sm">{error}</div>}
       {order && <>
         {order.order_status === 'saiu_entrega' && typeof order.courier_latitude === 'number' && typeof order.courier_longitude === 'number' && <section className="overflow-hidden rounded-3xl border border-[#e5dfd2] bg-white shadow-sm">
-          <div className="p-5 sm:p-6"><p className="text-xs font-bold uppercase tracking-wider text-[#9a742a]">Acompanhamento da entrega</p><h2 className="mt-2 text-xl font-extrabold">Seu motoboy está a caminho 🛵</h2><p className="mt-1 text-sm text-[#777266]">O mapa e o status são atualizados a cada 30 segundos. O ícone do mapa marca a última posição recebida; o GPS precisa continuar autorizado no celular do motoboy.</p>{order.courier_location_updated_at && <p className="mt-2 text-xs text-[#777266]">Última localização recebida às {brasiliaTime(order.courier_location_updated_at)}.</p>}<div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800"><span className="h-2 w-2 animate-ping rounded-full bg-emerald-500"/><span className="h-2 w-2 -ml-4 rounded-full bg-emerald-600"/> Motoboy localizado</div></div>
+          <div className="p-5 sm:p-6"><p className="text-xs font-bold uppercase tracking-wider text-[#9a742a]">Acompanhamento da entrega</p><h2 className="mt-2 text-xl font-extrabold">Seu motoboy está a caminho 🛵</h2><p className="mt-1 text-sm text-[#777266]">O mapa e o status são atualizados a cada 10 segundos enquanto esta tela estiver aberta. O ícone do mapa marca a última posição recebida; o GPS precisa continuar autorizado no celular do motoboy.</p>{order.courier_location_updated_at && <p className="mt-2 text-xs text-[#777266]">Última localização recebida às {brasiliaTime(order.courier_location_updated_at)}.</p>}<div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800"><span className="h-2 w-2 animate-ping rounded-full bg-emerald-500"/><span className="h-2 w-2 -ml-4 rounded-full bg-emerald-600"/> Motoboy localizado</div></div>
           <iframe title="Localização aproximada do motoboy" className="h-64 w-full border-0 sm:h-80" loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://www.openstreetmap.org/export/embed.html?bbox=${order.courier_longitude-0.012}%2C${order.courier_latitude-0.009}%2C${order.courier_longitude+0.012}%2C${order.courier_latitude+0.009}&layer=mapnik&marker=${order.courier_latitude}%2C${order.courier_longitude}`}/>
         </section>}
 
@@ -157,7 +168,7 @@ function TrackingPage() {
           {order.estimated_delivery_at && !finished && <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-[#ead9a8] bg-[#fff9e8] p-4"><div><p className="text-sm font-medium text-[#78612c]">Previsão de chegada</p><p className="mt-1 text-xs text-[#8b7950]">Horário de Brasília</p></div><p className="text-3xl font-extrabold tabular-nums">{estimatedTime(order.estimated_delivery_at)}</p></div>}
           {order.payment_method === 'online' && <p className="mt-4 rounded-xl bg-[#f7f4ed] px-4 py-3 text-sm font-medium">{order.payment_status === 'approved' ? '✓ Pagamento online confirmado' : 'Pagamento online aguardando confirmação'}</p>}
           {order.courier_status === 'cheguei' && <div className="mt-4 rounded-2xl border border-[#e9c878] bg-[#fff9e8] p-4"><p className="font-bold">O motoboy avisou que chegou.</p>{order.confirmation_code && <><p className="mt-2 text-sm">Mostre este código ao entregador para confirmar o recebimento:</p><p className="mt-2 text-3xl font-extrabold tracking-[.25em]">{order.confirmation_code}</p></>}</div>}
-          <button type="button" onClick={() => { setAlertsEnabled(true); try { const C = window.AudioContext; const a = new C(); void a.resume().then(() => a.close()); } catch { /* optional */ } }} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#ddd5c4] px-4 py-2 text-sm font-semibold transition hover:bg-[#f7f4ed]"><Bell size={16}/> {alertsEnabled ? 'Avisos sonoros ativados' : 'Ativar aviso sonoro neste celular'}</button>
+          <button type="button" onClick={() => { setAlertsEnabled(true); try { const C = window.AudioContext; const a = new C(); void a.resume().then(() => a.close()); } catch { /* optional */ } if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission(); }} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#ddd5c4] px-4 py-2 text-sm font-semibold transition hover:bg-[#f7f4ed]"><Bell size={16}/> {alertsEnabled ? (typeof Notification !== 'undefined' && Notification.permission === 'granted' ? 'Notificações e som ativados' : 'Avisos sonoros ativados') : 'Ativar notificações e som'}</button>
         </section>
 
         <section className="rounded-3xl border border-[#e5dfd2] bg-white p-5 shadow-sm sm:p-7">
