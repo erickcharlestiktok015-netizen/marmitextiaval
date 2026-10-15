@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Bike, CheckCircle2, Clock3, LogOut, MapPin, Navigation, PackageCheck, Phone, RefreshCw, Route as RouteIcon, Wifi, WifiOff } from 'lucide-react';
+import { Bike, CheckCircle2, Clock3, LogOut, MapPin, Navigation, PackageCheck, Phone, RefreshCw, Route as RouteIcon, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
 
 type Delivery = {
   id: string; code: string; customer_name: string; customer_phone: string; address: unknown;
@@ -34,6 +34,7 @@ export const Route = createFileRoute('/motoboy/entregas')({
   component: CourierDeliveries,
 });
 function CourierDeliveries() {
+  const [lightTheme, setLightTheme] = useState(false);
   const [orders, setOrders] = useState<Delivery[]>([]);
   const [dailyEarnings, setDailyEarnings] = useState(0);
   const [location, setLocation] = useState<Geo | null>(null);
@@ -109,6 +110,16 @@ function CourierDeliveries() {
       setPresenceBusy(false);
     }
   };
+
+  useEffect(() => {
+    try { setLightTheme(window.localStorage.getItem('tia-val-courier-theme') === 'light'); } catch { /* storage pode estar indisponível */ }
+  }, []);
+
+  const toggleTheme = () => setLightTheme(current => {
+    const next = !current;
+    try { window.localStorage.setItem('tia-val-courier-theme', next ? 'light' : 'dark'); } catch { /* preferência fica nesta sessão */ }
+    return next;
+  });
 
   useEffect(() => {
     void load();
@@ -373,11 +384,11 @@ function CourierDeliveries() {
   const mapSrc = mapPoint ? `https://www.openstreetmap.org/export/embed.html?bbox=${mapPoint.longitude-0.025}%2C${mapPoint.latitude-0.018}%2C${mapPoint.longitude+0.025}%2C${mapPoint.latitude+0.018}&layer=mapnik&marker=${mapPoint.latitude}%2C${mapPoint.longitude}` : '';
   const currency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  return <main className="courier-screen min-h-screen bg-[#070b12] px-3 py-4 text-slate-100 sm:px-5 sm:py-6">
+  return <main className={`courier-screen min-h-screen bg-[#070b12] px-3 py-4 text-slate-100 sm:px-5 sm:py-6 ${lightTheme ? 'courier-light' : ''}`} data-courier-theme={lightTheme ? 'light' : 'dark'}>
     <div className="mx-auto max-w-[1500px] space-y-5">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
-        <div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-red-500/15 text-red-400 ring-1 ring-red-400/30"><Bike size={27}/></div><div><p className="text-xs font-bold uppercase tracking-[.2em] text-red-400">Marmitex da Tia Val</p><h1 className="text-2xl font-black tracking-tight sm:text-3xl">Área do Motoboy</h1><p className="mt-1 text-sm text-slate-400">Entregas · Rotas · Clientes</p></div></div>
-        <div className="flex items-center gap-3"><span className={`rounded-full px-3 py-2 text-sm font-bold ${isOnline ? 'bg-emerald-400/10 text-emerald-300' : 'bg-slate-700/60 text-slate-300'}`}><span className={`mr-2 inline-block h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>{isOnline ? 'Online' : 'Offline'}</span><button onClick={logout} aria-label="Sair" className="rounded-xl border border-white/10 p-3 text-slate-300 hover:bg-white/5"><LogOut size={19}/></button></div>
+        <div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-red-600 text-white ring-1 ring-red-400/50 shadow-lg shadow-red-950/30"><Bike size={29}/></div><div><p className="text-xs font-bold uppercase tracking-[.2em] text-red-500">Tia Val · Motoboy</p><h1 className="text-2xl font-black tracking-tight sm:text-3xl">Área do Motoboy</h1><p className="mt-1 text-sm text-slate-400">Entregas · Rotas · Clientes</p></div></div>
+        <div className="flex items-center gap-2 sm:gap-3"><button type="button" onClick={toggleTheme} aria-label={lightTheme ? "Ativar tema preto" : "Ativar tema branco"} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-bold hover:bg-white/10"><span>{lightTheme ? <Moon size={17}/> : <Sun size={17}/>}</span><span className="hidden sm:inline">{lightTheme ? "Tema preto" : "Tema branco"}</span></button><span className={`rounded-full px-3 py-2 text-sm font-bold ${isOnline ? 'bg-emerald-400/10 text-emerald-300' : 'bg-slate-700/60 text-slate-300'}`}><span className={`mr-2 inline-block h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>{isOnline ? 'Online' : 'Offline'}</span><button onClick={logout} aria-label="Sair" className="rounded-xl border border-white/10 p-3 text-slate-300 hover:bg-white/5"><LogOut size={19}/></button></div>
       </header>
 
       <section className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
