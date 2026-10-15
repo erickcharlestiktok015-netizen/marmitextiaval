@@ -27,7 +27,7 @@ export function calculateTotals(items: OrderItem[], fulfillment: 'entrega' | 're
   return { subtotal, deliveryFee, total: subtotal + deliveryFee };
 }
 
-export type SubmitResult = { code: string; paymentUrl: string | null; pixPayment?: { paymentId: string; qrCode: string; qrCodeBase64: string; status: string } };
+export type SubmitResult = { code: string; trackingToken: string; paymentUrl: string | null; pixPayment?: { paymentId: string; qrCode: string; qrCodeBase64: string; status: string } };
 
 export async function submitOrder(order: Order): Promise<SubmitResult> {
   const { createOrder } = await import('@/lib/orders.functions');
