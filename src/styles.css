@@ -574,3 +574,15 @@ button, input, select, textarea {
     max-width: 100%;
   }
 }
+
+/* Global mobile stability: prevent sideways dragging/overscroll without blocking vertical scrolling. */
+@layer base {
+  html, body {
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+  body {
+    width: 100%;
+  }
+}
