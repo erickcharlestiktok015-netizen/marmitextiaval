@@ -85,8 +85,18 @@ function CourierLogin() {
         throw new Error((data.error || 'Não foi possível entrar.') + ' (HTTP ' + response.status + ')');
       }
 
-      // O login já criou a sessão no servidor. Navegue diretamente para o painel:
-      // a própria tela de entregas mostra erros de sessão/API sem prender o entregador no login.
+      // Confirme que o navegador recebeu e está enviando o cookie antes de sair do login.
+      // HTTP 200 com fila vazia ainda é sucesso: o painel deve abrir mesmo sem pedidos liberados.
+      const sessionCheck = await fetch('/api/courier/orders?diagnostic=' + Date.now(), {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      if (sessionCheck.status === 401) {
+        throw new Error('A senha foi aceita, mas a sessão não foi reconhecida. Verifique se o site está aberto pelo endereço HTTPS oficial e tente novamente. Se persistir, confira COURIER_SESSION_SECRET na Vercel.');
+      }
+      // Se a sessão foi aceita (200), ou se a API de pedidos está temporariamente
+      // indisponível (503), abra o painel: ele próprio mostra os erros de carregamento.
       window.location.assign('/motoboy/entregas');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao entrar.');
