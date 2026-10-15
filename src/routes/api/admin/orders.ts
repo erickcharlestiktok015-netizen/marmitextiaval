@@ -21,7 +21,7 @@ export const Route = createFileRoute('/api/admin/orders')({
         let body: { id?: unknown; order_status?: unknown; estimated_delivery_at?: unknown };
         try { body = await request.json() as { id?: unknown; order_status?: unknown; estimated_delivery_at?: unknown }; }
         catch { return Response.json({ error: 'Requisição inválida.' }, { status: 400 }); }
-        const allowed = ['novo', 'confirmado', 'preparando', 'saiu_entrega', 'pronto_retirada', 'concluido', 'cancelado'];
+        const allowed = ['novo', 'confirmado', 'preparando', 'pronto_entrega', 'saiu_entrega', 'pronto_retirada', 'concluido', 'cancelado'];
         const validStatus = typeof body.order_status === 'string' && allowed.includes(body.order_status);
         const hasEta = Object.prototype.hasOwnProperty.call(body, 'estimated_delivery_at');
         const validEta = !hasEta || body.estimated_delivery_at === null || (typeof body.estimated_delivery_at === 'string' && Number.isFinite(Date.parse(body.estimated_delivery_at)));
