@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Bike, CheckCircle2, Clock3, LogOut, MapPin, Phone, RefreshCw, ShieldCheck, Store } from 'lucide-react';
+import { Ban, Bike, CheckCircle2, Clock3, LogOut, MapPin, Phone, RefreshCw, ShieldCheck, Store } from 'lucide-react';
 
 type OrderItem = { meal_name: string; size_label: string; quantity: number; unit_price: number; notes?: string | null };
 type Order = {
@@ -145,6 +145,7 @@ function AdminPage() {
             <div className="space-y-2 text-sm"><p className="flex items-start gap-2"><Phone size={16} className="mt-0.5 shrink-0 text-[#8b6a25]" />{order.customer_phone}</p><p className="flex items-start gap-2"><span className="mt-0.5 shrink-0 text-[#8b6a25]">{order.fulfillment === 'entrega' ? <Bike size={16} /> : <Store size={16} />}</span><span>{order.fulfillment === 'entrega' ? addressText || 'Endereço não informado' : 'Retirada na cozinha'}</span></p><p className="text-[#777266]">Pagamento: {paymentLabel(order.payment_method)} · {paymentStatusLabel(order.payment_status)}</p>{order.change_for && <p>Troco para: {money(Number(order.change_for))}</p>}</div>
             <div className="flex flex-wrap gap-2"><a href={`tel:+55${phoneDigits(order.customer_phone)}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm"><Phone size={15} /> Ligar</a><a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm">WhatsApp</a>{mapUrl && <a href={mapUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm"><MapPin size={15} /> Abrir mapa</a>}</div>
             <label className="block space-y-2 text-sm font-semibold">Atualizar situação<select value={order.order_status} onChange={(e) => void updateStatus(order, e.target.value)} className="min-h-11 w-full rounded-lg border border-[#d9d2c4] bg-white px-3 font-normal"><option value="" disabled>Escolha o status</option>{statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
+            {!["concluido", "cancelado"].includes(order.order_status) && <button type="button" onClick={() => { if (window.confirm(`Tem certeza que deseja cancelar o pedido #${order.code} de ${order.customer_name}?`)) void updateStatus(order, "cancelado"); }} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100"><Ban size={16} /> Cancelar pedido</button>}
           </div>
         </article>;
       })}</div>
