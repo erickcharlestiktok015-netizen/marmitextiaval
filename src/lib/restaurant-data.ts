@@ -81,7 +81,7 @@ export const contacts = {
   phone: 'tel:+553134454042',
   phoneLabel: '(31) 3445-4042',
   whatsapp: 'https://wa.me/553134454042' as string | null,
-  instagram: null as string | null,
+  instagram: 'https://www.instagram.com/marmitexdatiaval/' as string | null,
 };
 export const reviews = [
   { name: 'Deise Campos', quote: 'Ótima comida muito bem temperada feita com muito amor e carinho melhor da região toda.', initial: 'D' },
