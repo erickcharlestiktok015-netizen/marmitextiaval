@@ -390,3 +390,146 @@ body { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; overscroll-
 img, video, canvas, iframe { max-width: 100%; }
 input, select, textarea, button { max-width: 100%; }
 @supports not (overflow: clip) { html, body, #root { overflow-x: hidden; } }
+
+/* Estabilidade global em telas touch: sem zoom acidental, balanço lateral ou conteúdo escapando da viewport. */
+html,
+body,
+#root {
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  position: relative;
+}
+
+#root,
+.restaurant-page,
+main,
+header,
+footer,
+section,
+article,
+nav,
+aside {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.restaurant-page {
+  overflow-x: clip;
+}
+
+.page-width {
+  min-width: 0;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
+@media (max-width: 700px) {
+  html {
+    scroll-padding-top: 12px;
+    scroll-behavior: auto;
+  }
+
+  .page-width {
+    width: calc(100% - 32px);
+  }
+
+  .section {
+    padding-block: 64px;
+    scroll-margin-top: 12px;
+  }
+
+  .section-heading {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .section-heading h2,
+  .opening-layout h2,
+  .promotion-copy h2,
+  .reviews-section h2,
+  .order-heading h2 {
+    font-size: clamp(36px, 10vw, 48px);
+    overflow-wrap: anywhere;
+  }
+
+  .meal-grid,
+  .promotion-layout,
+  .opening-layout,
+  .reviews-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .meal-details {
+    padding: 20px;
+  }
+
+  .contact-dock {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
+  .contact-dock .contact-dock__icon {
+    box-shadow: 0 3px 12px rgba(0, 0, 0, .2);
+  }
+
+  .hero,
+  .hero-media,
+  .hero-content {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .hero h1 {
+    font-size: clamp(56px, 15vw, 82px);
+    overflow-wrap: anywhere;
+  }
+
+  .hero-actions,
+  .hero-bottom {
+    max-width: 100%;
+  }
+
+  .footer-main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .footer-bottom {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
