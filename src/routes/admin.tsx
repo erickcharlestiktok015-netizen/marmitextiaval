@@ -101,8 +101,24 @@ function AdminPage() {
     setLoggedIn(false); setOrders([]);
   };
 
-  const visibleOrders = orders.filter((order) => filter === 'todos' || (filter === 'ativos' ? !['concluido', 'cancelado'].includes(order.order_status) : order.order_status === filter));
-  const pendingCount = orders.filter((order) => order.order_status === 'novo').length;
+  // Pedidos pagos online e pedidos para pagar na entrega podem ir para a cozinha.
+  // Pedidos online pendentes ficam numa fila separada e nunca contam como pedido ativo.
+  const isKitchenEligible = (order: Order) =>
+    order.payment_method !== 'online' || order.payment_status === 'approved';
+  const unpaidOnlineOrders = orders.filter(
+    (order) => order.payment_method === 'online' && order.payment_status !== 'approved',
+  );
+  const eligibleOrders = orders.filter(isKitchenEligible);
+  const visibleOrders = filter === 'pagamentos-pendentes'
+    ? unpaidOnlineOrders
+    : eligibleOrders.filter((order) =>
+        filter === 'todos'
+          ? true
+          : filter === 'ativos'
+            ? !['concluido', 'cancelado'].includes(order.order_status)
+            : order.order_status === filter,
+      );
+  const pendingCount = eligibleOrders.filter((order) => order.order_status === 'novo').length;
 
   if (!loggedIn) return <main className="min-h-screen bg-[#171714] text-[#f7f2e8] flex items-center justify-center p-5">
     <form onSubmit={login} className="w-full max-w-sm rounded-2xl border border-[#454238] bg-[#22221e] p-7 shadow-2xl space-y-5">
@@ -125,25 +141,24 @@ function AdminPage() {
     <section className="mx-auto max-w-6xl space-y-5 px-4 py-6 md:px-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <div className="rounded-xl border border-[#e4dfd3] bg-white p-4"><p className="text-sm text-[#777266]">Pedidos novos</p><p className="mt-1 text-3xl font-bold">{pendingCount}</p></div>
-        <div className="rounded-xl border border-[#e4dfd3] bg-white p-4"><p className="text-sm text-[#777266]">Em andamento</p><p className="mt-1 text-3xl font-bold">{orders.filter((o) => !['concluido', 'cancelado'].includes(o.order_status)).length}</p></div>
+        <div className="rounded-xl border border-[#e4dfd3] bg-white p-4"><p className="text-sm text-[#777266]">Em andamento</p><p className="mt-1 text-3xl font-bold">{eligibleOrders.filter((o) => !['concluido', 'cancelado'].includes(o.order_status)).length}</p></div>
         <div className="col-span-2 rounded-xl border border-[#e4dfd3] bg-white p-4 md:col-span-1"><p className="text-sm text-[#777266]">Hoje</p><p className="mt-1 text-3xl font-bold">{orders.filter((o) => new Date(o.created_at).toDateString() === new Date().toDateString()).length}</p></div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">Lista de pedidos</h2><select value={filter} onChange={(e) => setFilter(e.target.value)} className="min-h-10 rounded-lg border border-[#d9d2c4] bg-white px-3 text-sm"><option value="ativos">Pedidos ativos</option><option value="todos">Todos os pedidos</option>{statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></div>
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {loading && orders.length === 0 && <p className="py-8 text-center text-sm text-[#777266]">Carregando pedidos…</p>}
-      {!loading && visibleOrders.length === 0 && <div className="rounded-xl border border-dashed border-[#d9d2c4] bg-white p-10 text-center"><Store className="mx-auto mb-3 text-[#8b6a25]" size={30} /><h3 className="font-semibold">Nenhum pedido por aqui</h3><p className="mt-1 text-sm text-[#777266]">Quando alguém fizer um pedido pelo site, ele aparecerá nesta tela.</p></div>}
+      {!loading && visibleOrders.length === 0 && <div className="rounded-xl border border-dashed border-[#d9d2c4] bg-white p-10 text-center"><Store className="mx-auto mb-3 text-[#8b6a25]" size={30} /><h3 className="font-semibold">{filter === "pagamentos-pendentes" ? "Nenhum pagamento pendente" : "Nenhum pedido por aqui"}</h3><p className="mt-1 text-sm text-[#777266]">{filter === "pagamentos-pendentes" ? "Pedidos online só são liberados para a cozinha após a confirmação do Mercado Pago." : "Quando houver pedidos liberados, eles aparecerão nesta tela."}</p></div>}
       <div className="grid gap-4 lg:grid-cols-2">{visibleOrders.map((order) => {
         const address = order.address;
         const addressText = address ? [address.street, address.number, address.complement, address.bairro, address.cep].filter(Boolean).join(', ') : '';
         const mapUrl = addressText ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}` : '';
-        const whatsappUrl = `https://wa.me/55${phoneDigits(order.customer_phone)}`;
         return <article key={order.id} className="overflow-hidden rounded-xl border border-[#e4dfd3] bg-white shadow-sm">
           <div className="flex items-start justify-between gap-3 border-b border-[#eee9df] p-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#8b6a25]">Pedido #{order.code}</p><h3 className="mt-1 text-lg font-bold">{order.customer_name}</h3><p className="mt-1 text-xs text-[#777266]">{new Date(order.created_at).toLocaleString('pt-BR')} · {order.order_for === 'amanha' ? 'Reserva para amanhã' : 'Pedido de hoje'}</p></div><span className={`rounded-full px-3 py-1 text-center text-xs font-semibold ${order.order_status === 'novo' ? 'bg-amber-100 text-amber-900' : order.order_status === 'concluido' ? 'bg-emerald-100 text-emerald-900' : order.order_status === 'cancelado' ? 'bg-red-100 text-red-900' : 'bg-stone-100 text-stone-800'}`}>{statusLabel(order.order_status)}</span></div>
           <div className="space-y-4 p-4">
             <div className="space-y-2">{order.items?.map((item, index) => <div key={index} className="flex justify-between gap-3 text-sm"><div><p className="font-medium">{item.quantity}× {item.meal_name}</p><p className="text-xs text-[#777266]">{item.size_label}{item.notes ? ` · ${item.notes}` : ''}</p></div><span className="whitespace-nowrap">{money(Number(item.unit_price) * item.quantity)}</span></div>)}</div>
             <div className="rounded-lg bg-[#f7f4ed] p-3 text-sm"><div className="flex justify-between"><span className="text-[#777266]">Marmitas</span><span>{money(Number(order.subtotal))}</span></div><div className="mt-1 flex justify-between"><span className="text-[#777266]">Entrega</span><span>{money(Number(order.delivery_fee))}</span></div><div className="mt-2 flex justify-between border-t border-[#e2dccf] pt-2 text-base font-bold"><span>Total</span><span>{money(Number(order.total))}</span></div></div>
-            <div className="space-y-2 text-sm"><p className="flex items-start gap-2"><Phone size={16} className="mt-0.5 shrink-0 text-[#8b6a25]" />{order.customer_phone}</p><p className="flex items-start gap-2"><span className="mt-0.5 shrink-0 text-[#8b6a25]">{order.fulfillment === 'entrega' ? <Bike size={16} /> : <Store size={16} />}</span><span>{order.fulfillment === 'entrega' ? addressText || 'Endereço não informado' : 'Retirada na cozinha'}</span></p><p className="text-[#777266]">Pagamento: {paymentLabel(order.payment_method)} · {paymentStatusLabel(order.payment_status)}</p>{order.change_for && <p>Troco para: {money(Number(order.change_for))}</p>}</div>
-            <div className="flex flex-wrap gap-2"><a href={`tel:+55${phoneDigits(order.customer_phone)}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm"><Phone size={15} /> Ligar</a><a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm">WhatsApp</a>{mapUrl && <a href={mapUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm"><MapPin size={15} /> Abrir mapa</a>}</div>
+            <div className="space-y-2 text-sm"><p className="flex items-start gap-2"><Phone size={16} className="mt-0.5 shrink-0 text-[#8b6a25]" />{order.customer_phone}</p><p className="flex items-start gap-2"><span className="mt-0.5 shrink-0 text-[#8b6a25]">{order.fulfillment === 'entrega' ? <Bike size={16} /> : <Store size={16} />}</span><span>{order.fulfillment === 'entrega' ? addressText || 'Endereço não informado' : 'Retirada na cozinha'}</span></p><p className="text-[#777266]">Pagamento: {paymentLabel(order.payment_method)} · {paymentStatusLabel(order.payment_status)}</p>{order.payment_method === "online" && order.payment_status === "approved" && <p className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-900">PAGO · liberado para a cozinha</p>}{order.payment_method !== "online" && <p className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">PAGAR NA ENTREGA/RETIRADA</p>}{order.payment_method === "online" && order.payment_status !== "approved" && <p className="inline-flex rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-900">NÃO LIBERADO · aguardando confirmação</p>}{order.change_for && <p>Troco para: {money(Number(order.change_for))}</p>}</div>
+            <div className="flex flex-wrap gap-2"><a href={`tel:+55${phoneDigits(order.customer_phone)}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm"><Phone size={15} /> Ligar</a>{mapUrl && <a href={mapUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm"><MapPin size={15} /> Abrir mapa</a>}</div>
             <label className="block space-y-2 text-sm font-semibold">Atualizar situação<select value={order.order_status} onChange={(e) => void updateStatus(order, e.target.value)} className="min-h-11 w-full rounded-lg border border-[#d9d2c4] bg-white px-3 font-normal"><option value="" disabled>Escolha o status</option>{statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
             {!["concluido", "cancelado"].includes(order.order_status) && <button type="button" onClick={() => { if (window.confirm(`Tem certeza que deseja cancelar o pedido #${order.code} de ${order.customer_name}?`)) void updateStatus(order, "cancelado"); }} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100"><Ban size={16} /> Cancelar pedido</button>}
           </div>
