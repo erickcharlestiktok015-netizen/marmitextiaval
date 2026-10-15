@@ -16,7 +16,25 @@ function CourierLogin() {
     try {
       const response = await fetch('/api/courier/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
       const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Não foi possível entrar.');
+      if (!response.ok) {
+        console.warn('[courier-login-ui] Login recusado:', { status: response.status, message: data.error || 'Sem mensagem' });
+        throw new Error(data.error || `Não foi possível entrar (HTTP ${response.status}).`);
+      }
+
+      // Confirma a sessão antes de navegar, para que um cookie rejeitado não pareça
+      // um login bem-sucedido seguido de uma recarga silenciosa.
+      const check = await fetch('/api/courier/orders', { cache: 'no-store', credentials: 'same-origin' });
+      if (!check.ok) {
+        const checkData = await check.json().catch(() => ({})) as { error?: string };
+        console.error('[courier-login-ui] Login respondeu OK, mas a sessão não foi validada:', {
+          loginStatus: response.status,
+          ordersStatus: check.status,
+          message: checkData.error || 'Sem mensagem',
+        });
+        throw new Error(check.status === 401
+          ? 'A senha foi aceita, mas a sessão não foi reconhecida pelo servidor. Verifique os Runtime Logs da Vercel.'
+          : `Login aceito, mas a API de entregas falhou (HTTP ${check.status}).`);
+      }
       window.location.href = '/motoboy/entregas';
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao entrar.'); }
     finally { setBusy(false); }
