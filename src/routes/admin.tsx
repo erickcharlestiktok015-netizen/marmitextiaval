@@ -148,6 +148,12 @@ function AdminPage() {
       {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
       <button disabled={loading} className="w-full rounded-lg bg-[#e9c878] px-4 py-3 font-semibold text-[#25231c] disabled:opacity-60">{loading ? 'Entrando…' : 'Entrar no painel'}</button>
       <p className="text-center text-xs text-[#9d998d]">Acesso protegido. Não compartilhe sua senha.</p>
+      <div className="border-t border-[#454238] pt-5">
+        <p className="mb-3 text-center text-sm text-[#c2bdae]">Ou entre como entregador</p>
+        <a href="/motoboy" className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-[#e9c878] px-4 py-3 font-semibold text-[#e9c878] transition hover:bg-[#e9c878]/10">
+          <Bike size={18} /> Área do motoboy
+        </a>
+      </div>
     </form>
   </main>;
 
