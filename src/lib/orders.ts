@@ -7,7 +7,7 @@ export type OnlinePaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'ticket
 export type Order = {
   when: 'hoje' | 'amanha';
   items: OrderItem[];
-  customer: { name: string; phone: string };
+  customer: { name: string; phone: string; email?: string };
   fulfillment: 'entrega' | 'retirada';
   address?: { cep: string; street: string; number: string; complement: string; bairro: string } | undefined;
   distanceKm: number | null;
@@ -27,14 +27,14 @@ export function calculateTotals(items: OrderItem[], fulfillment: 'entrega' | 're
   return { subtotal, deliveryFee, total: subtotal + deliveryFee };
 }
 
-export type SubmitResult = { code: string; paymentUrl: string | null };
+export type SubmitResult = { code: string; paymentUrl: string | null; pixPayment?: { paymentId: string; qrCode: string; qrCodeBase64: string; status: string } };
 
 export async function submitOrder(order: Order): Promise<SubmitResult> {
   const { createOrder } = await import('@/lib/orders.functions');
   return createOrder({ data: {
     when: order.when,
     items: order.items,
-    customer: { name: order.customer.name.trim(), phone: order.customer.phone.replace(/\\D/g, '') },
+    customer: { name: order.customer.name.trim(), phone: order.customer.phone.replace(/\\D/g, ''), email: order.customer.email?.trim() },
     fulfillment: order.fulfillment,
     address: order.address,
     distanceKm: order.fulfillment === 'entrega' ? order.distanceKm : null,
