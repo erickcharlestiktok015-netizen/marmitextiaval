@@ -99,7 +99,7 @@ function CourierDeliveries() {
 
   const estimatedRouteKm = useMemo(() => {
     let current = location, total = 0;
-    for (const order of ordered) {
+    for (const order of ordered.filter(o => ['pronto_entrega', 'saiu_entrega'].includes(o.order_status))) {
       const point = coords(order.address);
       if (current && point) total += distance(current, point);
       if (point) current = point;
@@ -188,7 +188,7 @@ function CourierDeliveries() {
         <div className="flex items-center gap-2 rounded-xl bg-[#f7f4ed] px-3 py-2 text-sm"><span className="h-2 w-2 rounded-full bg-[#2e8b57]"></span><span>Atualização automática a cada 15 s</span></div>
       </section>
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">{error}</div>}
-      {ordered.length === 0 && <section className="rounded-2xl border border-[#e5dfd2] bg-white p-8 text-center"><PackageCheck className="mx-auto text-[#9a742a]" size={34}/><h2 className="mt-3 text-lg font-bold">Nenhuma entrega liberada</h2><p className="mt-1 text-sm text-[#777266]">Quando a cozinha marcar um pedido como pronto para entrega, ele aparecerá aqui.</p></section>}
+      {ordered.length === 0 && <section className="rounded-2xl border border-[#e5dfd2] bg-white p-8 text-center"><PackageCheck className="mx-auto text-[#9a742a]" size={34}/><h2 className="mt-3 text-lg font-bold">Nenhum pedido de entrega encontrado</h2><p className="mt-1 text-sm text-[#777266]">Os pedidos de entrega aparecerão aqui assim que forem registrados. A saída só será liberada quando a cozinha marcar como pronto.</p></section>}
       {ordered.map((order, index) => <article key={order.id} className="space-y-4 rounded-2xl border border-[#e5dfd2] bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-[#9a742a]">{order.order_status === 'saiu_entrega' ? 'Em rota' : order.order_status === 'pronto_entrega' ? `Pronto para sair · parada ${index+1}` : order.order_status === 'preparando' ? 'Em preparação na cozinha' : order.order_status === 'confirmado' ? 'Pedido confirmado · aguardando cozinha' : 'Pedido novo · aguardando confirmação'}</p><h2 className="mt-1 text-xl font-bold">Pedido #{order.code}</h2><p className="mt-1 text-sm text-[#777266]">{order.customer_name}</p></div><span className="rounded-full bg-[#f8f1df] px-3 py-1 text-xs font-bold">Chegada: {etaText(order.estimated_delivery_at)}</span></div>
         <div className="rounded-xl bg-[#f7f4ed] p-3"><p className="flex gap-2 text-sm font-semibold"><MapPin size={17} className="shrink-0"/>{addressText(order.address)}</p>{coords(order.address) && <p className="mt-1 text-xs text-[#777266]">Distância aproximada: {location ? distance(location, coords(order.address)!).toFixed(1)+' km em linha reta' : 'ative o GPS para calcular proximidade'}</p>}<div className="mt-3 flex flex-wrap gap-2"><button onClick={()=>waze(order)} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#25251f] px-3 text-sm font-semibold text-white"><Navigation size={16}/> Abrir no Waze</button>{order.customer_phone && <a href={`tel:${order.customer_phone.replace(/[^+\d]/g,'')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold"><Phone size={16}/> Ligar cliente</a>}</div></div>
