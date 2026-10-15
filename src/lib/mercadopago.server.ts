@@ -31,9 +31,16 @@ export function buildPreferenceItems(items: PaymentItemInput[], fulfillment: 'en
 }
 
 function env(name: string) {
-  const v = process.env[name];
-  if (!v) throw new Error(`Variável de ambiente ${name} não configurada`);
+  const v = process.env[name]?.trim();
+  if (!v) throw new Error(`Variável de ambiente ${name} não configurada ou vazia`);
   return v;
+}
+
+// Normaliza o token caso tenha sido colado com espaços ou com o prefixo "Bearer ".
+function mpAccessToken() {
+  const token = env('MP_ACCESS_TOKEN').replace(/^Bearer\\s+/i, '');
+  if (!token) throw new Error('MP_ACCESS_TOKEN está vazio');
+  return token;
 }
 
 export function siteUrl() {
@@ -85,7 +92,7 @@ export async function createPreference(args: {
   };
   const res = await fetch(`${MP_API}/checkout/preferences`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${env('MP_ACCESS_TOKEN')}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': args.code },
+    headers: { Authorization: `Bearer ${mpAccessToken()}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': args.code },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -109,10 +116,11 @@ export async function createPixPayment(args: {
   payer: { name: string; phone: string; email: string };
 }): Promise<PixPaymentResult> {
   const nameParts = args.payer.name.trim().split(/\s+/);
+  const accessToken = mpAccessToken();
   const res = await fetch(`${MP_API}/v1/payments`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${env('MP_ACCESS_TOKEN')}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
       'X-Idempotency-Key': args.code,
     },
@@ -130,7 +138,12 @@ export async function createPixPayment(args: {
     }),
   });
   if (!res.ok) {
-    console.error('Mercado Pago Pix payment error', res.status, await res.text());
+    console.error('Mercado Pago Pix payment error', res.status, {
+      response: await res.text(),
+      tokenPrefix: accessToken.slice(0, 7),
+      tokenLength: accessToken.length,
+      environment: process.env['VERCEL_ENV'] || 'unknown',
+    });
     throw new Error('Falha ao criar pagamento Pix no Mercado Pago');
   }
   const data = (await res.json()) as {
@@ -147,7 +160,7 @@ export async function createPixPayment(args: {
 }
 
 export async function getPayment(id: string) {
-  const res = await fetch(`${MP_API}/v1/payments/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${env('MP_ACCESS_TOKEN')}` } });
+  const res = await fetch(`${MP_API}/v1/payments/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${mpAccessToken()}` } });
   if (!res.ok) throw new Error(`Pagamento ${id} não encontrado (${res.status})`);
   return (await res.json()) as { id: number; status: string; status_detail: string; external_reference: string; transaction_amount: number; payment_type_id: string; payment_method_id: string };
 }
