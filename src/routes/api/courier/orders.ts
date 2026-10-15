@@ -20,7 +20,6 @@ export const Route = createFileRoute('/api/courier/orders')({
         const visibleStatuses = ['novo', 'confirmado', 'preparando', 'pronto_entrega', 'saiu_entrega'];
         const queue = orders.filter(o =>
           visibleStatuses.includes(String(o.order_status)) &&
-          (o.fulfillment === 'entrega') &&
           (o.payment_method !== 'online' || o.payment_status === 'approved')
         );
         const ids = queue.map(o => o.id);
