@@ -588,6 +588,37 @@ button, input, select, textarea {
 }
 
 
+/* Checkout: fixa a caixa no viewport e impede o modal de herdar transformações que o empurram para cima. */
+.checkout-dialog {
+  box-sizing: border-box !important;
+  position: fixed !important;
+  inset-block: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-bottom)) !important;
+  left: 50% !important;
+  right: auto !important;
+  width: min(680px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  max-height: calc(100dvh - 24px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  transform: translateX(-50%) !important;
+  margin: 0 !important;
+}
+.checkout-dialog [data-slot="dialog-close"] { z-index: 5; }
+@media (max-width: 700px) {
+  .checkout-dialog {
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+    inset-block: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom)) !important;
+    max-height: none !important;
+  }
+}
+
 /* Correção final de viewport mobile: checkout estável ao abrir e ao focar campos. */
 @media (max-width: 700px) {
   .checkout-dialog {
