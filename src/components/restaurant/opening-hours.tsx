@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Clock, FlaskConical, MapPin } from 'lucide-react';
+import { Clock, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isRestaurantOpen, mapsUrl, openingHours } from '@/lib/restaurant-data';
 
 export function OpeningHours() {
   const [open, setOpen] = useState<boolean | null>(null);
-  const [testing, setTesting] = useState(false);
   useEffect(() => {
     const update = () => setOpen(isRestaurantOpen());
     update();
@@ -19,7 +18,6 @@ export function OpeningHours() {
         <span role="status" className={`store-status${testing || open ? ' is-open' : ''}`}><span className="status-dot" />{testing ? 'Aberto · teste' : open === null ? 'Consultando horário…' : open ? 'Aberto agora' : 'Fechado agora'}</span>
         <h3>Hora do almoço</h3><p>{openingHours.weekdays}</p><p>{openingHours.sunday}</p><small>Horário de Belo Horizonte</small>
         <a className="opening-address" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={17} /><span>Rua Padre Cyr Assumpção, 289<br />Primeiro de Maio · Belo Horizonte</span></a>
-        <Button className="status-test" size="sm" variant="ghost" aria-pressed={testing} onClick={() => setTesting(value => !value)}><FlaskConical size={14} />{testing ? 'Voltar ao horário real' : 'Testar indicador aberto'}</Button>
       </div>
     </div>
   </section>;
