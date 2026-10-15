@@ -777,3 +777,37 @@ svg {
 /* Ajustes isolados às telas do motoboy: respeitam viewport dinâmica e rolagem natural no celular. */
 .courier-screen { min-height: 100vh; min-height: 100dvh; max-width: 100%; overflow-x: clip; }
 .courier-screen input, .courier-screen select, .courier-screen textarea { font-size: 16px; }
+
+
+/* Correção definitiva do checkout: sobrescreve as regras antigas conflitantes. */
+.checkout-dialog {
+  position: fixed !important;
+  inset: 12px auto 12px 50% !important;
+  width: min(680px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  height: auto !important;
+  max-height: calc(100dvh - 24px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  transform: translateX(-50%) !important;
+  translate: none !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  box-sizing: border-box !important;
+}
+.checkout-dialog > .detail-content { width:100%; min-width:0; box-sizing:border-box; }
+.checkout-dialog [data-slot="dialog-close"] { position:absolute !important; top:8px !important; right:8px !important; z-index:20 !important; }
+@media (max-width:700px) {
+  .checkout-dialog {
+    inset: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)) !important;
+    width:auto !important;
+    max-width:none !important;
+    max-height:none !important;
+    transform:none !important;
+    translate:none !important;
+    touch-action: pan-y !important;
+  }
+}
