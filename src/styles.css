@@ -1172,3 +1172,29 @@ svg {
 html, body, .restaurant-page {
   overscroll-behavior-x: none;
 }
+
+
+/* Centraliza os modais sem conflito entre transform e translate do Radix/Tailwind. */
+[data-radix-dialog-content] {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  margin: auto !important;
+  transform: none !important;
+  translate: none !important;
+  height: fit-content !important;
+  max-height: calc(100dvh - 24px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+}
+[data-radix-dialog-content].checkout-dialog {
+  width: min(680px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+}
+@supports not (height: 100dvh) {
+  [data-radix-dialog-content] { max-height: calc(100vh - 24px) !important; }
+}
