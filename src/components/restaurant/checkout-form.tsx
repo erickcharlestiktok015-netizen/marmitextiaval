@@ -20,7 +20,7 @@ const onlinePaymentOptions: { id: OnlinePaymentMethod; label: string; hint: stri
   { id: 'account_money', label: 'Saldo Mercado Pago', hint: 'Use o saldo da sua conta', brand: 'MP', icon: Wallet },
 ];
 const maskPhone = (v: string) => {
-  const d = v.replace(/\\D/g, '').slice(0, 11);
+  const d = v.replace(/\D/g, '').slice(0, 11);
   if (d.length <= 2) return d;
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
@@ -45,13 +45,13 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
   const submit = async () => {
     setError(null);
     if (name.trim().length < 2) return setError('Coloque seu nome.');
-    if (phone.replace(/\\D/g, '').length < 10) return setError('Coloque um telefone com DDD.');
+    if (phone.replace(/\D/g, '').length < 10) return setError('Coloque um telefone com DDD.');
     if (fulfillment === 'entrega' && !fee) return setError('Coloque seu endereço e clique em Calcular entrega.');
     if (payment === 'online' && !onlineMethod) return setError('Escolha uma forma de pagamento online.');
     const order: Order = {
       when, items, totals, payment, fulfillment,
       onlineMethod: payment === 'online' ? onlineMethod : undefined,
-      customer: { name: name.trim(), phone: phone.replace(/\\D/g, '') },
+      customer: { name: name.trim(), phone: phone.replace(/\D/g, '') },
       address: fulfillment === 'entrega' && fee ? { cep: fee.cep, street: fee.rua, number: fee.numero, complement: fee.complemento, bairro: fee.bairro } : undefined,
       distanceKm: fulfillment === 'entrega' ? fee?.km ?? null : null,
       changeFor: payment === 'entrega-dinheiro' && changeFor ? Number(changeFor.replace(',', '.')) || null : null,
@@ -95,7 +95,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
       <fieldset><legend><CreditCard size={14} /> Pagamento</legend>
         <div className="checkout-pay">{paymentOptions.map(o => <button type="button" key={o.id} aria-pressed={payment === o.id} onClick={() => { setPayment(o.id); if (o.id === 'online') setPaymentDialog(true); }}><strong>{o.label}</strong><small>{o.hint}</small></button>)}</div>
         {payment === 'online' && <div className="online-payment-selected"><span>Forma escolhida: <strong>{selectedOnlineMethod.label}</strong></span><Button type="button" variant="outline" size="sm" onClick={() => setPaymentDialog(true)}>Trocar</Button></div>}
-        {payment === 'entrega-dinheiro' && <input value={changeFor} onChange={e => setChangeFor(e.target.value.replace(/[^\\d,]/g, ''))} placeholder="Troco para quanto? (opcional)" inputMode="decimal" aria-label="Troco para" />}
+        {payment === 'entrega-dinheiro' && <input value={changeFor} onChange={e => setChangeFor(e.target.value.replace(/[^\d,]/g, ''))} placeholder="Troco para quanto? (opcional)" inputMode="decimal" aria-label="Troco para" />}
       </fieldset>
 
       <dl className="cart-totals">
