@@ -107,12 +107,14 @@ export interface FileRouteTypes {
   id: '__root__' | '/' | '/pagamento' | '/api/public/mercadopago-webhook' | '/motoboy' | '/motoboy/entregas' | '/api/courier/login' | '/api/courier/logout' | '/api/courier/orders' | '/api/courier/presence'
   fileRoutesById: FileRoutesById
 }
+export interface MotoboyRouteChildren {
+  MotoboyEntregasRoute: typeof MotoboyEntregasRoute
+}
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PagamentoRoute: typeof PagamentoRoute
   ApiPublicMercadopagoWebhookRoute: typeof ApiPublicMercadopagoWebhookRoute
   MotoboyRoute: typeof MotoboyRoute
-  MotoboyEntregasRoute: typeof MotoboyEntregasRoute
   ApiCourierLoginRoute: typeof ApiCourierLoginRoute
   ApiCourierLogoutRoute: typeof ApiCourierLogoutRoute
   ApiCourierOrdersRoute: typeof ApiCourierOrdersRoute
@@ -187,12 +189,15 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const motoboyRouteChildren: MotoboyRouteChildren = {
+  MotoboyEntregasRoute: MotoboyEntregasRoute,
+}
+const MotoboyRouteWithChildren = MotoboyRoute._addFileChildren(motoboyRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PagamentoRoute: PagamentoRoute,
   ApiPublicMercadopagoWebhookRoute: ApiPublicMercadopagoWebhookRoute,
-  MotoboyRoute: MotoboyRoute,
-  MotoboyEntregasRoute: MotoboyEntregasRoute,
+  MotoboyRoute: MotoboyRouteWithChildren,
   ApiCourierLoginRoute: ApiCourierLoginRoute,
   ApiCourierLogoutRoute: ApiCourierLogoutRoute,
   ApiCourierOrdersRoute: ApiCourierOrdersRoute,
