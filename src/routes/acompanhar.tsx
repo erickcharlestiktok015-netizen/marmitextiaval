@@ -77,7 +77,7 @@ function TrackingPage() {
       }
     };
     void load();
-    const timer = window.setInterval(() => { void load(); }, 5000);
+    const timer = window.setInterval(() => { void load(); }, 30000);
     return () => { active = false; window.clearInterval(timer); };
   }, [token, alertsEnabled]);
 
@@ -98,7 +98,7 @@ function TrackingPage() {
         </div>
         <div className="relative mt-6 flex flex-wrap items-center gap-3">
           {order && <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm font-bold">Pedido #{order.code}</span>}
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-200"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300"/> Acompanhamento ao vivo</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-200"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300"/> Atualização a cada 30 s</span>
         </div>
       </header>
 
@@ -111,14 +111,14 @@ function TrackingPage() {
         <div className="rounded-2xl border border-[#e5dfd2] bg-white/90 p-4 shadow-sm sm:p-5">
           <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#777266]"><RefreshCw size={15}/> Sincronização do pedido</p>
           <p className="mt-2 text-xl font-bold">{lastUpdated ? `Atualizado às ${lastUpdated}` : 'Consultando pedido…'}</p>
-          <p className="mt-1 text-xs text-[#777266]">Consulta automática a cada 5 segundos.</p>
+          <p className="mt-1 text-xs text-[#777266]">Localização e status atualizados a cada 30 segundos.</p>
         </div>
       </section>
 
       {error && !order && <div role="alert" className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-800 shadow-sm">{error}</div>}
       {order && <>
         {order.order_status === 'saiu_entrega' && typeof order.courier_latitude === 'number' && typeof order.courier_longitude === 'number' && <section className="overflow-hidden rounded-3xl border border-[#e5dfd2] bg-white shadow-sm">
-          <div className="p-5 sm:p-6"><p className="text-xs font-bold uppercase tracking-wider text-[#9a742a]">Acompanhamento ao vivo</p><h2 className="mt-2 text-xl font-extrabold">Seu motoboy está a caminho 🛵</h2><p className="mt-1 text-sm text-[#777266]">A localização é atualizada enquanto o motoboy estiver compartilhando o GPS. O Waze pode ficar aberto durante a rota.</p>{order.courier_location_updated_at && <p className="mt-2 text-xs text-[#777266]">Última localização recebida às {brasiliaTime(order.courier_location_updated_at)}.</p>}</div>
+          <div className="p-5 sm:p-6"><p className="text-xs font-bold uppercase tracking-wider text-[#9a742a]">Acompanhamento da entrega</p><h2 className="mt-2 text-xl font-extrabold">Seu motoboy está a caminho 🛵</h2><p className="mt-1 text-sm text-[#777266]">O mapa e o status são atualizados a cada 30 segundos. O ícone do mapa marca a última posição recebida; o GPS precisa continuar autorizado no celular do motoboy.</p>{order.courier_location_updated_at && <p className="mt-2 text-xs text-[#777266]">Última localização recebida às {brasiliaTime(order.courier_location_updated_at)}.</p>}<div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800"><span className="h-2 w-2 animate-ping rounded-full bg-emerald-500"/><span className="h-2 w-2 -ml-4 rounded-full bg-emerald-600"/> Motoboy localizado</div></div>
           <iframe title="Localização aproximada do motoboy" className="h-64 w-full border-0 sm:h-80" loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://www.openstreetmap.org/export/embed.html?bbox=${order.courier_longitude-0.012}%2C${order.courier_latitude-0.009}%2C${order.courier_longitude+0.012}%2C${order.courier_latitude+0.009}&layer=mapnik&marker=${order.courier_latitude}%2C${order.courier_longitude}`}/>
         </section>}
 
