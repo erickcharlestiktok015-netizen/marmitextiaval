@@ -9,7 +9,7 @@ export type Order = {
   items: OrderItem[];
   customer: { name: string; phone: string; email?: string };
   fulfillment: 'entrega' | 'retirada';
-  address?: { cep: string; street: string; number: string; complement: string; bairro: string } | undefined;
+  address?: { cep: string; street: string; number: string; complement: string; bairro: string; latitude?: number; longitude?: number } | undefined;
   distanceKm: number | null;
   payment: PaymentMethod;
   onlineMethod?: OnlinePaymentMethod;
