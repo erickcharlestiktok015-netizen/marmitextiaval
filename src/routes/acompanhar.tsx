@@ -7,7 +7,7 @@ const searchSchema = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/).catch(
 type TrackingOrder = {
   code: string; order_status: string; payment_status: string; payment_method: string;
   fulfillment: string; estimated_delivery_at: string | null; courier_status: string;
-  confirmation_code: string | null; created_at: string; updated_at: string;
+  confirmation_code: string | null; created_at: string; updated_at: string; courier_latitude: number | null; courier_longitude: number | null; courier_location_updated_at: string | null;
   items: Array<{ meal_name: string; size_label: string; quantity: number }>;
 };
 const steps = [
@@ -117,6 +117,11 @@ function TrackingPage() {
 
       {error && !order && <div role="alert" className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-800 shadow-sm">{error}</div>}
       {order && <>
+        {order.order_status === 'saiu_entrega' && typeof order.courier_latitude === 'number' && typeof order.courier_longitude === 'number' && <section className="overflow-hidden rounded-3xl border border-[#e5dfd2] bg-white shadow-sm">
+          <div className="p-5 sm:p-6"><p className="text-xs font-bold uppercase tracking-wider text-[#9a742a]">Acompanhamento ao vivo</p><h2 className="mt-2 text-xl font-extrabold">Seu motoboy está a caminho 🛵</h2><p className="mt-1 text-sm text-[#777266]">A localização é atualizada enquanto o motoboy estiver compartilhando o GPS. O Waze pode ficar aberto durante a rota.</p>{order.courier_location_updated_at && <p className="mt-2 text-xs text-[#777266]">Última localização recebida às {brasiliaTime(order.courier_location_updated_at)}.</p>}</div>
+          <iframe title="Localização aproximada do motoboy" className="h-64 w-full border-0 sm:h-80" loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://www.openstreetmap.org/export/embed.html?bbox=${order.courier_longitude-0.012}%2C${order.courier_latitude-0.009}%2C${order.courier_longitude+0.012}%2C${order.courier_latitude+0.009}&layer=mapnik&marker=${order.courier_latitude}%2C${order.courier_longitude}`}/>
+        </section>}
+
         <section className="rounded-3xl border border-[#e5dfd2] bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start justify-between gap-3">
             <div><p className="text-xs font-bold uppercase tracking-wider text-[#9a742a]">Situação atual</p><h2 className="mt-2 text-2xl font-extrabold tracking-tight">{order.courier_status === 'cheguei' ? 'O motoboy chegou ao endereço!' : steps.find(s => s.value === order.order_status)?.title ?? order.order_status}</h2></div>
