@@ -166,6 +166,16 @@ function AdminPage() {
             : order.order_status === filter,
       );
   const pendingCount = eligibleOrders.filter((order) => order.order_status === 'novo').length;
+  
+  // Financial metrics
+  const totalSales = eligibleOrders.reduce((sum, order) => sum + order.total, 0);
+  const pendingPayments = eligibleOrders
+    .filter(order => order.payment_method === 'online' && order.payment_status === 'pending')
+    .reduce((sum, order) => sum + order.total, 0);
+  const approvedPayments = eligibleOrders
+    .filter(order => order.payment_method === 'online' && order.payment_status === 'approved')
+    .reduce((sum, order) => sum + order.total, 0);
+    
   const orderAgeMinutes = (createdAt: string) => Math.max(0, Math.floor((clockNow - new Date(createdAt).getTime()) / 60000));
   const orderAgeLabel = (createdAt: string) => {
     const minutes = orderAgeMinutes(createdAt);
@@ -268,7 +278,7 @@ function AdminPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Stats Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
           <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
             <p className="text-xs font-bold uppercase tracking-[.2em] text-[#e11d48]/60">Pedidos novos</p>
             <p className="mt-2 text-3xl font-bold text-[#e11d48]">{pendingCount}</p>
@@ -282,6 +292,21 @@ function AdminPage() {
           <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
             <p className="text-xs font-bold uppercase tracking-[.2em] text-[#f59e0b]/60">Hoje</p>
             <p className="mt-2 text-3xl font-bold text-[#f59e0b]">{orders.filter((o) => new Date(o.created_at).toDateString() === new Date().toDateString()).length}</p>
+          </div>
+          
+          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
+            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#3b82f6]/60">Vendas totais</p>
+            <p className="mt-2 text-3xl font-bold text-[#3b82f6]">{money(totalSales)}</p>
+          </div>
+          
+          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
+            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#f59e0b]/60">Pendentes</p>
+            <p className="mt-2 text-3xl font-bold text-[#f59e0b]">{money(pendingPayments)}</p>
+          </div>
+          
+          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
+            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#10b981]/60">Aprovados</p>
+            <p className="mt-2 text-3xl font-bold text-[#10b981]">{money(approvedPayments)}</p>
           </div>
         </div>
 
@@ -410,6 +435,26 @@ function AdminPage() {
                       <span className="font-medium">Pagamento:</span> <span>{order.payment_method === 'online' ? 'Online' : order.payment_method === 'entrega-pix' ? 'Pix na entrega' : order.payment_method === 'entrega-cartao' ? 'Cartão na entrega' : order.payment_method === 'entrega-dinheiro' ? 'Dinheiro na entrega' : order.payment_method}</span>
                       <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium {order.payment_method === 'online' ? (order.payment_status === 'approved' ? 'bg-[rgba(16,185,129,0.2)] text-[#10b981]' : 'bg-[rgba(250,204,21,0.2)] text-[#f59e0b]') : 'bg-[rgba(107,114,128,0.2)] text-[#6b7280]' }">
                         {order.payment_method === 'online' ? (order.payment_status === 'approved' ? 'Pagamento aprovado' : 'Aguardando confirmação') : 'Pagamento na entrega'}
+                      </span>
+                    </div>
+                    
+                    {/* Payment method badge */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-[rgba(59,130,246,0.2)] text-[#3b82f6] border border-[rgba(59,130,246,0.3)]">
+                        {order.payment_method === 'online' ? (
+                          <>
+                            <span className="uppercase font-bold">MP</span>
+                            <span className="capitalize">{order.payment_status === 'approved' ? 'aprovado' : order.payment_status}</span>
+                          </>
+                        ) : order.payment_method === 'entrega-pix' ? (
+                          <>💰 <span>Pix na entrega</span></>
+                        ) : order.payment_method === 'entrega-cartao' ? (
+                          <>💳 <span>Cartão na entrega</span></>
+                        ) : order.payment_method === 'entrega-dinheiro' ? (
+                          <>💵 <span>Dinheiro na entrega</span></>
+                        ) : (
+                          <>{order.payment_method}</>
+                        )}
                       </span>
                     </div>
                     
