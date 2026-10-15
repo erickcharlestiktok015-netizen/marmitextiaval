@@ -1039,3 +1039,111 @@ svg {
   .courier-screen article { padding: 14px !important; }
   .courier-screen [class*="h-[280px]"] { height: 250px !important; }
 }
+
+
+/* FIX DEFINITIVO: modal de finalizar pedido centralizado; remove regras antigas conflitantes. */
+[data-slot="dialog-content"].checkout-dialog {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  inset: 50% auto auto 50% !important;
+  width: min(680px, calc(100vw - 32px)) !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 32px) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: calc(100dvh - 32px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  transform: translate(-50%, -50%) !important;
+  translate: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  box-sizing: border-box !important;
+  border-radius: 18px !important;
+  z-index: 1000 !important;
+}
+[data-slot="dialog-content"].checkout-dialog > .detail-content {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 28px 24px max(24px, env(safe-area-inset-bottom)) !important;
+  box-sizing: border-box !important;
+}
+[data-slot="dialog-content"].checkout-dialog [data-slot="dialog-close"] {
+  position: sticky !important;
+  float: right !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 1002 !important;
+}
+[data-slot="dialog-content"].checkout-dialog .checkout,
+[data-slot="dialog-content"].checkout-dialog .checkout fieldset,
+[data-slot="dialog-content"].checkout-dialog .checkout-items,
+[data-slot="dialog-content"].checkout-dialog .checkout-pay,
+[data-slot="dialog-content"].checkout-dialog .checkout-choice,
+[data-slot="dialog-content"].checkout-dialog .delivery-fee,
+[data-slot="dialog-content"].checkout-dialog .delivery-form,
+[data-slot="dialog-content"].checkout-dialog .checkout-done {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+[data-slot="dialog-content"].checkout-dialog input,
+[data-slot="dialog-content"].checkout-dialog select,
+[data-slot="dialog-content"].checkout-dialog textarea,
+[data-slot="dialog-content"].checkout-dialog button {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+[data-slot="dialog-overlay"] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999 !important;
+}
+@media (max-width: 700px) {
+  [data-slot="dialog-content"].checkout-dialog {
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    inset: 50% auto auto 50% !important;
+    width: calc(100vw - 24px) !important;
+    max-width: 520px !important;
+    max-height: calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom))) !important;
+    transform: translate(-50%, -50%) !important;
+    border-radius: 16px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+  [data-slot="dialog-content"].checkout-dialog > .detail-content {
+    padding: 24px 16px max(20px, env(safe-area-inset-bottom)) !important;
+  }
+  [data-slot="dialog-content"].checkout-dialog [data-slot="dialog-close"] {
+    position: absolute !important;
+    float: none !important;
+    top: max(8px, env(safe-area-inset-top)) !important;
+    right: max(8px, env(safe-area-inset-right)) !important;
+    background: var(--card) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25) !important;
+  }
+}
+@media (max-width: 380px) {
+  [data-slot="dialog-content"].checkout-dialog {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+  [data-slot="dialog-content"].checkout-dialog > .detail-content {
+    padding-inline: 12px !important;
+  }
+}
