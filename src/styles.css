@@ -1198,3 +1198,43 @@ html, body, .restaurant-page {
 @supports not (height: 100dvh) {
   [data-radix-dialog-content] { max-height: calc(100vh - 24px) !important; }
 }
+
+/* iPhone/Safari: mantém os títulos e o conteúdo do checkout na horizontal. */
+.checkout-dialog,
+.checkout-dialog *,
+.checkout-dialog [data-slot="dialog-title"],
+.checkout-dialog .checkout legend,
+.checkout-dialog .checkout fieldset,
+.checkout-dialog .checkout fieldset > * {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+.checkout-dialog .checkout,
+.checkout-dialog .checkout fieldset,
+.checkout-dialog .checkout legend,
+.checkout-dialog > .detail-content,
+.checkout-dialog .detail-content {
+  min-width: 0 !important;
+  width: 100%;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+.checkout-dialog .checkout legend {
+  display: block !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  letter-spacing: .1em;
+}
+@media (max-width: 700px) {
+  [data-radix-dialog-content].checkout-dialog {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+  .checkout-dialog > .detail-content {
+    padding: 20px 14px max(20px, env(safe-area-inset-bottom)) !important;
+  }
+}
+
