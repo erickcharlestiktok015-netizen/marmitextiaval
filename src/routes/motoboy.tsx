@@ -85,29 +85,9 @@ function CourierLogin() {
         throw new Error((data.error || 'Não foi possível entrar.') + ' (HTTP ' + response.status + ')');
       }
 
-      const check = await fetch('/api/courier/orders?diagnostic=' + Date.now(), {
-        cache: 'no-store',
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
-      });
-      const checkData = await check.json().catch(() => ({})) as { error?: string; orders?: unknown[] };
-      if (!check.ok) {
-        console.error('[courier-login-ui] Login aceito, mas a sessão/API falhou:', {
-          loginStatus: response.status,
-          ordersStatus: check.status,
-          message: checkData.error || 'Sem mensagem',
-        });
-        setDiagnostic({
-          title: check.status === 401 ? 'Senha aceita, mas a sessão falhou (HTTP 401)' : 'Login aceito, mas a API falhou (HTTP ' + check.status + ')',
-          detail: checkData.error || (check.status === 401
-            ? 'O servidor não reconheceu o cookie da sessão logo após o login.'
-            : 'A API não conseguiu carregar as entregas. Verifique os Runtime Logs da Vercel.'),
-          status: check.status,
-          ok: false,
-        });
-        throw new Error('Não foi possível abrir as entregas. Veja o diagnóstico abaixo.');
-      }
-      window.location.href = '/motoboy/entregas';
+      // O login já criou a sessão no servidor. Navegue diretamente para o painel:
+      // a própria tela de entregas mostra erros de sessão/API sem prender o entregador no login.
+      window.location.assign('/motoboy/entregas');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao entrar.');
     } finally {
