@@ -40,9 +40,9 @@ const MotoboyRoute = MotoboyRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const MotoboyEntregasRoute = MotoboyEntregasRouteImport.update({
-  id: '/motoboy/entregas',
-  path: '/motoboy/entregas',
-  getParentRoute: () => rootRouteImport,
+  id: '/entregas',
+  path: '/entregas',
+  getParentRoute: () => MotoboyRoute,
 } as any)
 const ApiCourierLoginRoute = ApiCourierLoginRouteImport.update({
   id: '/api/courier/login',
@@ -150,8 +150,8 @@ declare module '@tanstack/react-router' {
       parentRoute: typeof rootRouteImport
     }
     '/motoboy/entregas': {
-      id: '/motoboy/entregas'
-      path: '/motoboy/entregas'
+      id: '/entregas'
+      path: '/entregas'
       fullPath: '/motoboy/entregas'
       preLoaderRoute: typeof MotoboyEntregasRouteImport
       parentRoute: typeof rootRouteImport
