@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
+import { z } from 'zod';
 import { Bell, Bike, CheckCircle2, Clock3, CookingPot, MapPin, PackageCheck, RefreshCw } from 'lucide-react';
 
 const searchSchema = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/).catch('') });
