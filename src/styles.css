@@ -741,3 +741,8 @@ iframe,
 svg {
   max-width: 100%;
 }
+
+
+/* Ajustes isolados às telas do motoboy: respeitam viewport dinâmica e rolagem natural no celular. */
+.courier-screen { min-height: 100vh; min-height: 100dvh; max-width: 100%; overflow-x: clip; }
+.courier-screen input, .courier-screen select, .courier-screen textarea { font-size: 16px; }
