@@ -123,6 +123,7 @@ function CourierDeliveries() {
     };
   }, [load, loadPresence]);
 
+  const prepCount = orders.filter(o => ['novo', 'confirmado', 'preparando'].includes(o.order_status)).length;
   const readyCount = orders.filter(o => o.order_status === 'pronto_entrega').length;
   const activeCount = orders.filter(o => o.order_status === 'saiu_entrega').length;
   const todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
@@ -375,6 +376,7 @@ function CourierDeliveries() {
             <div className="p-4"><p className="text-lg font-extrabold">{isOnline ? 'Você está online' : 'Você está offline'}</p><p className="mt-1 text-sm text-slate-400">{isOnline ? 'Você pode acompanhar as entregas liberadas.' : 'Fique online quando estiver pronto para trabalhar.'}</p><button type="button" onClick={() => void togglePresence()} disabled={presenceBusy} className={`mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 font-extrabold transition disabled:opacity-50 ${isOnline ? 'border border-white/15 bg-white/5 text-slate-100 hover:bg-white/10' : 'bg-red-500 text-white shadow-lg shadow-red-950/40 hover:bg-red-400'}`}>{isOnline ? <WifiOff size={18}/> : <Wifi size={18}/>}{presenceBusy ? 'Salvando…' : isOnline ? 'Ficar offline' : 'Ficar online'}</button>{presenceError && <p role="alert" className="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{presenceError}</p>}</div>
           </div>
           <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><div className="flex items-center justify-between text-slate-400"><span className="text-xs">Em preparo na loja</span><Clock3 size={18} className="text-amber-300"/></div><p className="mt-3 text-3xl font-black">{prepCount}</p><p className="mt-1 text-xs text-slate-500">Aguardando a cozinha</p></div>
             <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><div className="flex items-center justify-between text-slate-400"><span className="text-xs">Aguardando saída</span><PackageCheck size={18} className="text-amber-300"/></div><p className="mt-3 text-3xl font-black">{readyCount}</p><p className="mt-1 text-xs text-slate-500">Liberados pela cozinha</p></div>
             <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><div className="flex items-center justify-between text-slate-400"><span className="text-xs">Em rota</span><Bike size={18} className="text-sky-300"/></div><p className="mt-3 text-3xl font-black">{activeCount}</p><p className="mt-1 text-xs text-slate-500">Entregas em andamento</p></div>
           </div>
