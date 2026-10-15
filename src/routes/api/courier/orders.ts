@@ -22,6 +22,19 @@ export const Route = createFileRoute('/api/courier/orders')({
         const orders = await supabaseRequest<OrderRow[]>(
           "orders?select=id,code,customer_name,customer_phone,address,order_status,payment_method,payment_status,total,delivery_fee,estimated_delivery_at,courier_status,courier_latitude,courier_longitude,courier_location_updated_at,created_at,confirmation_code&fulfillment=eq.entrega&order=created_at.asc&limit=100",
         );
+        // Soma apenas as taxas das entregas concluídas hoje (Fortaleza, UTC-3).
+        // O trigger de orders atualiza updated_at quando o status muda para concluido.
+        const fortalezaDate = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'America/Fortaleza', year: 'numeric', month: '2-digit', day: '2-digit',
+        }).format(new Date());
+        const dayStart = new Date(`${fortalezaDate}T00:00:00-03:00`).toISOString();
+        const completedToday = await supabaseRequest<OrderRow[]>(
+          `orders?select=delivery_fee&fulfillment=eq.entrega&order_status=eq.concluido&updated_at=gte.${encodeURIComponent(dayStart)}&limit=1000`,
+        );
+        const dailyEarnings = completedToday.reduce((sum, order) => {
+          const fee = Number(order.delivery_fee);
+          return sum + (Number.isFinite(fee) && fee > 0 ? fee : 0);
+        }, 0);
         // Mostrar o pedido ao motoboy assim que entrar na operação de entrega,
         // mas a tela só permite iniciar a saída quando a cozinha marcar pronto_entrega.
         const visibleStatuses = ['novo', 'confirmado', 'preparando', 'pronto_entrega', 'saiu_entrega'];
@@ -34,6 +47,7 @@ export const Route = createFileRoute('/api/courier/orders')({
           ? await supabaseRequest<OrderRow[]>(`order_items?select=order_id,meal_name,size_label,quantity,notes&order_id=in.(${ids.join(',')})&order=created_at.asc`)
           : [];
         return Response.json({
+          dailyEarnings,
           orders: queue.map(o => ({
             id: o.id, code: o.code, customer_name: o.customer_name, customer_phone: o.customer_phone,
             address: o.address, order_status: o.order_status, payment_method: o.payment_method,
