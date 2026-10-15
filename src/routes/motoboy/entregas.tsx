@@ -48,6 +48,8 @@ function CourierDeliveries() {
   const [roadOrderIds, setRoadOrderIds] = useState<string[]>([]);
   const [routeCalculation, setRouteCalculation] = useState('');
   const loadingRef = useRef(false);
+  const routeDataRef = useRef({ orders, location });
+  routeDataRef.current = { orders, location };
 
   const load = useCallback(async () => {
     if (loadingRef.current) return;
@@ -197,20 +199,33 @@ function CourierDeliveries() {
     return [...routeOrders, ...waiting];
   }, [orders, location, roadOrderIds]);
 
+  const routeOptimizationKey = [
+    location ? `${location.latitude.toFixed(3)},${location.longitude.toFixed(3)}` : 'no-gps',
+    ...orders
+      .filter(order => ['pronto_entrega', 'saiu_entrega'].includes(order.order_status) && coords(order.address))
+      .map(order => {
+        const point = coords(order.address)!;
+        return `${order.id}:${order.order_status}:${point.latitude.toFixed(4)},${point.longitude.toFixed(4)}`;
+      })
+      .sort(),
+  ].join('|');
+
   // Usa distâncias reais entre ruas (OSRM) para ordenar as entregas prontas/em rota.
+  // A chave estável evita consultar o serviço a cada atualização automática de 5 segundos.
   // Se GPS ou serviço de rotas estiver indisponível, mantém a sequência aproximada acima.
   useEffect(() => {
     let cancelled = false;
-    const candidates = orders.filter(order =>
+    const { orders: latestOrders, location: latestLocation } = routeDataRef.current;
+    const candidates = latestOrders.filter(order =>
       ['pronto_entrega', 'saiu_entrega'].includes(order.order_status) && coords(order.address),
     );
-    if (!location || candidates.length < 2) {
+    if (!latestLocation || candidates.length < 2) {
       setRoadOrderIds([]);
-      setRouteCalculation(location ? 'Ative a localização e tenha pelo menos duas entregas com endereço localizado para otimizar pelas ruas.' : 'Ative o GPS para otimizar a rota pelas ruas.');
+      setRouteCalculation(latestLocation ? 'Ative a localização e tenha pelo menos duas entregas com endereço localizado para otimizar pelas ruas.' : 'Ative o GPS para otimizar a rota pelas ruas.');
       return () => { cancelled = true; };
     }
     const stops = candidates.slice(0, 20);
-    const points = [location, ...stops.map(order => coords(order.address)!)];
+    const points = [latestLocation, ...stops.map(order => coords(order.address)!)];
     const coordinateList = points.map(point => `${point.longitude},${point.latitude}`).join(';');
     setRouteCalculation('Calculando sequência pelas ruas…');
     const controller = new AbortController();
@@ -271,7 +286,9 @@ function CourierDeliveries() {
       }
     })();
     return () => { cancelled = true; controller.abort(); };
-  }, [orders, location]);
+  // Os dados atuais são lidos por ref; só recalcula quando a localização (arredondada) ou a fila muda.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeOptimizationKey]);
 
   const estimatedRouteKm = useMemo(() => {
     let current = location, total = 0;
