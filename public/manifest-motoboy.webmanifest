@@ -5,9 +5,13 @@
   "start_url": "/motoboy",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f7f4ed",
-  "theme_color": "#25251f",
+  "background_color": "#f4f5f7",
+  "theme_color": "#dc1025",
   "icons": [
-    { "src": "/icons/motoboy.svg", "sizes": "any", "type": "image/svg+xml" }
+    {
+      "src": "/icons/motoboy.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
   ]
 }
