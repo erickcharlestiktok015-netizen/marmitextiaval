@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowUpRight, Check, Minus, Phone, Plus, ShoppingBag, Trash2, Utensils } from 'lucide-react';
 import { CheckoutForm } from '@/components/restaurant/checkout-form';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,22 @@ export function DailyMenu() {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
   const [checkout, setCheckout] = useState(false);
+  useEffect(() => {
+    if (!checkout) return;
+    // Alguns navegadores móveis ignoram user-scalable=no; bloqueia pinça apenas durante o checkout.
+    const preventPinch = (event: TouchEvent) => {
+      if (event.touches.length > 1) event.preventDefault();
+    };
+    const preventGesture = (event: Event) => event.preventDefault();
+    document.addEventListener('touchmove', preventPinch, { passive: false });
+    document.addEventListener('gesturestart', preventGesture, { passive: false });
+    document.addEventListener('gesturechange', preventGesture, { passive: false });
+    return () => {
+      document.removeEventListener('touchmove', preventPinch);
+      document.removeEventListener('gesturestart', preventGesture);
+      document.removeEventListener('gesturechange', preventGesture);
+    };
+  }, [checkout]);
   const openMeal = (meal: Meal) => { setDetail(meal); setSize(meal.sizes[0]!); setQuantity(1); setNotes(''); };
   const addToCart = (meal: Meal) => {
     const key = `${meal.id}-${size.id}-${notes.trim()}`;
