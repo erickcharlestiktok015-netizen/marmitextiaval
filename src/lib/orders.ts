@@ -3,6 +3,7 @@ import { deliveryFeePerKm } from '@/lib/restaurant-data';
 
 export type OrderItem = { name: string; sizeLabel: string; unitPrice: number; quantity: number; notes?: string };
 export type PaymentMethod = 'online' | 'entrega-pix' | 'entrega-cartao' | 'entrega-dinheiro';
+export type OnlinePaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'ticket' | 'account_money';
 export type Order = {
   when: 'hoje' | 'amanha';
   items: OrderItem[];
@@ -11,6 +12,7 @@ export type Order = {
   address?: { cep: string; street: string; number: string; complement: string; bairro: string } | undefined;
   distanceKm: number | null;
   payment: PaymentMethod;
+  onlineMethod?: OnlinePaymentMethod;
   changeFor?: number | null;
   totals: OrderTotals;
 };
@@ -32,11 +34,12 @@ export async function submitOrder(order: Order): Promise<SubmitResult> {
   return createOrder({ data: {
     when: order.when,
     items: order.items,
-    customer: { name: order.customer.name.trim(), phone: order.customer.phone.replace(/\D/g, '') },
+    customer: { name: order.customer.name.trim(), phone: order.customer.phone.replace(/\\D/g, '') },
     fulfillment: order.fulfillment,
     address: order.address,
     distanceKm: order.fulfillment === 'entrega' ? order.distanceKm : null,
     payment: order.payment,
+    onlineMethod: order.onlineMethod,
     changeFor: order.changeFor ?? null,
   } });
 }
