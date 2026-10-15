@@ -672,7 +672,7 @@ const toLocalDateTime = (value?: string | null) => {
         <p className="mt-8 text-center text-[#64748b] text-xs">
           <Clock3 className="h-4 w-4 mr-1" /> Atualização automática a cada 15 segundos <CheckCircle2 className="h-4 w-4 ml-1" />
         </p>
+      </div>
       </main>
    );
-} 
- 
+}
