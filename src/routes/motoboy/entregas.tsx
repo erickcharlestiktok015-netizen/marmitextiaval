@@ -35,6 +35,7 @@ export const Route = createFileRoute('/motoboy/entregas')({
 });
 function CourierDeliveries() {
   const [orders, setOrders] = useState<Delivery[]>([]);
+  const [dailyEarnings, setDailyEarnings] = useState(0);
   const [location, setLocation] = useState<Geo | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -56,14 +57,14 @@ function CourierDeliveries() {
     loadingRef.current = true;
     try {
       const response = await fetch('/api/courier/orders', { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' } });
-      const data = await response.json().catch(() => ({})) as { orders?: Delivery[]; error?: string };
+      const data = await response.json().catch(() => ({})) as { orders?: Delivery[]; dailyEarnings?: number; error?: string };
       if (response.status === 401) {
         setOrders([]);
         setError('A sessão do motoboy não foi reconhecida pelo servidor (HTTP 401). A página não vai mais redirecionar silenciosamente. Volte ao login, entre novamente e, se continuar, use o botão de diagnóstico na tela de login.');
         return;
       }
       if (!response.ok) throw new Error((data.error || 'Falha ao carregar entregas.') + ' (HTTP ' + response.status + ')');
-      setOrders(data.orders || []); setUpdated(new Date().toLocaleTimeString('pt-BR')); setError('');
+      setOrders(data.orders || []); setDailyEarnings(Number.isFinite(data.dailyEarnings) ? Number(data.dailyEarnings) : 0); setUpdated(new Date().toLocaleTimeString('pt-BR')); setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao consultar entregas. Verifique a conexão e tente novamente.');
     } finally {
@@ -390,6 +391,7 @@ function CourierDeliveries() {
             <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><div className="flex items-center justify-between text-slate-400"><span className="text-xs">Aguardando saída</span><PackageCheck size={18} className="text-amber-300"/></div><p className="mt-3 text-3xl font-black">{readyCount}</p><p className="mt-1 text-xs text-slate-500">Liberados pela cozinha</p></div>
             <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><div className="flex items-center justify-between text-slate-400"><span className="text-xs">Em rota</span><Bike size={18} className="text-sky-300"/></div><p className="mt-3 text-3xl font-black">{activeCount}</p><p className="mt-1 text-xs text-slate-500">Entregas em andamento</p></div>
           </div>
+          <div className="rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-400/10 to-[#101722] p-4"><div className="flex items-center justify-between gap-2 text-emerald-200"><span className="text-sm font-bold">Ganhos de hoje</span><span className="text-xs">Taxas de entrega</span></div><p className="mt-3 text-3xl font-black text-white">{currency(dailyEarnings)}</p><p className="mt-1 text-xs leading-5 text-slate-400">Soma das taxas das entregas concluídas hoje. O pagamento do motoboy continua sendo feito pela sua mãe.</p></div>
           <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><div className="flex items-center gap-2 text-slate-300"><Clock3 size={18} className="text-red-400"/><span className="font-bold">Expediente</span></div><p className="mt-2 text-2xl font-black">11h–14h</p><p className="mt-1 text-sm capitalize text-slate-500">{todayLabel}</p></div>
           <div className="rounded-2xl border border-white/10 bg-[#101722] p-4"><p className="font-bold">GPS e navegação</p><p className="mt-2 text-sm leading-6 text-slate-400">{geoMessage}</p><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={getLocation} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-bold hover:bg-white/10"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-3 text-sm font-bold text-white hover:bg-red-400"><RouteIcon size={16}/> Iniciar rota</button><button onClick={() => void load()} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-semibold text-slate-300 hover:bg-white/5"><RefreshCw size={15}/> Atualizar pedidos</button></div><p className="mt-3 text-xs text-slate-500">{routeCalculation} {updated && `· Atualizado às ${updated}`}</p></div>
         </div>
