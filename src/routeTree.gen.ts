@@ -114,7 +114,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PagamentoRoute: typeof PagamentoRoute
   ApiPublicMercadopagoWebhookRoute: typeof ApiPublicMercadopagoWebhookRoute
-  MotoboyRoute: typeof MotoboyRoute
+  MotoboyRoute: typeof MotoboyRouteWithChildren
   ApiCourierLoginRoute: typeof ApiCourierLoginRoute
   ApiCourierLogoutRoute: typeof ApiCourierLogoutRoute
   ApiCourierOrdersRoute: typeof ApiCourierOrdersRoute
@@ -156,7 +156,7 @@ declare module '@tanstack/react-router' {
       path: '/entregas'
       fullPath: '/motoboy/entregas'
       preLoaderRoute: typeof MotoboyEntregasRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof MotoboyRouteImport
     }
     '/api/courier/login': {
       id: '/api/courier/login'
