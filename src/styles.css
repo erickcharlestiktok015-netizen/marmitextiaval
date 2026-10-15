@@ -345,3 +345,17 @@
 .pix-approved-message { display:grid; justify-items:center; gap:8px; padding:22px 12px; color:var(--primary); }
 .pix-approved-message strong { color:var(--foreground); font-size:18px; }
 .pix-approved-message span { color:var(--muted-foreground); font-size:13px; line-height:1.6; }
+
+
+/* Botões flutuantes de suporte: WhatsApp e Instagram */
+.contact-dock { position:fixed; z-index:50; right:20px; bottom:22px; display:flex; flex-direction:column; align-items:center; gap:12px; padding:0; background:transparent; border:0; border-radius:0; box-shadow:none; }
+.contact-dock .contact-dock__icon { display:flex; align-items:center; justify-content:center; width:54px; height:54px; min-height:54px; padding:0; border-radius:999px; color:#fff; box-shadow:0 4px 16px rgba(0,0,0,.22); transition:transform .18s ease, box-shadow .18s ease; }
+.contact-dock .contact-dock__icon:hover { transform:translateY(-2px); box-shadow:0 7px 20px rgba(0,0,0,.26); }
+.contact-dock .contact-dock__icon svg { width:27px; height:27px; }
+.contact-dock .contact-dock__icon--whatsapp { background:#25D366; }
+.contact-dock .contact-dock__icon--instagram { background:linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5); }
+@media (max-width: 640px) {
+  .contact-dock { left:auto; right:14px; bottom:18px; display:flex; flex-direction:column; gap:10px; padding:0; background:transparent; border:0; backdrop-filter:none; }
+  .contact-dock .contact-dock__icon { width:50px; height:50px; min-height:50px; padding:0; }
+  .contact-dock .contact-dock__icon svg { width:25px; height:25px; }
+}
