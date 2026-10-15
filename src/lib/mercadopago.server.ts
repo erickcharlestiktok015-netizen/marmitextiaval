@@ -1,6 +1,4 @@
 // Integração Mercado Pago (Checkout Pro). Só roda no servidor: usa MP_ACCESS_TOKEN.
-// O Checkout Pro mostra todas as formas que a conta aceita: Pix, crédito (parcelado), débito virtual,
-// boleto, saldo Mercado Pago e Linha de Crédito.
 import { meals, tomorrowMenu } from '@/lib/restaurant-data';
 import { deliveryFeeForKm } from '@/lib/orders';
 
@@ -8,6 +6,7 @@ const MP_API = 'https://api.mercadopago.com';
 export const MAX_DELIVERY_KM = 30;
 
 export type PaymentItemInput = { name: string; sizeLabel: string; quantity: number };
+export type OnlinePaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'ticket' | 'account_money';
 
 // Preço sempre vem do cardápio, nunca do navegador.
 export function priceForSizeLabel(label: string): number | null {
@@ -41,18 +40,33 @@ export function siteUrl() {
   return (process.env['SITE_URL'] || (process.env['VERCEL_URL'] ? `https://${process.env['VERCEL_URL']}` : '')).replace(/\/$/, '') || env('SITE_URL');
 }
 
+const paymentTypeByMethod: Record<OnlinePaymentMethod, string> = {
+  pix: 'bank_transfer',
+  credit_card: 'credit_card',
+  debit_card: 'debit_card',
+  ticket: 'ticket',
+  account_money: 'account_money',
+};
+const allPaymentTypes = ['bank_transfer', 'credit_card', 'debit_card', 'ticket', 'account_money'];
+
 export async function createPreference(args: {
   code: string;
   items: ReturnType<typeof buildPreferenceItems>;
   payer: { name: string; phone: string };
+  onlineMethod: OnlinePaymentMethod;
 }) {
   const base = siteUrl();
+  const chosenType = paymentTypeByMethod[args.onlineMethod];
   const body = {
     items: args.items,
     external_reference: args.code,
     statement_descriptor: (process.env['MP_STATEMENT_DESCRIPTOR'] || 'TIAVAL').slice(0, 13),
     payer: { name: args.payer.name, phone: { area_code: args.payer.phone.slice(0, 2), number: args.payer.phone.slice(2) } },
-    payment_methods: { installments: 12, excluded_payment_types: [], excluded_payment_methods: [] },
+    payment_methods: {
+      installments: args.onlineMethod === 'credit_card' ? 12 : 1,
+      excluded_payment_types: allPaymentTypes.filter(type => type !== chosenType).map(id => ({ id })),
+      excluded_payment_methods: [],
+    },
     back_urls: {
       success: `${base}/pagamento?status=aprovado&pedido=${args.code}`,
       pending: `${base}/pagamento?status=pendente&pedido=${args.code}`,
