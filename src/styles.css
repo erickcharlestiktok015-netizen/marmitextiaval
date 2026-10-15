@@ -313,14 +313,15 @@ html, body {
 }
 
 .meal-dialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  right: auto;
-  bottom: auto;
-  transform: none;
-  translate: -50% -50%;
-  margin: 0;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  /* Use transform for centering; explicitly reset Tailwind's individual translate. */
+  translate: none !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
   z-index: 60;
   max-height: min(90dvh, calc(100dvh - 2rem));
   overscroll-behavior: contain;
