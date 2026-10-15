@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Ban, Bike, CheckCircle2, Clock3, LogOut, MapPin, Phone, RefreshCw, ShieldCheck, Store, X } from 'lucide-react';
+import { Bell, Ban, Bike, CheckCircle2, Clock3, LogOut, MapPin, Phone, RefreshCw, ShieldCheck, Store, X } from 'lucide-react';
 
 type OrderItem = { meal_name: string; size_label: string; quantity: number; unit_price: number; notes?: string | null };
 type Order = {
@@ -42,6 +42,32 @@ function AdminPage() {
   const [filter, setFilter] = useState('ativos');
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [busyUpdate, setBusyUpdate] = useState<string | null>(null); // For button loading states
+  const [notifiedOrders, setNotifiedOrders] = useState<Set<string>>(new Set()); // Track which orders have been notified
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize audio and notification permission
+  useEffect(() => {
+    // Create audio context for the alert sound
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66VVxa3rxyd3T3QDgcCA4=');
+    audioRef.current.volume = 0.8;
+
+    // Check notification permission
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+
+    // Resume audio context on first user interaction
+    const resumeAudio = () => {
+      if (audioRef.current) {
+        audioRef.current.play().catch(() => {}).then(() => audioRef.current!.pause());
+      }
+      document.removeEventListener('click', resumeAudio);
+      document.removeEventListener('keydown', resumeAudio);
+    };
+    document.addEventListener('click', resumeAudio);
+    document.addEventListener('keydown', resumeAudio);
+  }, []);
 
   // Session check on mount
   useEffect(() => {
@@ -59,6 +85,27 @@ function AdminPage() {
       }
       const data = await response.json() as { orders?: Order[]; error?: string };
       if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os pedidos.');
+      
+      // Check for new orders to trigger notifications
+      const newOrders = data.orders || [];
+      if (!quiet && newOrders.length > 0) {
+        newOrders.forEach(order => {
+          // Check if this is a new order (not previously notified) and is in an active status
+          const isActiveOrder = !['concluido', 'cancelado'].includes(order.order_status);
+          const isNotNotifiedYet = !notifiedOrders.has(order.id);
+          
+          if (isActiveOrder && isNotNotifiedYet) {
+            triggerOrderNotification(order);
+            // Add to notified set
+            setNotifiedOrders(prev => {
+              const newSet = new Set(prev);
+              newSet.add(order.id);
+              return newSet;
+            });
+          }
+        });
+      }
+      
       setOrders(data.orders ?? []);
       setLoggedIn(true);
       setError('');
@@ -68,6 +115,46 @@ function AdminPage() {
       if (!quiet) setLoading(false);
     }
   }, []);
+
+  // Trigger visual and audio notification for a new order
+  const triggerOrderNotification = async (order: Order) => {
+    // Play sound alert (very loud bell/alert sound)
+    try {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        await audioRef.current.play();
+      }
+    } catch (e) {
+      console.warn('Could not play notification sound:', e);
+    }
+    
+    // Show browser notification
+    if ('Notification' in window && notificationPermission === 'granted') {
+      new Notification('Pedido da Tia Val!', {
+        body: `Pedido #${order.code} · ${order.customer_name} · ${money(order.total)}`,
+        icon: '/favicon.ico',
+        tag: order.id,
+        requireInteraction: true,
+      }).onclick = () => {
+        window.focus();
+      };
+    }
+  };
+
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        // Play confirmation sound
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => {});
+        }
+      }
+    }
+  };
 
   // Initial load
   useEffect(() => {
@@ -239,6 +326,13 @@ function AdminPage() {
               <Bike className="h-5 w-5" /> Área do motoboy
             </a>
           </div>
+          
+          <div className="mt-4 p-3 rounded-xl border border-[#334155]/30 bg-[rgba(255,250,240,0.05)]">
+            <p className="text-xs text-[#94a3b8] font-medium mb-1">🔔 Notificações</p>
+            <p className="text-xs text-[#6b7280] leading-relaxed">
+              Ao ativar, você receberá notificação sonora e visual quando houver novos pedidos. As notificações funcionam no navegador e no celular quando a página estiver aberta.
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -270,6 +364,23 @@ function AdminPage() {
               >
                 <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sair</span>
               </button>
+              
+              {notificationPermission !== 'granted' && (
+                <button
+                  onClick={requestNotificationPermission}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#f59e0b]/50 bg-[rgba(245,158,11,0.1)] text-[#f59e0b] text-sm font-medium hover:bg-[rgba(245,158,11,0.2)] transition-colors"
+                >
+                  <Bell className="h-4 w-4" /> <span className="hidden sm:inline">Ativar avisos sonoros</span>
+                </button>
+              )}
+              {notificationPermission === 'granted' && (
+                <button
+                  onClick={() => { /* already granted, just visual indicator */ }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#10b981]/50 bg-[rgba(16,185,129,0.1)] text-[#10b981] text-sm font-medium"
+                >
+                  <Bell className="h-4 w-4 text-[#10b981]" /> <span className="hidden sm:inline text-[#10b981]">Avisos ativados</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
