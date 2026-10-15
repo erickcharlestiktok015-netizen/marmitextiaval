@@ -47,7 +47,7 @@ export const createOrder = createServerFn({ method: 'POST' })
     let stage = 'loading payment and database modules';
     let code = 'not-created';
     try {
-      const { buildPreferenceItems, createPreference, priceForSizeLabel } = await import('@/lib/mercadopago.server');
+      const { buildPreferenceItems, createPreference, createPixPayment, priceForSizeLabel } = await import('@/lib/mercadopago.server');
       const { insertOrderRecord, supabaseRequest } = await import('@/lib/supabase.server');
       stage = 'validating delivery details';
       if (data.fulfillment === 'entrega' && (!data.address || data.distanceKm == null || data.distanceKm > 30)) {
@@ -55,6 +55,9 @@ export const createOrder = createServerFn({ method: 'POST' })
       }
       if (data.payment === 'online' && !data.onlineMethod) {
         throw new Error('Escolha uma forma de pagamento online.');
+      }
+      if (data.payment === 'online' && data.onlineMethod === 'pix' && !data.customer.email) {
+        throw new Error('Informe um e-mail válido para gerar o Pix.');
       }
 
       stage = 'validating menu items and prices';
@@ -96,6 +99,23 @@ export const createOrder = createServerFn({ method: 'POST' })
 
       if (data.payment !== 'online') return { code, paymentUrl: null as string | null };
 
+      if (data.onlineMethod === 'pix') {
+        stage = 'creating Mercado Pago Pix payment';
+        const pixPayment = await createPixPayment({
+          code,
+          amount: total,
+          description: `Pedido Marmitex da Tia Val #${code}`,
+          payer: { name: data.customer.name, phone: data.customer.phone, email: data.customer.email! },
+        });
+        stage = 'saving Mercado Pago Pix payment ID';
+        await supabaseRequest(`orders?id=eq.${encodeURIComponent(orderId)}`, {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ mp_payment_id: pixPayment.paymentId }),
+        });
+        return { code, paymentUrl: null as string | null, pixPayment };
+      }
+
       stage = 'creating Mercado Pago preference';
       const preferenceItems = buildPreferenceItems(itemsForPayment, data.fulfillment, data.fulfillment === 'entrega' ? data.distanceKm : null);
       const checkout = await createPreference({
@@ -115,4 +135,32 @@ export const createOrder = createServerFn({ method: 'POST' })
       console.error('Order submission failed', { stage, orderCode: code, error });
       throw new Error('Não foi possível concluir o pedido. A equipe técnica pode localizar o erro pelos logs do servidor.');
     }
+  });
+
+
+// Consulta o status do Pix sem expor o Access Token ao navegador.
+export const checkPixPayment = createServerFn({ method: 'GET' })
+  .inputValidator((input: unknown) => z.object({ code: z.string().regex(/^[A-Z0-9]{5,10}$/) }).parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseRequest } = await import('@/lib/supabase.server');
+    const { getPayment } = await import('@/lib/mercadopago.server');
+    const rows = await supabaseRequest<Array<{ id: string; total: number; mp_payment_id: string | null; payment_status: string }>>(
+      `orders?select=id,total,mp_payment_id,payment_status&code=eq.${encodeURIComponent(data.code)}&limit=1`,
+    );
+    const order = rows[0];
+    if (!order) throw new Error('Pedido não encontrado.');
+    if (order.payment_status === 'approved' || !order.mp_payment_id) return { status: order.payment_status };
+    const payment = await getPayment(order.mp_payment_id);
+    if (payment.external_reference !== data.code || Math.round(Number(payment.transaction_amount) * 100) !== Math.round(Number(order.total) * 100)) {
+      throw new Error('Não foi possível validar o pagamento Pix.');
+    }
+    const statusMap: Record<string, string> = { approved: 'approved', pending: 'pending', in_process: 'pending', rejected: 'rejected', cancelled: 'cancelled', refunded: 'refunded', charged_back: 'refunded' };
+    const status = statusMap[payment.status] ?? order.payment_status;
+    if (status !== order.payment_status) {
+      await supabaseRequest(`orders?id=eq.${encodeURIComponent(order.id)}`, {
+        method: 'PATCH', headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ payment_status: status, mp_payment_id: String(payment.id) }),
+      });
+    }
+    return { status };
   });
