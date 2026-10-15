@@ -384,7 +384,7 @@ function CourierDeliveries() {
   const mapSrc = mapPoint ? `https://www.openstreetmap.org/export/embed.html?bbox=${mapPoint.longitude-0.025}%2C${mapPoint.latitude-0.018}%2C${mapPoint.longitude+0.025}%2C${mapPoint.latitude+0.018}&layer=mapnik&marker=${mapPoint.latitude}%2C${mapPoint.longitude}` : '';
   const currency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const whatsapp = (order: Delivery) => {
-    const phone = order.customer_phone.replace(/\\D/g, '');
+    const phone = order.customer_phone.replace(/\D/g, '');
     if (!phone) return;
     const normalized = phone.startsWith('55') ? phone : '55' + phone;
     const message = 'Olá, ' + order.customer_name + '! Aqui é o motoboy da Tia Val sobre o pedido #' + order.code + '.';
