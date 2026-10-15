@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Outlet, useRouterState, createFileRoute } from '@tanstack/react-router';
 import { Bike, LockKeyhole, Smartphone, Stethoscope } from 'lucide-react';
 
@@ -17,22 +17,28 @@ function CourierLogin() {
   const [diagnosing, setDiagnosing] = useState(false);
   const [diagnostic, setDiagnostic] = useState<Diagnostic | null>(null);
 
-  useEffect(() => {
-    void checkSession();
-  }, []);
-
-  async function checkSession() {
+  async function login(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    setDiagnostic(null);
     try {
-      const response = await fetch('/api/courier/orders?checkSession=1', {
-        cache: 'no-store',
+      const response = await fetch('/api/courier/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ password }),
       });
-      if (response.ok && response.status !== 401) {
-        window.location.assign('/motoboy/entregas');
+      const data = await response.json() as { error?: string };
+      if (!response.ok) {
+        throw new Error((data.error || 'Não foi possível entrar.') + ' (HTTP ' + response.status + ')');
       }
-    } catch {
-      // Ignore errors, let the login form show
+      window.location.assign('/motoboy/entregas');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao entrar.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -86,41 +92,14 @@ function CourierLogin() {
     }
   }
 
-  async function login(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError('');
-    setDiagnostic(null);
-    try {
-      const response = await fetch('/api/courier/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        cache: 'no-store',
-        body: JSON.stringify({ password }),
-      });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) {
-        throw new Error((data.error || 'Não foi possível entrar.') + ' (HTTP ' + response.status + ')');
-      }
-      window.location.assign('/motoboy/entregas');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao entrar.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // A rota de entregas pode ser gerada como filha de /motoboy pelo roteador.
-  // Nesse caso, o componente pai precisa renderizar o Outlet em vez do formulário.
   if (pathname === '/motoboy/entregas') return <Outlet />;
 
   return <main className="courier-screen flex min-h-screen items-center justify-center bg-[#f7f4ed] px-4 py-10 text-[#25251f]">
     <section className="w-full max-w-md rounded-3xl border border-[#e5dfd2] bg-white p-6 shadow-sm sm:p-8">
       <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#25251f] text-[#e9c878]"><Bike size={30}/></div>
       <p className="mt-5 text-xs font-bold uppercase tracking-[.2em] text-[#9a742a]">Marmitex da Tia Val</p>
-      <h1 className="mt-2 text-3xl font-bold">Área do motoboy</h1>
-      <p className="mt-2 text-sm leading-6 text-[#777266]">Entre para ver entregas liberadas, abrir rotas no Waze e avisar o cliente quando chegar.</p>
+      <h1 className="mt-2 text-3xl font-bold text-center">Área do Motoboy</h1>
+      <p className="mt-2 text-sm leading-6 text-[#777266] text-center">Entre para ver entregas liberadas, abrir rotas no Waze e avisar o cliente quando chegar.</p>
       <form method="post" action="/api/courier/login" onSubmit={login} className="mt-7 space-y-4">
         <label className="block text-sm font-semibold">Senha do motoboy
           <span className="mt-2 flex items-center gap-2 rounded-xl border border-[#d9d2c4] px-3"><LockKeyhole size={18} className="text-[#777266]"/><input autoComplete="current-password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required maxLength={256} className="min-h-12 w-full bg-transparent text-base text-[#25251f] caret-[#25251f] placeholder:text-[#777266] outline-none" placeholder="Digite sua senha"/></span>
