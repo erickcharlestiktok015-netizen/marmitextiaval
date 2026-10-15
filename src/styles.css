@@ -301,3 +301,32 @@
   .hero { height:calc(100svh - 66px); max-height:none; }
   .hero-media:after { background:linear-gradient(180deg,color-mix(in oklch,var(--hero-background) 80%,transparent),transparent 30%),linear-gradient(0deg,color-mix(in oklch,var(--hero-background) 55%,transparent),transparent 18%); }
 }
+
+
+/* Correções pontuais: manter os diálogos centralizados na viewport e conter gestos de overscroll. */
+html, body {
+  overscroll-behavior-x: none;
+}
+
+.restaurant-page {
+  overscroll-behavior-x: none;
+}
+
+.meal-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  translate: none;
+  margin: 0;
+  z-index: 60;
+  max-height: min(90dvh, calc(100dvh - 2rem));
+  overscroll-behavior: contain;
+  overflow-y: auto;
+}
+
+@supports not (height: 100dvh) {
+  .meal-dialog { max-height: calc(100vh - 2rem); }
+}
