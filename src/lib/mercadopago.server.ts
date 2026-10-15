@@ -99,6 +99,53 @@ export async function createPreference(args: {
   };
 }
 
+export type PixPaymentResult = { paymentId: string; qrCode: string; qrCodeBase64: string; status: string };
+
+// Pix transparente: cria a cobrança pela API de pagamentos e devolve o QR Code para renderização no site.
+export async function createPixPayment(args: {
+  code: string;
+  amount: number;
+  description: string;
+  payer: { name: string; phone: string; email: string };
+}): Promise<PixPaymentResult> {
+  const nameParts = args.payer.name.trim().split(/\\s+/);
+  const res = await fetch(`${MP_API}/v1/payments`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env('MP_ACCESS_TOKEN')}`,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': args.code,
+    },
+    body: JSON.stringify({
+      transaction_amount: Math.round(args.amount * 100) / 100,
+      description: args.description.slice(0, 250),
+      payment_method_id: 'pix',
+      external_reference: args.code,
+      payer: {
+        email: args.payer.email,
+        first_name: nameParts[0] || args.payer.name,
+        last_name: nameParts.slice(1).join(' ') || nameParts[0] || args.payer.name,
+        phone: { area_code: args.payer.phone.slice(0, 2), number: args.payer.phone.slice(2) },
+      },
+    }),
+  });
+  if (!res.ok) {
+    console.error('Mercado Pago Pix payment error', res.status, await res.text());
+    throw new Error('Falha ao criar pagamento Pix no Mercado Pago');
+  }
+  const data = (await res.json()) as {
+    id: number | string;
+    status: string;
+    point_of_interaction?: { transaction_data?: { qr_code?: string; qr_code_base64?: string } };
+  };
+  const transaction = data.point_of_interaction?.transaction_data;
+  if (!transaction?.qr_code || !transaction.qr_code_base64) {
+    console.error('Mercado Pago Pix response missing QR data', { paymentId: data.id, status: data.status });
+    throw new Error('O Mercado Pago não retornou os dados do QR Code Pix');
+  }
+  return { paymentId: String(data.id), qrCode: transaction.qr_code, qrCodeBase64: transaction.qr_code_base64, status: data.status };
+}
+
 export async function getPayment(id: string) {
   const res = await fetch(`${MP_API}/v1/payments/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${env('MP_ACCESS_TOKEN')}` } });
   if (!res.ok) throw new Error(`Pagamento ${id} não encontrado (${res.status})`);
