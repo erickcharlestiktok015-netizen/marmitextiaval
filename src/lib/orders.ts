@@ -34,7 +34,7 @@ export async function submitOrder(order: Order): Promise<SubmitResult> {
   return createOrder({ data: {
     when: order.when,
     items: order.items,
-    customer: { name: order.customer.name.trim(), phone: order.customer.phone.replace(/\\D/g, ''), email: order.customer.email?.trim() },
+    customer: { name: order.customer.name.trim(), phone: order.customer.phone.replace(/\D/g, ''), email: order.customer.email?.trim() },
     fulfillment: order.fulfillment,
     address: order.address,
     distanceKm: order.fulfillment === 'entrega' ? order.distanceKm : null,
