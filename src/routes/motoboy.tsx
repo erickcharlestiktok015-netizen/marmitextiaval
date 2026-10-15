@@ -30,7 +30,7 @@ function CourierLogin() {
       if (response.status === 401) {
         setDiagnostic({
           title: 'Sessão do motoboy não reconhecida (HTTP 401)',
-          detail: 'O servidor não recebeu uma sessão válida. Faça login novamente. Se acontecer logo após aceitar a senha, a sessão/cookie não está sendo gravada ou validada corretamente.',
+          detail: 'Este teste consulta uma rota protegida. Se você ainda não entrou com a senha do motoboy nesta mesma origem, o HTTP 401 é esperado. Faça login primeiro e execute o diagnóstico novamente. Se o 401 persistir depois de um login aceito, confira se o navegador está bloqueando cookies e se a URL é a mesma usada no login.',
           status: response.status,
           ok: false,
         });
