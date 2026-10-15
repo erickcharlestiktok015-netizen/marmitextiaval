@@ -13,6 +13,7 @@ const statuses = [
   { value: 'novo', label: 'Novo pedido' },
   { value: 'confirmado', label: 'Confirmado' },
   { value: 'preparando', label: 'Em preparação' },
+  { value: 'pronto_entrega', label: 'Pronto para entrega' },
   { value: 'saiu_entrega', label: 'Saiu com motoboy' },
   { value: 'pronto_retirada', label: 'Pronto para retirada' },
   { value: 'concluido', label: 'Concluído / entregue' },
