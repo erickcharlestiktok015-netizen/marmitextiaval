@@ -59,9 +59,6 @@ export const createOrder = createServerFn({ method: 'POST' })
       if (data.payment === 'online' && data.onlineMethod === 'pix' && !data.customer.email) {
         throw new Error('Informe um e-mail válido para gerar o Pix.');
       }
-      if (data.payment === 'online' && data.onlineMethod === 'pix' && !data.customer.email) {
-        throw new Error('Informe um e-mail válido para gerar o Pix.');
-      }
 
       stage = 'validating menu items and prices';
       const verifiedItems = data.items.map((item) => {
