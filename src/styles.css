@@ -811,3 +811,48 @@ svg {
     touch-action: pan-y !important;
   }
 }
+
+
+/* Hotfix checkout: usar uma folha de tela previsível no celular; conteúdo inteiro acessível por rolagem. */
+@media (max-width: 700px) {
+  [data-slot="dialog-content"].checkout-dialog {
+    position: fixed !important;
+    inset: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    transform: none !important;
+    translate: none !important;
+    border-radius: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+
+  [data-slot="dialog-content"].checkout-dialog > .detail-content {
+    width: 100% !important;
+    min-height: 100% !important;
+    padding: max(56px, calc(env(safe-area-inset-top) + 52px)) 16px max(24px, env(safe-area-inset-bottom)) !important;
+    box-sizing: border-box !important;
+  }
+
+  [data-slot="dialog-content"].checkout-dialog [data-slot="dialog-close"] {
+    position: fixed !important;
+    top: max(8px, env(safe-area-inset-top)) !important;
+    right: max(8px, env(safe-area-inset-right)) !important;
+    z-index: 100 !important;
+    background: var(--card) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25) !important;
+  }
+}
