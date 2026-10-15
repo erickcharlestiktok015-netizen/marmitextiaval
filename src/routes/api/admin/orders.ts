@@ -18,18 +18,24 @@ export const Route = createFileRoute('/api/admin/orders')({
       },
       PATCH: async ({ request }) => {
         if (!(await isAdminRequest(request))) return Response.json({ error: 'Não autorizado.' }, { status: 401 });
-        let body: { id?: unknown; order_status?: unknown };
-        try { body = await request.json() as { id?: unknown; order_status?: unknown }; }
+        let body: { id?: unknown; order_status?: unknown; estimated_delivery_at?: unknown };
+        try { body = await request.json() as { id?: unknown; order_status?: unknown; estimated_delivery_at?: unknown }; }
         catch { return Response.json({ error: 'Requisição inválida.' }, { status: 400 }); }
         const allowed = ['novo', 'confirmado', 'preparando', 'saiu_entrega', 'pronto_retirada', 'concluido', 'cancelado'];
-        if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.id) || typeof body.order_status !== 'string' || !allowed.includes(body.order_status)) {
-          return Response.json({ error: 'Status inválido.' }, { status: 400 });
+        const validStatus = typeof body.order_status === 'string' && allowed.includes(body.order_status);
+        const hasEta = Object.prototype.hasOwnProperty.call(body, 'estimated_delivery_at');
+        const validEta = !hasEta || body.estimated_delivery_at === null || (typeof body.estimated_delivery_at === 'string' && Number.isFinite(Date.parse(body.estimated_delivery_at)));
+        if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.id) || (!validStatus && !hasEta) || (body.order_status !== undefined && !validStatus) || !validEta) {
+          return Response.json({ error: 'Atualização inválida.' }, { status: 400 });
         }
         try {
+          const patch: Record<string, unknown> = {};
+          if (validStatus) patch.order_status = body.order_status;
+          if (hasEta) patch.estimated_delivery_at = body.estimated_delivery_at;
           await supabaseRequest(`orders?id=eq.${encodeURIComponent(body.id)}`, {
             method: 'PATCH',
             headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ order_status: body.order_status }),
+            body: JSON.stringify(patch),
           });
           return Response.json({ ok: true });
         } catch {
