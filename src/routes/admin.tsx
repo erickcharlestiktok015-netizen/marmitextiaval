@@ -40,6 +40,12 @@ function AdminPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('ativos');
+  const [clockNow, setClockNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const loadOrders = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -140,6 +146,15 @@ function AdminPage() {
             : order.order_status === filter,
       );
   const pendingCount = eligibleOrders.filter((order) => order.order_status === 'novo').length;
+  const orderAgeMinutes = (createdAt: string) => Math.max(0, Math.floor((clockNow - new Date(createdAt).getTime()) / 60000));
+  const orderAgeLabel = (createdAt: string) => {
+    const minutes = orderAgeMinutes(createdAt);
+    if (minutes < 1) return 'Feito agora';
+    if (minutes < 60) return `Há ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes ? `Há ${hours}h ${remainingMinutes}min` : `Há ${hours}h`;
+  };
 
   if (!loggedIn) return <main className="min-h-screen bg-[#171714] text-[#f7f2e8] flex items-center justify-center p-5">
     <form onSubmit={login} className="w-full max-w-sm rounded-2xl border border-[#454238] bg-[#22221e] p-7 shadow-2xl space-y-5">
@@ -180,7 +195,7 @@ function AdminPage() {
         const addressText = address ? [address.street, address.number, address.complement, address.bairro, address.cep].filter(Boolean).join(', ') : '';
         const mapUrl = addressText ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}` : '';
         return <article key={order.id} className="overflow-hidden rounded-xl border border-[#e4dfd3] bg-white shadow-sm">
-          <div className="flex items-start justify-between gap-3 border-b border-[#eee9df] p-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#8b6a25]">Pedido #{order.code}</p><h3 className="mt-1 text-lg font-bold">{order.customer_name}</h3><p className="mt-1 text-xs text-[#777266]">{new Date(order.created_at).toLocaleString('pt-BR')} · {order.order_for === 'amanha' ? 'Reserva para amanhã' : 'Pedido de hoje'}</p></div><span className={`rounded-full px-3 py-1 text-center text-xs font-semibold ${order.order_status === 'novo' ? 'bg-amber-100 text-amber-900' : order.order_status === 'concluido' ? 'bg-emerald-100 text-emerald-900' : order.order_status === 'cancelado' ? 'bg-red-100 text-red-900' : 'bg-stone-100 text-stone-800'}`}>{statusLabel(order.order_status)}</span></div>
+          <div className="flex items-start justify-between gap-3 border-b border-[#eee9df] p-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#8b6a25]">Pedido #{order.code}</p><h3 className="mt-1 text-lg font-bold">{order.customer_name}</h3><p className="mt-1 text-xs text-[#777266]">{new Date(order.created_at).toLocaleString('pt-BR')} · {order.order_for === 'amanha' ? 'Reserva para amanhã' : 'Pedido de hoje'}</p><p className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${orderAgeMinutes(order.created_at) >= 15 && !['concluido', 'cancelado'].includes(order.order_status) ? 'bg-red-100 text-red-800' : orderAgeMinutes(order.created_at) >= 5 && !['concluido', 'cancelado'].includes(order.order_status) ? 'bg-amber-100 text-amber-900' : 'bg-stone-100 text-stone-700'}`}><Clock3 size={13} /> {orderAgeLabel(order.created_at)}</p></div><span className={`rounded-full px-3 py-1 text-center text-xs font-semibold ${order.order_status === 'novo' ? 'bg-amber-100 text-amber-900' : order.order_status === 'concluido' ? 'bg-emerald-100 text-emerald-900' : order.order_status === 'cancelado' ? 'bg-red-100 text-red-900' : 'bg-stone-100 text-stone-800'}`}>{statusLabel(order.order_status)}</span></div>
           <div className="space-y-4 p-4">
             <div className="space-y-2">{order.items?.map((item, index) => <div key={index} className="flex justify-between gap-3 text-sm"><div><p className="font-medium">{item.quantity}× {item.meal_name}</p><p className="text-xs text-[#777266]">{item.size_label}{item.notes ? ` · ${item.notes}` : ''}</p></div><span className="whitespace-nowrap">{money(Number(item.unit_price) * item.quantity)}</span></div>)}</div>
             <div className="rounded-lg bg-[#f7f4ed] p-3 text-sm"><div className="flex justify-between"><span className="text-[#777266]">Marmitas</span><span>{money(Number(order.subtotal))}</span></div><div className="mt-1 flex justify-between"><span className="text-[#777266]">Entrega</span><span>{money(Number(order.delivery_fee))}</span></div><div className="mt-2 flex justify-between border-t border-[#e2dccf] pt-2 text-base font-bold"><span>Total</span><span>{money(Number(order.total))}</span></div></div>
