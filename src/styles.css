@@ -1147,3 +1147,28 @@ svg {
     padding-inline: 12px !important;
   }
 }
+
+
+/* Mantém os diálogos do cardápio centralizados mesmo durante animações de zoom. */
+[data-radix-dialog-content] {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  translate: -50% -50% !important;
+  transform: none !important;
+  margin: 0 !important;
+  max-height: min(90dvh, calc(100dvh - 2rem));
+  max-width: min(32rem, calc(100vw - 2rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@supports not (height: 100dvh) {
+  [data-radix-dialog-content] { max-height: calc(100vh - 2rem); }
+}
+/* Reduz o gesto horizontal de voltar/avançar nas áreas da página. */
+html, body, .restaurant-page {
+  overscroll-behavior-x: none;
+}
