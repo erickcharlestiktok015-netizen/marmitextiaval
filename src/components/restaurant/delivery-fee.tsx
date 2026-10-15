@@ -85,13 +85,13 @@ export function DeliveryFee({ onResult, compact }: { onResult?: (result: FeeResu
   return <div className={compact ? "delivery-fee" : "delivery-fee reveal"}>
     <h3><Bike /> Taxa de entrega · {formatPrice(deliveryFeePerKm)} por km</h3>
     <p>Coloque seu endereço que a taxa do motoboy sai na hora, pela distância exata até a nossa cozinha.</p>
-    <form className="delivery-form delivery-address" onSubmit={event => { event.preventDefault(); void calculate(); }}>
+    <div className="delivery-form delivery-address">
       <input className="da-cep" value={cep} onChange={event => { const v = maskCep(event.target.value); setCep(v); clear(); void lookupCep(v); }} inputMode="numeric" autoComplete="postal-code" placeholder="CEP 00000-000" aria-label="CEP" />
       <input className="da-rua" value={rua} onChange={event => { setRua(event.target.value); clear(); }} autoComplete="address-line1" placeholder="Rua" aria-label="Rua" maxLength={120} />
       <input className="da-num" value={numero} onChange={event => { setNumero(event.target.value); clear(); }} placeholder="Nº" aria-label="Número" maxLength={10} />
       <input className="da-comp" value={complemento} onChange={event => { setComplemento(event.target.value); onResult && result && onResult({ ...result, complemento: event.target.value.trim() }); }} autoComplete="address-line2" placeholder="Complemento (apto, bloco...)" aria-label="Complemento" maxLength={80} />
-      <Button className="da-btn" type="submit" disabled={loading}>{loading ? <LoaderCircle className="animate-spin" aria-hidden /> : null} Calcular entrega</Button>
-    </form>
+      <Button className="da-btn" type="button" onClick={() => void calculate()} disabled={loading}>{loading ? <LoaderCircle className="animate-spin" aria-hidden /> : null} Calcular entrega</Button>
+    </div>
     {info && !result && <p className="delivery-hint"><MapPin size={13} /> {info.bairro}, {info.cidade}</p>}
     {error && <p className="delivery-error" role="alert">{error}</p>}
     {result && <div className="delivery-result" role="status">
