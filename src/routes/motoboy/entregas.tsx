@@ -90,6 +90,36 @@ function CourierDeliveries() {
         const next = remaining.splice(bestIndex, 1)[0];
         result.push(next); current = coords(next.address);
       }
+      // Melhora a sequência inicial com 2-opt: reverte trechos quando isso
+      // reduz a distância total em linha reta entre a origem e as paradas.
+      // É uma estimativa geométrica; não substitui distâncias reais de ruas/trânsito.
+      if (result.length >= 4 && result.every(order => coords(order.address))) {
+        const routeDistance = (route: Delivery[]) => {
+          let total = 0;
+          let from = origin;
+          for (const order of route) {
+            const to = coords(order.address)!;
+            if (from) total += distance(from, to);
+            from = to;
+          }
+          return total;
+        };
+        let improved = true;
+        let passes = 0;
+        while (improved && passes < 12) {
+          improved = false;
+          passes++;
+          for (let i = 0; i < result.length - 2; i++) {
+            for (let k = i + 1; k < result.length - 1; k++) {
+              const candidate = [...result.slice(0, i), ...result.slice(i, k + 1).reverse(), ...result.slice(k + 1)];
+              if (routeDistance(candidate) + 0.05 < routeDistance(result)) {
+                result.splice(0, result.length, ...candidate);
+                improved = true;
+              }
+            }
+          }
+        }
+      }
       return result;
     };
     const activeOrdered = nearestSequence(active, location);
@@ -112,7 +142,7 @@ function CourierDeliveries() {
     setGeoMessage('Obtendo localização…');
     navigator.geolocation.getCurrentPosition(pos => {
       const point = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      setLocation(point); setGeoMessage('Localização ativada. A lista prioriza os endereços mais próximos em linha reta.');
+      setLocation(point); setGeoMessage('Localização ativada. A sequência combina proximidade e redução de zigue-zague em linha reta; ruas e trânsito podem mudar o melhor caminho.');
       void sendLocation(point);
     }, () => setGeoMessage('Permita a localização nas configurações do navegador para ordenar as entregas.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 });
   };
@@ -164,7 +194,7 @@ function CourierDeliveries() {
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10 text-[#e9c878]"><Bike size={26}/></div><div><p className="text-xs uppercase tracking-[.18em] text-[#e9c878]">Marmitex da Tia Val</p><h1 className="text-2xl font-bold">Minhas entregas</h1></div></div><button onClick={logout} aria-label="Sair" className="rounded-lg p-2 hover:bg-white/10"><LogOut size={20}/></button></div>
         <p className="mt-3 text-sm text-[#e0d9c9]">Pedidos liberados pela cozinha. A lista atualiza automaticamente.</p>
         <div className="mt-4 flex flex-wrap gap-2"><button onClick={getLocation} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e9c878] px-3 text-sm font-bold text-[#25251f]"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RouteIcon size={16}/> Iniciar/continuar rota</button><button onClick={()=>void load()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RefreshCw size={16}/> Atualizar</button></div>
-        <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {location && ordered.length > 0 && `Estimativa da sequência: ${estimatedRouteKm.toFixed(1)} km em linha reta; distância real depende das ruas e do trânsito.`} {routeMode && 'Modo de rota ativo: conclua a parada atual e abra a próxima sugerida.'} {updated && `Atualizado às ${updated}.`}</p>
+        <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {location && ordered.length > 0 && `Estimativa: ${estimatedRouteKm.toFixed(1)} km em linha reta; a rota real por ruas e trânsito pode ser diferente.`} {routeMode && 'Modo de rota ativo: conclua a parada atual e abra a próxima sugerida.'} {updated && `Atualizado às ${updated}.`}</p>
       </header>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-[#e5dfd2] bg-white p-4 shadow-sm sm:p-5">
@@ -184,7 +214,7 @@ function CourierDeliveries() {
         </div>
       </section>
       <section className="flex flex-col gap-3 rounded-2xl border border-[#e5dfd2] bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <div><h2 className="text-lg font-bold">Painel de hoje</h2><p className="mt-1 text-sm text-[#777266]">Sua operação em um só lugar. A fila atualiza a cada 5 segundos. Entregas em andamento ficam separadas das próximas.</p></div>
+        <div><h2 className="text-lg font-bold">Painel de hoje</h2><p className="mt-1 text-sm text-[#777266]">Sua operação em um só lugar. A fila atualiza a cada 5 segundos. A sequência tenta reduzir zigue-zagues entre as paradas.</p></div>
         <div className="flex items-center gap-2 rounded-xl bg-[#f7f4ed] px-3 py-2 text-sm"><span className="h-2 w-2 rounded-full bg-[#2e8b57]"></span><span>Atualização automática a cada 5 s</span></div>
       </section>
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">{error}</div>}
