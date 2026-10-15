@@ -17,6 +17,7 @@ const schema = z.object({
   address: z.object({
     cep: z.string().max(12), street: z.string().max(160), number: z.string().max(20),
     complement: z.string().max(120), bairro: z.string().max(100),
+    latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional(),
   }).optional(),
   distanceKm: z.number().positive().max(30).nullable(),
   payment: z.enum(['online', 'entrega-pix', 'entrega-cartao', 'entrega-dinheiro']),
