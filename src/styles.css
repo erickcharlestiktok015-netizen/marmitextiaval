@@ -383,10 +383,10 @@
 }
 
 
-/* Mobile-first guardrails: keep the whole site inside the viewport */
-html { width: 100%; max-width: 100%; overflow-x: clip; }
-body { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; }
-#root { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; }
+/* Mobile-first guardrails: prevent sideways page drift / rubber-band bounce */
+html { width: 100%; max-width: 100%; overflow-x: clip; overscroll-behavior-x: none; }
+body { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; overscroll-behavior-x: none; }
+#root { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; overscroll-behavior-x: none; }
 img, video, canvas, iframe { max-width: 100%; }
 input, select, textarea, button { max-width: 100%; }
 @supports not (overflow: clip) { html, body, #root { overflow-x: hidden; } }
