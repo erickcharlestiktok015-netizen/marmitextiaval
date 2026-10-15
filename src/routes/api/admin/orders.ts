@@ -28,6 +28,14 @@ export const Route = createFileRoute('/api/admin/orders')({
         if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.id) || (!validStatus && !hasEta) || (body.order_status !== undefined && !validStatus) || !validEta) {
           return Response.json({ error: 'Atualização inválida.' }, { status: 400 });
         }
+        if (hasEta) {
+          try {
+            const target = await supabaseRequest<Array<Record<string, unknown>>>(`orders?select=id,order_for,fulfillment&id=eq.${encodeURIComponent(body.id)}&limit=1`);
+            if (!target[0] || target[0].order_for !== 'amanha' || target[0].fulfillment !== 'entrega') {
+              return Response.json({ error: 'A previsão manual no painel é exclusiva de entregas agendadas para amanhã. Nos pedidos de hoje, o motoboy define a estimativa.' }, { status: 403 });
+            }
+          } catch { return Response.json({ error: 'Não foi possível validar o agendamento.' }, { status: 503 }); }
+        }
         try {
           const patch: Record<string, unknown> = {};
           if (validStatus) patch.order_status = body.order_status;
