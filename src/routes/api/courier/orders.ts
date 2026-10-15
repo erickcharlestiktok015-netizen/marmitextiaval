@@ -55,7 +55,7 @@ export const Route = createFileRoute('/api/courier/orders')({
         console.warn('[courier-orders] PATCH bloqueado: sessão ausente ou inválida.');
         return Response.json({ error: 'Faça login como motoboy.' }, { status: 401 });
       }
-      let body: { action?: unknown; id?: unknown; latitude?: unknown; longitude?: unknown; code?: unknown };
+      let body: { action?: unknown; id?: unknown; latitude?: unknown; longitude?: unknown; code?: unknown; minutes?: unknown };
       try { body = await request.json() as typeof body; } catch { return Response.json({ error: 'Requisição inválida.' }, { status: 400 }); }
       const action = body.action;
       if (action === 'location') {
@@ -75,12 +75,19 @@ export const Route = createFileRoute('/api/courier/orders')({
           return Response.json({ error: safeDatabaseError(error, 'Não foi possível atualizar a localização. Verifique a conexão e tente novamente.') }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
         }
       }
-      if (!validId(body.id) || !['start', 'arrived', 'delivered'].includes(String(action))) return Response.json({ error: 'Ação inválida.' }, { status: 400 });
+      if (!validId(body.id) || !['start', 'arrived', 'delivered', 'estimate'].includes(String(action))) return Response.json({ error: 'Ação inválida.' }, { status: 400 });
       try {
         const rows = await supabaseRequest<OrderRow[]>(`orders?select=id,order_status,payment_method,payment_status,courier_status,confirmation_code&id=eq.${encodeURIComponent(body.id)}&fulfillment=eq.entrega&limit=1`);
         const order = rows[0];
         if (!order) return Response.json({ error: 'Entrega não encontrada.' }, { status: 404 });
         if (order.payment_method === 'online' && order.payment_status !== 'approved') return Response.json({ error: 'O pagamento online ainda não foi aprovado.' }, { status: 409 });
+        if (action === 'estimate') {
+          if (!['pronto_entrega', 'saiu_entrega'].includes(order.order_status)) return Response.json({ error: 'A previsão só pode ser definida quando a entrega estiver pronta ou em rota.' }, { status: 409 });
+          if (![15, 30, 45, 60].includes(Number(body.minutes))) return Response.json({ error: 'Escolha uma previsão entre 15 e 60 minutos.' }, { status: 400 });
+          const estimatedAt = new Date(Date.now() + Number(body.minutes) * 60000).toISOString();
+          await supabaseRequest(`orders?id=eq.${encodeURIComponent(order.id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ estimated_delivery_at: estimatedAt }) });
+          return Response.json({ ok: true, estimated_delivery_at: estimatedAt });
+        }
         let patch: Record<string, unknown>;
         if (action === 'start') {
           if (!['pronto_entrega', 'saiu_entrega'].includes(order.order_status)) return Response.json({ error: 'Esta entrega ainda não está pronta para sair.' }, { status: 409 });
