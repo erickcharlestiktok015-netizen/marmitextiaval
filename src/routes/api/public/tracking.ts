@@ -13,9 +13,9 @@ export const Route = createFileRoute('/api/public/tracking')({
           const rows = await supabaseRequest<Array<{
             id: string; code: string; order_status: string; payment_status: string; payment_method: string;
             fulfillment: string; estimated_delivery_at: string | null; courier_status: string;
-            confirmation_code: string | null; created_at: string; updated_at: string;
+            confirmation_code: string | null; created_at: string; updated_at: string; courier_latitude: number | null; courier_longitude: number | null; courier_location_updated_at: string | null;
           }>>(
-            `orders?select=id,code,order_status,payment_status,payment_method,fulfillment,estimated_delivery_at,courier_status,confirmation_code,created_at,updated_at&tracking_token=eq.${encodeURIComponent(token)}&limit=1`,
+            `orders?select=id,code,order_status,payment_status,payment_method,fulfillment,estimated_delivery_at,courier_status,confirmation_code,created_at,updated_at,courier_latitude,courier_longitude,courier_location_updated_at&tracking_token=eq.${encodeURIComponent(token)}&limit=1`,
           );
           const order = rows[0];
           if (!order) return Response.json({ error: 'Pedido não encontrado.' }, { status: 404 });
