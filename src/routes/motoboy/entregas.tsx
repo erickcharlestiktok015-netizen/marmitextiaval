@@ -45,6 +45,8 @@ function CourierDeliveries() {
   const [isOnline, setIsOnline] = useState(false);
   const [presenceBusy, setPresenceBusy] = useState(false);
   const [presenceError, setPresenceError] = useState('');
+  const [roadOrderIds, setRoadOrderIds] = useState<string[]>([]);
+  const [routeCalculation, setRouteCalculation] = useState('');
   const loadingRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -185,7 +187,90 @@ function CourierDeliveries() {
     };
     const activeOrdered = nearestSequence(active, location);
     const lastActive = activeOrdered.length ? coords(activeOrdered[activeOrdered.length - 1].address) : location;
-    return [...activeOrdered, ...nearestSequence(ready, lastActive), ...waiting];
+    const routeOrders = [...activeOrdered, ...nearestSequence(ready, lastActive)];
+    if (roadOrderIds.length > 1) {
+      const byId = new Map(routeOrders.map(order => [order.id, order]));
+      const optimized = roadOrderIds.map(id => byId.get(id)).filter((order): order is Delivery => Boolean(order));
+      const optimizedIds = new Set(optimized.map(order => order.id));
+      return [...optimized, ...routeOrders.filter(order => !optimizedIds.has(order.id)), ...waiting];
+    }
+    return [...routeOrders, ...waiting];
+  }, [orders, location, roadOrderIds]);
+
+  // Usa distâncias reais entre ruas (OSRM) para ordenar as entregas prontas/em rota.
+  // Se GPS ou serviço de rotas estiver indisponível, mantém a sequência aproximada acima.
+  useEffect(() => {
+    let cancelled = false;
+    const candidates = orders.filter(order =>
+      ['pronto_entrega', 'saiu_entrega'].includes(order.order_status) && coords(order.address),
+    );
+    if (!location || candidates.length < 2) {
+      setRoadOrderIds([]);
+      setRouteCalculation(location ? 'Ative a localização e tenha pelo menos duas entregas com endereço localizado para otimizar pelas ruas.' : 'Ative o GPS para otimizar a rota pelas ruas.');
+      return () => { cancelled = true; };
+    }
+    const stops = candidates.slice(0, 20);
+    const points = [location, ...stops.map(order => coords(order.address)!)];
+    const coordinateList = points.map(point => `${point.longitude},${point.latitude}`).join(';');
+    setRouteCalculation('Calculando sequência pelas ruas…');
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(
+          `https://router.project-osrm.org/table/v1/driving/${coordinateList}?annotations=distance`,
+          { signal: controller.signal, cache: 'no-store' },
+        );
+        if (!response.ok) throw new Error('Serviço de rotas indisponível');
+        const data = await response.json() as { code?: string; distances?: Array<Array<number | null>> };
+        if (data.code !== 'Ok' || !Array.isArray(data.distances)) throw new Error('Matriz de ruas inválida');
+        const matrix = data.distances;
+        const remaining = stops.map((_, index) => index + 1);
+        const sequence: number[] = [];
+        let current = 0;
+        while (remaining.length) {
+          let bestAt = 0, bestDistance = Infinity;
+          for (let i = 0; i < remaining.length; i++) {
+            const d = matrix[current]?.[remaining[i]];
+            if (typeof d === 'number' && d < bestDistance) { bestDistance = d; bestAt = i; }
+          }
+          const next = remaining.splice(bestAt, 1)[0];
+          sequence.push(next);
+          current = next;
+        }
+        const routeLength = (indexes: number[]) => {
+          let total = 0, from = 0;
+          for (const to of indexes) {
+            const d = matrix[from]?.[to];
+            if (typeof d !== 'number') return Infinity;
+            total += d;
+            from = to;
+          }
+          return total;
+        };
+        let improved = true, passes = 0;
+        while (improved && passes < 8 && sequence.length >= 4) {
+          improved = false;
+          passes++;
+          for (let i = 0; i < sequence.length - 2; i++) {
+            for (let k = i + 1; k < sequence.length - 1; k++) {
+              const candidate = [...sequence.slice(0, i), ...sequence.slice(i, k + 1).reverse(), ...sequence.slice(k + 1)];
+              if (routeLength(candidate) + 25 < routeLength(sequence)) {
+                sequence.splice(0, sequence.length, ...candidate);
+                improved = true;
+              }
+            }
+          }
+        }
+        if (cancelled) return;
+        setRoadOrderIds(sequence.map(index => stops[index - 1].id));
+        setRouteCalculation(`Sequência otimizada pelas ruas para ${stops.length} entrega(s); demais paradas ficam depois, com ordem aproximada.`);
+      } catch {
+        if (cancelled) return;
+        setRoadOrderIds([]);
+        setRouteCalculation('O serviço de rotas por ruas não respondeu. Mantive a sequência aproximada e o Waze continua disponível.');
+      }
+    })();
+    return () => { cancelled = true; controller.abort(); };
   }, [orders, location]);
 
   const estimatedRouteKm = useMemo(() => {
@@ -203,7 +288,7 @@ function CourierDeliveries() {
     setGeoMessage('Obtendo localização…');
     navigator.geolocation.getCurrentPosition(pos => {
       const point = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      setLocation(point); setGeoMessage('Localização ativada. A sequência combina proximidade e redução de zigue-zague em linha reta; ruas e trânsito podem mudar o melhor caminho.');
+      setLocation(point); setGeoMessage('Localização ativada. Vou tentar ordenar pelas distâncias reais das ruas; se falhar, uso a sequência aproximada.');
       void sendLocation(point);
     }, () => setGeoMessage('Permita a localização nas configurações do navegador para ordenar as entregas.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 });
   };
@@ -277,7 +362,7 @@ function CourierDeliveries() {
         </div>
         {presenceError && <p role="alert" className="mt-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-100">{presenceError}</p>}
         <div className="mt-4 flex flex-wrap gap-2"><button onClick={getLocation} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e9c878] px-3 text-sm font-bold text-[#25251f]"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RouteIcon size={16}/> Iniciar/continuar rota</button><button onClick={()=>void load()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RefreshCw size={16}/> Atualizar</button></div>
-        <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {location && ordered.length > 0 && `Estimativa: ${estimatedRouteKm.toFixed(1)} km em linha reta; a rota real por ruas e trânsito pode ser diferente.`} {routeMode && 'Modo de rota ativo: conclua a parada atual e abra a próxima sugerida.'} {updated && `Atualizado às ${updated}.`}</p>
+        <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {location && ordered.length > 0 && `Estimativa: ${estimatedRouteKm.toFixed(1)} km em linha reta; a rota real por ruas e trânsito pode ser diferente.`} {routeCalculation && routeCalculation + ' '} {routeMode && 'Modo de rota ativo: conclua a parada atual e abra a próxima sugerida.'} {updated && `Atualizado às ${updated}.`}</p>
       </header>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-[#e5dfd2] bg-white p-4 shadow-sm sm:p-5">
@@ -297,7 +382,7 @@ function CourierDeliveries() {
         </div>
       </section>
       <section className="flex flex-col gap-3 rounded-2xl border border-[#e5dfd2] bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <div><h2 className="text-lg font-bold">Painel de hoje</h2><p className="mt-1 text-sm text-[#777266]">Sua operação em um só lugar. A fila atualiza a cada 5 segundos. A sequência tenta reduzir zigue-zagues entre as paradas.</p></div>
+        <div><h2 className="text-lg font-bold">Painel de hoje</h2><p className="mt-1 text-sm text-[#777266]">Sua operação em um só lugar. A fila atualiza a cada 5 segundos. A sequência usa distância pelas ruas quando o serviço responde e mantém alternativa aproximada quando não responde.</p></div>
         <div className="flex items-center gap-2 rounded-xl bg-[#f7f4ed] px-3 py-2 text-sm"><span className="h-2 w-2 rounded-full bg-[#2e8b57]"></span><span>Atualização automática a cada 5 s</span></div>
       </section>
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">
