@@ -104,7 +104,6 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" autoComplete="name" maxLength={80} aria-label="Nome" />
         <input value={phone} onChange={e => setPhone(maskPhone(e.target.value))} placeholder="(31) 99999-9999" inputMode="tel" autoComplete="tel" aria-label="Telefone" />
         {payment === 'online' && onlineMethod === 'pix' && <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Seu e-mail para o pagamento Pix" autoComplete="email" maxLength={254} aria-label="E-mail para pagamento Pix" required />}
-        {payment === 'online' && onlineMethod === 'pix' && <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Seu e-mail para o comprovante Pix" autoComplete="email" maxLength={254} aria-label="E-mail para pagamento Pix" required />}
       </fieldset>
 
       <fieldset><legend>Como vai receber?</legend>
