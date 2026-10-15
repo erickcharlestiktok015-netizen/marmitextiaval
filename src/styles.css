@@ -381,3 +381,12 @@
   .checkout-dialog { width:calc(100vw - 12px); top:max(6px, env(safe-area-inset-top)); bottom:max(6px, env(safe-area-inset-bottom)); }
   .checkout-dialog > .detail-content { padding:16px 12px max(16px, env(safe-area-inset-bottom)); }
 }
+
+
+/* Mobile-first guardrails: keep the whole site inside the viewport */
+html { width: 100%; max-width: 100%; overflow-x: clip; }
+body { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; }
+#root { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; }
+img, video, canvas, iframe { max-width: 100%; }
+input, select, textarea, button { max-width: 100%; }
+@supports not (overflow: clip) { html, body, #root { overflow-x: hidden; } }
