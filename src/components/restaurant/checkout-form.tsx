@@ -79,6 +79,14 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
     setSending(true);
     try {
       const res = await submitOrder(order);
+      if (res.trackingToken) {
+        try {
+          const key = 'tia-val-meus-pedidos';
+          const previous = JSON.parse(localStorage.getItem(key) || '[]') as Array<{ code: string; token: string; savedAt: string }>;
+          const next = [{ code: res.code, token: res.trackingToken, savedAt: new Date().toISOString() }, ...previous.filter(item => item.token !== res.trackingToken)].slice(0, 20);
+          localStorage.setItem(key, JSON.stringify(next));
+        } catch { /* O link individual continua disponível mesmo se o armazenamento estiver bloqueado. */ }
+      }
       if (res.paymentUrl) { window.location.href = res.paymentUrl; return; }
       setResult(res);
       if (res.pixPayment) { setPixStatus(res.pixPayment.status); setCopiedPix(false); setPaymentDialog(true); }
