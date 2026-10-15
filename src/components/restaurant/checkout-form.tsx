@@ -18,7 +18,7 @@ const maskPhone = (v: string) => {
   return `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
 };
 
-export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { items: OrderItem[]; when: 'hoje' | 'amanha'; initialFee?: FeeResult | null; onBack?: () => void; onDone?: () => void }) {
+export function CheckoutForm({ items, when, initialFee, onDone }: { items: OrderItem[]; when: 'hoje' | 'amanha'; initialFee?: FeeResult | null; onDone?: () => void }) {
   const [fulfillment, setFulfillment] = useState<'entrega' | 'retirada'>('entrega');
   const [fee, setFee] = useState<FeeResult | null>(initialFee ?? null);
   const [name, setName] = useState('');
@@ -63,8 +63,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
     {onDone && <Button onClick={onDone}>Fechar</Button>}
   </div>;
 
-  return <form className="checkout" onSubmit={e => { e.preventDefault(); void submit(); }}>
-    {onBack && <button type="button" className="checkout-back" onClick={onBack}><ArrowLeft size={14} /> Voltar</button>}
+  return <form className="checkout checkout-form-mobile" onSubmit={e => { e.preventDefault(); void submit(); }}>
     <ul className="checkout-items">{items.map((i, idx) => <li key={idx}><span>{i.quantity}× {i.name}<small>{i.sizeLabel}{i.notes ? ` · ${i.notes}` : ''}</small></span><strong>{formatPrice(i.unitPrice * i.quantity)}</strong></li>)}</ul>
 
     <fieldset><legend>Seus dados</legend>

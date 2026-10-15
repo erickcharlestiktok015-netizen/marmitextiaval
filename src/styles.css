@@ -209,6 +209,40 @@
  .promotion-layout { grid-template-columns:minmax(0,1fr); gap:32px; } .promotion-copy h2 { font-size:44px; } .promotion-copy>p:not(.eyebrow) { max-width:none; } .promotion-image { aspect-ratio:1.1; } .promotion-image>span>span { font-size:25px; } .reviews-grid { grid-template-columns:minmax(0,1fr); gap:16px; } .review-card { padding:26px; } .review-card blockquote { font-size:14px; } .google-rating { margin:5px 0; } .steps-grid { grid-template-columns:minmax(0,1fr); gap:28px; margin:36px 0; } .order-step { display:grid; grid-template-columns:44px minmax(0,1fr); column-gap:14px; } .order-step>span { grid-row:span 2; font-size:40px; } .order-step h3 { margin:5px 0 8px; } .order-step p { max-width:none; grid-column:2; } .order-heading { text-align:left; } .order-heading .eyebrow { justify-content:flex-start; } .contact-band { flex-direction:column; align-items:flex-start; gap:23px; } .contact-band strong { font-size:34px; } .contact-band>a { width:100%; } .footer-main { grid-template-columns:minmax(0,1fr); gap:34px; padding-block:40px; } .footer-bottom { flex-direction:column; gap:10px; padding-bottom:100px; } .desktop-break { display:none; }
  .contact-dock { left:0; right:0; bottom:0; border-radius:0; border-inline:0; padding:9px 20px max(9px,env(safe-area-inset-bottom)); gap:10px; display:grid; grid-template-columns:auto minmax(0,1fr); background:color-mix(in oklch,var(--card) 96%,transparent); backdrop-filter:blur(12px); } .contact-dock a { min-width:0; padding-inline:12px; height:46px; } .contact-dock a:first-child { gap:7px; } .contact-dock:has(a:nth-child(3)) { grid-template-columns:auto auto minmax(0,1fr); } .contact-dock:has(a:nth-child(3)) a { font-size:10px; padding-inline:7px; }
  .detail-content { padding:20px; } .detail-content h2 { font-size:32px; }
+  /* Fix checkout/Dialog mobile scroll - prevent body scroll and constrain dialog height */
+  [role="dialog"].mobile-dialog, .meal-dialog { 
+    max-height: 85vh; 
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    contain: layout;
+  }
+  .meal-dialog .detail-content { 
+    padding: 20px;
+    max-height: calc(85vh - 48px);
+    overflow-y: auto;
+  }
+  .checkout-form-mobile { 
+    padding: 20px;
+  }
+  /* Calcular frete - ajustar layout mobile */
+  .delivery-fee { 
+    max-width: 100%; 
+    margin: 0 auto 24px; 
+    padding: 20px;
+    border-radius: 12px;
+  }
+  .delivery-form { 
+    flex-direction: column;
+    gap: 12px;
+  }
+  .delivery-form input {
+    height: 44px;
+    font-size: 14px;
+  }
+  .delivery-form button {
+    flex: 1;
+    height: 44px;
+  }
 }
 @media(max-width:359px) { .hero h1 { font-size:62px; } .hero-copy .eyebrow { font-size:8px; } .hero-rating>span { display:none; } .meal-details { padding:18px; } .detail-controls { gap:9px; } .detail-controls>button { padding-inline:10px; } }
 @media(max-height:730px) and (max-width:700px) { .hero-copy { padding-top:86px; } .hero h1 { font-size:62px; } .hero-slogan { margin-top:13px; font-size:8px; } }

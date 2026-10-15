@@ -16,7 +16,10 @@ export type Meal = {
   sizes: MealSize[];
 };
 
-const assetUrl = (url: string) => new URL(url, 'https://tia-val-eats-digital.lovable.app').toString();
+const assetUrl = (url: string) => {
+  const base = process.env['SITE_URL'] || (process.env['VERCEL_URL'] ? `https://${process.env['VERCEL_URL']}` : 'https://tia-val-eats-digital.lovable.app');
+  return new URL(url, base).toString();
+};
 
 // Pratos do dia na ordem em que aparecem no site: tropeiro primeiro, depois o caseirinho.
 // "Só tropeiro" e "só feijoada" (sem acompanhamentos) custam 20 (pequena) e 25 (grande); a completa é preço normal.
