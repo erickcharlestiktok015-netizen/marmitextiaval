@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Clock, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { isRestaurantOpen, mapsUrl, openingHours } from '@/lib/restaurant-data';
 
 export function OpeningHours() {
