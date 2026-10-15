@@ -12,7 +12,7 @@ const schema = z.object({
     quantity: z.number().int().min(1).max(50),
     notes: z.string().max(300).optional(),
   })).min(1).max(30),
-  customer: z.object({ name: z.string().trim().min(2).max(80), phone: z.string().regex(/^\d{10,11}$/) }),
+  customer: z.object({ name: z.string().trim().min(2).max(80), phone: z.string().regex(/^\d{10,11}$/), email: z.string().trim().email().max(254).optional() }),
   fulfillment: z.enum(['entrega', 'retirada']),
   address: z.object({
     cep: z.string().max(12), street: z.string().max(160), number: z.string().max(20),
@@ -55,6 +55,9 @@ export const createOrder = createServerFn({ method: 'POST' })
       }
       if (data.payment === 'online' && !data.onlineMethod) {
         throw new Error('Escolha uma forma de pagamento online.');
+      }
+      if (data.payment === 'online' && data.onlineMethod === 'pix' && !data.customer.email) {
+        throw new Error('Informe um e-mail válido para gerar o Pix.');
       }
       if (data.payment === 'online' && data.onlineMethod === 'pix' && !data.customer.email) {
         throw new Error('Informe um e-mail válido para gerar o Pix.');
