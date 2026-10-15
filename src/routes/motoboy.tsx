@@ -94,7 +94,7 @@ function CourierLogin() {
     }
   }
 
-  return <main className="flex min-h-screen items-center justify-center bg-[#f7f4ed] px-4 py-10 text-[#25251f]">
+  return <main className="courier-screen flex min-h-screen items-center justify-center bg-[#f7f4ed] px-4 py-10 text-[#25251f]">
     <section className="w-full max-w-md rounded-3xl border border-[#e5dfd2] bg-white p-6 shadow-sm sm:p-8">
       <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#25251f] text-[#e9c878]"><Bike size={30}/></div>
       <p className="mt-5 text-xs font-bold uppercase tracking-[.2em] text-[#9a742a]">Marmitex da Tia Val</p>
