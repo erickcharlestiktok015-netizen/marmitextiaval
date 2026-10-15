@@ -7,7 +7,7 @@ type Order = {
   id: string; code: string; order_for: 'hoje' | 'amanha'; customer_name: string; customer_phone: string;
   fulfillment: 'entrega' | 'retirada'; address: { cep?: string; street?: string; number?: string; complement?: string; bairro?: string } | null;
   payment_method: string; payment_status: string; order_status: string; subtotal: number; delivery_fee: number;
-  total: number; change_for: number | null; created_at: string; items: OrderItem[];
+  total: number; change_for: number | null; created_at: string; estimated_delivery_at?: string | null; items: OrderItem[];
 };
 const statuses = [
   { value: 'novo', label: 'Novo pedido' },
@@ -96,6 +96,26 @@ function AdminPage() {
     } catch (err) { setError(err instanceof Error ? err.message : 'Erro ao atualizar pedido.'); }
   };
 
+  const updateEta = async (order: Order, value: string) => {
+    setError('');
+    try {
+      const response = await fetch('/api/admin/orders', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: order.id, estimated_delivery_at: value ? new Date(value).toISOString() : null }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar a previsão.');
+      await loadOrders(true);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Erro ao salvar previsão.'); }
+  };
+
+  const toLocalDateTime = (value?: string | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+
   const logout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
     setLoggedIn(false); setOrders([]);
@@ -159,6 +179,7 @@ function AdminPage() {
             <div className="rounded-lg bg-[#f7f4ed] p-3 text-sm"><div className="flex justify-between"><span className="text-[#777266]">Marmitas</span><span>{money(Number(order.subtotal))}</span></div><div className="mt-1 flex justify-between"><span className="text-[#777266]">Entrega</span><span>{money(Number(order.delivery_fee))}</span></div><div className="mt-2 flex justify-between border-t border-[#e2dccf] pt-2 text-base font-bold"><span>Total</span><span>{money(Number(order.total))}</span></div></div>
             <div className="space-y-2 text-sm"><p className="flex items-start gap-2"><Phone size={16} className="mt-0.5 shrink-0 text-[#8b6a25]" />{order.customer_phone}</p><p className="flex items-start gap-2"><span className="mt-0.5 shrink-0 text-[#8b6a25]">{order.fulfillment === 'entrega' ? <Bike size={16} /> : <Store size={16} />}</span><span>{order.fulfillment === 'entrega' ? addressText || 'Endereço não informado' : 'Retirada na cozinha'}</span></p><p className="text-[#777266]">Pagamento: {paymentLabel(order.payment_method)} · {paymentStatusLabel(order.payment_status)}</p>{order.payment_method === "online" && order.payment_status === "approved" && <p className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-900">PAGO · liberado para a cozinha</p>}{order.payment_method !== "online" && <p className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">PAGAR NA ENTREGA/RETIRADA</p>}{order.payment_method === "online" && order.payment_status !== "approved" && <p className="inline-flex rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-900">NÃO LIBERADO · aguardando confirmação</p>}{order.change_for && <p>Troco para: {money(Number(order.change_for))}</p>}</div>
             <div className="flex flex-wrap gap-2"><a href={`tel:+55${phoneDigits(order.customer_phone)}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm"><Phone size={15} /> Ligar</a>{mapUrl && <a href={mapUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d9d2c4] px-3 text-sm"><MapPin size={15} /> Abrir mapa</a>}</div>
+            {order.fulfillment === 'entrega' && !['concluido', 'cancelado'].includes(order.order_status) && <label className="block space-y-2 text-sm font-semibold">Previsão de chegada<input type="datetime-local" value={toLocalDateTime(order.estimated_delivery_at)} onChange={(e) => void updateEta(order, e.target.value)} className="min-h-11 w-full rounded-lg border border-[#d9d2c4] bg-white px-3 font-normal" /><span className="block text-xs font-normal text-[#777266]">Escolha a data e hora previstas para o cliente acompanhar.</span></label>}
             <label className="block space-y-2 text-sm font-semibold">Atualizar situação<select value={order.order_status} onChange={(e) => void updateStatus(order, e.target.value)} className="min-h-11 w-full rounded-lg border border-[#d9d2c4] bg-white px-3 font-normal"><option value="" disabled>Escolha o status</option>{statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
             {!["concluido", "cancelado"].includes(order.order_status) && <button type="button" onClick={() => { if (window.confirm(`Tem certeza que deseja cancelar o pedido #${order.code} de ${order.customer_name}?`)) void updateStatus(order, "cancelado"); }} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100"><Ban size={16} /> Cancelar pedido</button>}
           </div>
