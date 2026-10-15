@@ -43,3 +43,9 @@ export async function submitOrder(order: Order): Promise<SubmitResult> {
     changeFor: order.changeFor ?? null,
   } });
 }
+
+
+export async function checkOrderPaymentStatus(code: string): Promise<{ status: string }> {
+  const { checkPixPayment } = await import('@/lib/orders.functions');
+  return checkPixPayment({ data: { code } });
+}
