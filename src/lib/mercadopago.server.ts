@@ -108,7 +108,7 @@ export async function createPixPayment(args: {
   description: string;
   payer: { name: string; phone: string; email: string };
 }): Promise<PixPaymentResult> {
-  const nameParts = args.payer.name.trim().split(/\\s+/);
+  const nameParts = args.payer.name.trim().split(/\s+/);
   const res = await fetch(`${MP_API}/v1/payments`, {
     method: 'POST',
     headers: {
