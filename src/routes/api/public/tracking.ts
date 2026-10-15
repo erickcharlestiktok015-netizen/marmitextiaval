@@ -11,20 +11,21 @@ export const Route = createFileRoute('/api/public/tracking')({
         }
         try {
           const rows = await supabaseRequest<Array<{
-            code: string; order_status: string; payment_status: string; payment_method: string;
+            id: string; code: string; order_status: string; payment_status: string; payment_method: string;
             fulfillment: string; estimated_delivery_at: string | null; courier_status: string;
             confirmation_code: string | null; created_at: string; updated_at: string;
           }>>(
-            `orders?select=code,order_status,payment_status,payment_method,fulfillment,estimated_delivery_at,courier_status,confirmation_code,created_at,updated_at&tracking_token=eq.${encodeURIComponent(token)}&limit=1`,
+            `orders?select=id,code,order_status,payment_status,payment_method,fulfillment,estimated_delivery_at,courier_status,confirmation_code,created_at,updated_at&tracking_token=eq.${encodeURIComponent(token)}&limit=1`,
           );
           const order = rows[0];
           if (!order) return Response.json({ error: 'Pedido não encontrado.' }, { status: 404 });
           const items = await supabaseRequest<Array<{ meal_name: string; size_label: string; quantity: number }>>(
-            `order_items?select=meal_name,size_label,quantity&order_id=eq.${encodeURIComponent((await supabaseRequest<Array<{ id: string }>>(`orders?select=id&tracking_token=eq.${encodeURIComponent(token)}&limit=1`))[0]?.id ?? '')}`,
+            `order_items?select=meal_name,size_label,quantity&order_id=eq.${encodeURIComponent(order.id)}&order=created_at.asc`,
           );
           return Response.json({
             order: {
               ...order,
+              id: undefined,
               confirmation_code: order.courier_status === 'cheguei' ? order.confirmation_code : null,
               items,
             },
