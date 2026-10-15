@@ -62,17 +62,49 @@ function CourierDeliveries() {
   const activeCount = orders.filter(o => o.order_status === 'saiu_entrega').length;
   const todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
+  // Sequência aproximada por vizinho mais próximo, usando as coordenadas disponíveis.
+  // A distância é em linha reta; o trânsito e o trajeto real são calculados pelo Waze.
   const ordered = useMemo(() => {
     const active = orders.filter(o => o.order_status === 'saiu_entrega');
     const ready = orders.filter(o => o.order_status === 'pronto_entrega');
-    const sort = (list: Delivery[]) => [...list].sort((a,b) => {
-      if (!location) return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      const ca = coords(a.address), cb = coords(b.address);
-      if (!ca && !cb) return 0; if (!ca) return 1; if (!cb) return -1;
-      return distance(location, ca) - distance(location, cb);
-    });
-    return [...sort(active), ...sort(ready)];
+    const nearestSequence = (input: Delivery[], origin: Geo | null) => {
+      const remaining = [...input];
+      const result: Delivery[] = [];
+      let current = origin;
+      while (remaining.length) {
+        if (!current) {
+          remaining.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          result.push(...remaining); break;
+        }
+        let bestIndex = -1, bestDistance = Infinity;
+        for (let i = 0; i < remaining.length; i++) {
+          const point = coords(remaining[i].address);
+          const d = point ? distance(current, point) : Infinity;
+          if (d < bestDistance) { bestDistance = d; bestIndex = i; }
+        }
+        if (bestIndex < 0) {
+          remaining.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          result.push(...remaining); break;
+        }
+        const next = remaining.splice(bestIndex, 1)[0];
+        result.push(next); current = coords(next.address);
+      }
+      return result;
+    };
+    const activeOrdered = nearestSequence(active, location);
+    const lastActive = activeOrdered.length ? coords(activeOrdered[activeOrdered.length - 1].address) : location;
+    return [...activeOrdered, ...nearestSequence(ready, lastActive)];
   }, [orders, location]);
+
+  const estimatedRouteKm = useMemo(() => {
+    let current = location, total = 0;
+    for (const order of ordered) {
+      const point = coords(order.address);
+      if (current && point) total += distance(current, point);
+      if (point) current = point;
+    }
+    return total;
+  }, [ordered, location]);
 
   const getLocation = () => {
     if (!navigator.geolocation) { setGeoMessage('Este celular não oferece localização pelo navegador.'); return; }
@@ -114,9 +146,13 @@ function CourierDeliveries() {
     window.open(`https://waze.com/ul?${destination}`, '_blank', 'noopener,noreferrer');
   };
   const openBatch = () => {
-    const stops = ordered.filter(o => o.order_status === 'pronto_entrega');
-    const urls = stops.map(o => { const p = coords(o.address); return p ? `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressText(o.address))}`; });
-    if (urls[0]) window.open(urls[0], '_blank', 'noopener,noreferrer');
+    const next = ordered.find(o => o.order_status === 'saiu_entrega') || ordered.find(o => o.order_status === 'pronto_entrega');
+    if (!location) {
+      setGeoMessage('Para calcular a sequência a partir de onde você está, permita a localização do celular.');
+      getLocation();
+      return;
+    }
+    if (next) waze(next);
     setRouteMode(true);
   };
   const logout = async () => { await fetch('/api/courier/logout', { method: 'POST' }); window.location.href = '/motoboy'; };
@@ -126,8 +162,8 @@ function CourierDeliveries() {
       <header className="rounded-2xl bg-[#25251f] p-5 text-[#fffaf0] sm:p-7">
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-xl bg-white/10 text-[#e9c878]"><Bike size={26}/></div><div><p className="text-xs uppercase tracking-[.18em] text-[#e9c878]">Marmitex da Tia Val</p><h1 className="text-2xl font-bold">Minhas entregas</h1></div></div><button onClick={logout} aria-label="Sair" className="rounded-lg p-2 hover:bg-white/10"><LogOut size={20}/></button></div>
         <p className="mt-3 text-sm text-[#e0d9c9]">Pedidos liberados pela cozinha. A lista atualiza automaticamente.</p>
-        <div className="mt-4 flex flex-wrap gap-2"><button onClick={getLocation} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e9c878] px-3 text-sm font-bold text-[#25251f]"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RouteIcon size={16}/> Ver primeira rota</button><button onClick={()=>void load()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RefreshCw size={16}/> Atualizar</button></div>
-        <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {updated && `Atualizado às ${updated}.`}</p>
+        <div className="mt-4 flex flex-wrap gap-2"><button onClick={getLocation} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#e9c878] px-3 text-sm font-bold text-[#25251f]"><MapPin size={16}/> Ativar GPS</button><button onClick={openBatch} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RouteIcon size={16}/> Calcular rota e abrir Waze</button><button onClick={()=>void load()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 px-3 text-sm font-semibold"><RefreshCw size={16}/> Atualizar</button></div>
+        <p className="mt-3 text-xs text-[#d4ccbc]">{geoMessage} {location && ordered.length > 0 && `Estimativa da sequência: ${estimatedRouteKm.toFixed(1)} km em linha reta; distância real depende das ruas e do trânsito.`} {updated && `Atualizado às ${updated}.`}</p>
       </header>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-[#e5dfd2] bg-white p-4 shadow-sm sm:p-5">
