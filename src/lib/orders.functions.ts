@@ -12,7 +12,7 @@ const schema = z.object({
     quantity: z.number().int().min(1).max(50),
     notes: z.string().max(300).optional(),
   })).min(1).max(30),
-  customer: z.object({ name: z.string().trim().min(2).max(80), phone: z.string().regex(/^\d{10,11}$/) }),
+  customer: z.object({ name: z.string().trim().min(2).max(80), phone: z.string().regex(/^\\d{10,11}$/) }),
   fulfillment: z.enum(['entrega', 'retirada']),
   address: z.object({
     cep: z.string().max(12), street: z.string().max(160), number: z.string().max(20),
@@ -20,6 +20,7 @@ const schema = z.object({
   }).optional(),
   distanceKm: z.number().positive().max(30).nullable(),
   payment: z.enum(['online', 'entrega-pix', 'entrega-cartao', 'entrega-dinheiro']),
+  onlineMethod: z.enum(['pix', 'credit_card', 'debit_card', 'ticket', 'account_money']).optional(),
   changeFor: z.number().positive().nullable().optional(),
 });
 
@@ -40,6 +41,9 @@ export const createOrder = createServerFn({ method: 'POST' })
     const { insertOrderRecord, supabaseRequest } = await import('@/lib/supabase.server');
     if (data.fulfillment === 'entrega' && (!data.address || data.distanceKm == null || data.distanceKm > 30)) {
       throw new Error('Informe um endereço válido e calcule a entrega.');
+    }
+    if (data.payment === 'online' && !data.onlineMethod) {
+      throw new Error('Escolha uma forma de pagamento online.');
     }
 
     const verifiedItems = data.items.map((item) => {
@@ -85,6 +89,7 @@ export const createOrder = createServerFn({ method: 'POST' })
         code,
         items: preferenceItems,
         payer: { name: data.customer.name, phone: data.customer.phone },
+        onlineMethod: data.onlineMethod!,
       });
       await supabaseRequest(`orders?id=eq.${encodeURIComponent(orderId)}`, {
         method: 'PATCH',
