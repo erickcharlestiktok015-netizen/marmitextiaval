@@ -3,6 +3,13 @@ import { isCourierRequest } from '@/lib/courier-auth.server';
 import { supabaseRequest } from '@/lib/supabase.server';
 
 type OrderRow = Record<string, any>;
+const safeDatabaseError = (error: unknown, fallback: string) => {
+  const message = error instanceof Error ? error.message : '';
+  if (message.includes('SUPABASE_URL') || message.includes('SUPABASE_SECRET_KEY')) {
+    return 'O acesso ao banco não está configurado na Vercel. Confira SUPABASE_URL e SUPABASE_SECRET_KEY.';
+  }
+  return fallback;
+};
 const validId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v);
 export const Route = createFileRoute('/api/courier/orders')({
   server: { handlers: {
@@ -39,8 +46,8 @@ export const Route = createFileRoute('/api/courier/orders')({
           })),
         }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
       } catch (error) {
-        console.error('[courier-orders] Falha ao carregar fila:', error instanceof Error ? { name: error.name, message: error.message } : { error: String(error) });
-        return Response.json({ error: 'Não foi possível carregar as entregas.' }, { status: 503 });
+        console.error('[courier-orders] Falha ao carregar fila:', { type: error instanceof Error ? error.name : 'unknown' });
+        return Response.json({ error: safeDatabaseError(error, 'Não foi possível carregar as entregas. Verifique a conexão do servidor com o banco.') }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
       }
     },
     PATCH: async ({ request }) => {
@@ -64,13 +71,13 @@ export const Route = createFileRoute('/api/courier/orders')({
           })));
           return Response.json({ ok: true, active: active.length });
         } catch (error) {
-          console.error('[courier-orders] Falha ao atualizar GPS:', error instanceof Error ? { name: error.name, message: error.message } : { error: String(error) });
-          return Response.json({ error: 'Não foi possível atualizar a localização.' }, { status: 503 });
+          console.error('[courier-orders] Falha ao atualizar GPS:', { type: error instanceof Error ? error.name : 'unknown' });
+          return Response.json({ error: safeDatabaseError(error, 'Não foi possível atualizar a localização. Verifique a conexão e tente novamente.') }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
         }
       }
       if (!validId(body.id) || !['start', 'arrived', 'delivered'].includes(String(action))) return Response.json({ error: 'Ação inválida.' }, { status: 400 });
       try {
-        const rows = await supabaseRequest<OrderRow[]>(`orders?select=id,order_status,payment_method,payment_status,courier_status,confirmation_code& id=eq.${encodeURIComponent(body.id)}&fulfillment=eq.entrega&limit=1`.replace('& id=', '&id='));
+        const rows = await supabaseRequest<OrderRow[]>(`orders?select=id,order_status,payment_method,payment_status,courier_status,confirmation_code&id=eq.${encodeURIComponent(body.id)}&fulfillment=eq.entrega&limit=1`);
         const order = rows[0];
         if (!order) return Response.json({ error: 'Entrega não encontrada.' }, { status: 404 });
         if (order.payment_method === 'online' && order.payment_status !== 'approved') return Response.json({ error: 'O pagamento online ainda não foi aprovado.' }, { status: 409 });
@@ -89,8 +96,8 @@ export const Route = createFileRoute('/api/courier/orders')({
         await supabaseRequest(`orders?id=eq.${encodeURIComponent(order.id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch) });
         return Response.json({ ok: true });
       } catch (error) {
-        console.error('[courier-orders] Falha ao atualizar entrega:', error instanceof Error ? { name: error.name, message: error.message } : { error: String(error) });
-        return Response.json({ error: 'Não foi possível atualizar esta entrega.' }, { status: 503 });
+        console.error('[courier-orders] Falha ao atualizar entrega:', { type: error instanceof Error ? error.name : 'unknown' });
+        return Response.json({ error: safeDatabaseError(error, 'Não foi possível atualizar esta entrega. Verifique a conexão e tente novamente.') }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
       }
     },
   } },
