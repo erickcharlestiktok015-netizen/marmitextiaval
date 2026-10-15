@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Bike, Check, CheckCircle2, Copy, CreditCard, LoaderCircle, QrCode, ReceiptText, Store, Wallet, Landmark } from 'lucide-react';
+import { Bike, Check, CheckCircle2, Copy, CreditCard, LoaderCircle, QrCode, ReceiptText, Store, Wallet, Landmark } from 'lucide-react';
 import { DeliveryFee, type FeeResult } from '@/components/restaurant/delivery-fee';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -99,7 +99,6 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
 
   return <>
     <form className="checkout" onSubmit={e => { e.preventDefault(); void submit(); }}>
-      {onBack && <button type="button" className="checkout-back" onClick={onBack}><ArrowLeft size={14} /> Voltar</button>}
       <ul className="checkout-items">{items.map((i, idx) => <li key={idx}><span>{i.quantity}× {i.name}<small>{i.sizeLabel}{i.notes ? ` · ${i.notes}` : ''}</small></span><strong>{formatPrice(i.unitPrice * i.quantity)}</strong></li>)}</ul>
 
       <fieldset><legend>Seus dados</legend>
