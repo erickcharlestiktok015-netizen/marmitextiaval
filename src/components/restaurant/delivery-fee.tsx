@@ -12,7 +12,6 @@ const maskCep = (value: string) => {
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
 };
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 async function distanceKm(lat: number, lng: number) {
   const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${restaurantLocation.lng},${restaurantLocation.lat};${lng},${lat}?overview=false`);
   if (!response.ok) throw new Error('Falha ao consultar a rota do motoboy.');
