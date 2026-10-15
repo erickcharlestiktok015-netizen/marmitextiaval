@@ -143,7 +143,7 @@ function CourierDeliveries() {
         <div className="rounded-2xl border border-[#e5dfd2] bg-white p-4 shadow-sm sm:p-5">
           <p className="text-sm font-medium text-[#777266]">Expediente</p>
           <div className="mt-2 flex items-end justify-between"><span className="text-3xl font-bold tracking-tight">11h–14h</span><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#25251f] text-[#e9c878]"><Clock3 size={22}/></span></div>
-          <p className="mt-2 text-xs capitalize text-[#777266]">{todayLabel{"}"}</p>
+          <p className="mt-2 text-xs capitalize text-[#777266]">{todayLabel}</p>
         </div>
       </section>
       <section className="flex flex-col gap-3 rounded-2xl border border-[#e5dfd2] bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
