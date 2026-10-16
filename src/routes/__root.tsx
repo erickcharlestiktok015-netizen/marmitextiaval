@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { FacebookPixel } from "@/components/facebook-pixel";
 
 function NotFoundComponent() {
   return (
@@ -101,10 +102,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const pixelId = import.meta.env.VITE_FACEBOOK_PIXEL_ID || "";
   return (
     <html lang="pt-BR">
       <head>
         <HeadContent />
+        {pixelId && <FacebookPixel pixelId={pixelId} />}
       </head>
       <body>
         {children}

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { calculateTotals, checkOrderPaymentStatus, submitOrder, type Order, type OrderItem, type PaymentMethod, type SubmitResult, type OnlinePaymentMethod } from '@/lib/orders';
 import { contacts, formatPrice } from '@/lib/restaurant-data';
+import { trackPurchase } from '@/components/facebook-pixel';
 
 const paymentOptions: { id: PaymentMethod; label: string; hint: string }[] = [
   { id: 'online', label: 'Pagar agora online', hint: 'Pix, crédito, débito, boleto ou saldo Mercado Pago' },
