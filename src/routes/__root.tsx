@@ -85,6 +85,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Comida caseira feita com amor em Belo Horizonte." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "facebook-domain-verification", content: "gmi3266uysp5g72ubanjl4xs2l15w4" },
     ],
     links: [
       {

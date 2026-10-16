@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { calculateTotals, checkOrderPaymentStatus, submitOrder, type Order, type OrderItem, type PaymentMethod, type SubmitResult, type OnlinePaymentMethod } from '@/lib/orders';
 import { contacts, formatPrice } from '@/lib/restaurant-data';
-import { trackPurchase } from '@/components/facebook-pixel';
+import { trackPurchase, trackInitiateCheckout } from '@/components/facebook-pixel';
 
 const paymentOptions: { id: PaymentMethod; label: string; hint: string }[] = [
   { id: 'online', label: 'Pagar agora online', hint: 'Pix, crédito, débito, boleto ou saldo Mercado Pago' },
@@ -69,6 +69,8 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
     if (payment === 'online' && onlineMethod === 'pix' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Informe um e-mail válido para gerar o Pix.');
     if (fulfillment === 'entrega' && !fee) return setError('Coloque seu endereço e clique em Calcular entrega.');
     if (payment === 'online' && !onlineMethod) return setError('Escolha uma forma de pagamento online.');
+    // Dispara evento de início do checkout
+    trackInitiateCheckout(totals.total);
     const order: Order = {
       when, items, totals, payment, fulfillment,
       onlineMethod: payment === 'online' ? onlineMethod : undefined,
@@ -87,6 +89,10 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
           const next = [{ code: res.code, token: res.trackingToken, savedAt: new Date().toISOString() }, ...previous.filter(item => item.token !== res.trackingToken)].slice(0, 20);
           localStorage.setItem(key, JSON.stringify(next));
         } catch { /* O link individual continua disponível mesmo se o armazenamento estiver bloqueado. */ }
+      }
+      // Dispara evento de compra no Facebook Pixel
+      if (res.paymentUrl || res.pixPayment) {
+        trackPurchase(totals.total);
       }
       if (res.paymentUrl) { window.location.href = res.paymentUrl; return; }
       setResult(res);
