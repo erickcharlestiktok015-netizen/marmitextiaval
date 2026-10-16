@@ -18,21 +18,39 @@ export type Meal = {
 
 const assetUrl = (url: string) => new URL(url, 'https://tia-val-eats-digital.lovable.app').toString();
 
-// Pratos do dia na ordem em que aparecem no site: tropeiro primeiro, depois o caseirinho.
-// "Só tropeiro" e "só feijoada" (sem acompanhamentos) custam 20 (pequena) e 25 (grande); a completa é preço normal.
+// Foto do prato novo (arroz, feijão, salpicão e frango assado).
+const photoFrangoSalpicao = 'https://id-preview--e76ff772-d67c-44fc-990c-3e212e1c0cb4.lovable.app/__l5e/assets-v1/6fba9cfc-5df9-4004-b83c-1bb32c1e3faa/frango-salpicao.jpg';
+
+// Tropeiro fora do cardápio temporariamente. Para voltar, recoloque este item no início de `meals`.
+export const tropeiroMeal: Meal = {
+  id: 'tropeiro',
+  name: 'Feijão Tropeiro',
+  description: 'Tropeiro caprichado com torresmo, couve e ovo.',
+  video: assetUrl(videoTropeiro.url),
+  poster: assetUrl(posterTropeiro.url),
+  badge: 'O mais pedido',
+  sizes: [
+    { id: 'pequena', label: 'Completa pequena · 500ml', price: 16 },
+    { id: 'grande', label: 'Completa grande · 750ml', price: 18 },
+    { id: 'so-pequena', label: 'Só tropeiro pequena · 500ml', price: 20 },
+    { id: 'so-grande', label: 'Só tropeiro grande · 750ml', price: 25 },
+  ],
+};
+
+// Pratos do dia na ordem em que aparecem no site: feijoada primeiro, depois o caseirinho.
+// "Só feijoada" (sem acompanhamentos) custa 20 (pequena) e 25 (grande); a completa é preço normal.
 export const meals: Meal[] = [
   {
-    id: 'tropeiro',
-    name: 'Feijão Tropeiro',
-    description: 'Tropeiro caprichado com torresmo, couve e ovo.',
-    video: assetUrl(videoTropeiro.url),
-    poster: assetUrl(posterTropeiro.url),
+    id: 'feijoada',
+    name: 'Feijoada',
+    description: 'Feijoada encorpada, cheia de sabor e carinho.',
+    image: assetUrl(photoFeijoada.url),
     badge: 'O mais pedido',
     sizes: [
       { id: 'pequena', label: 'Completa pequena · 500ml', price: 16 },
       { id: 'grande', label: 'Completa grande · 750ml', price: 18 },
-      { id: 'so-pequena', label: 'Só tropeiro pequena · 500ml', price: 20 },
-      { id: 'so-grande', label: 'Só tropeiro grande · 750ml', price: 25 },
+      { id: 'so-pequena', label: 'Só feijoada pequena · 500ml', price: 20 },
+      { id: 'so-grande', label: 'Só feijoada grande · 750ml', price: 25 },
     ],
   },
   {
@@ -49,19 +67,17 @@ export const meals: Meal[] = [
   },
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos que saem amanhã: a feijoada (só neste dia) e o caseirinho, que sai todo dia — amanhã também.
+// Pratos que saem amanhã: o frango assado com salpicão e o caseirinho, que sai todo dia — amanhã também.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string; video?: string; poster?: string };
 export const tomorrowDishes: TomorrowDish[] = [
-  { id: 'feijoada-amanha', name: 'Feijoada', description: 'Feijoada encorpada, cheia de sabor e carinho.', badge: 'Amanhã', image: assetUrl(photoFeijoada.url) },
+  { id: 'frango-amanha', name: 'Arroz, feijão, salpicão e frango assado', description: 'Frango assado douradinho com salpicão cremoso, arroz e feijão.', badge: 'Amanhã', image: photoFrangoSalpicao },
   { id: 'caseirinho-amanha', name: 'Arroz, feijão, macarronada e linguiça', description: 'Sai todo dia, amanhã também. O clássico completo, do jeitinho de casa.', badge: 'Todo dia', video: assetUrl(videoCaseirinho.url), poster: assetUrl(posterCaseirinho.url) },
 ];
-// Opções para reservar amanhã (mesma regra de preço: completa 16/18, só feijoada 20/25).
+// Opções para reservar amanhã.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
-  { id: 'feijoada', name: 'Feijoada', sizes: [
-    { id: 'pequena', label: 'Completa pequena · 500ml', price: 16 },
-    { id: 'grande', label: 'Completa grande · 750ml', price: 18 },
-    { id: 'so-pequena', label: 'Só feijoada pequena · 500ml', price: 20 },
-    { id: 'so-grande', label: 'Só feijoada grande · 750ml', price: 25 },
+  { id: 'frango-salpicao', name: 'Arroz, feijão, salpicão e frango assado', sizes: [
+    { id: 'pequena', label: 'Pequena · 500ml', price: 16 },
+    { id: 'grande', label: 'Grande · 750ml', price: 18 },
   ] },
   { id: 'caseirinho', name: 'Arroz, feijão, macarronada e linguiça', sizes: meals[1]!.sizes },
 ];
