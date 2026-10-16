@@ -1178,3 +1178,14 @@ html, body, .restaurant-page {
 .payment-method-dialog {
   z-index: 1100 !important;
 }
+
+/* Checkout: dados lado a lado e opções em duas colunas, sem letras sobrepostas */
+.checkout fieldset:first-of-type { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.checkout fieldset:first-of-type > input[type=email] { grid-column:1/-1; }
+.checkout .checkout-choice, .checkout .checkout-pay,
+.checkout-dialog .checkout .checkout-choice, .checkout-dialog .checkout .checkout-pay { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.checkout-dialog .checkout { overflow-wrap:normal; }
+.checkout .checkout-choice button, .checkout .checkout-pay button { min-width:0; line-height:1.3; word-break:normal; overflow-wrap:break-word; white-space:normal; padding:10px; }
+.checkout .checkout-pay strong, .checkout .checkout-pay small { display:block; line-height:1.3; }
+.checkout legend { line-height:1.4; }
+@media (max-width:380px) { .checkout fieldset:first-of-type input { padding:0 10px; } .checkout .checkout-choice button, .checkout .checkout-pay button { font-size:12px; padding:9px 8px; } }
