@@ -1173,3 +1173,8 @@ html, body, .restaurant-page {
   overscroll-behavior-x: none;
 }
 
+
+/* Modal de pagamento (Pix/cartão) precisa abrir por cima do checkout (z-index 1000). */
+.payment-method-dialog {
+  z-index: 1100 !important;
+}
