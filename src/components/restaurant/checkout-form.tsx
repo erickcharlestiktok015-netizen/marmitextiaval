@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { calculateTotals, checkOrderPaymentStatus, submitOrder, type Order, type OrderItem, type PaymentMethod, type SubmitResult, type OnlinePaymentMethod } from '@/lib/orders';
 import { contacts, formatPrice } from '@/lib/restaurant-data';
+import { ConfettiBurst } from '@/components/restaurant/confetti-burst';
 import { trackPurchase, trackInitiateCheckout } from '@/components/facebook-pixel';
 
 const paymentOptions: { id: PaymentMethod; label: string; hint: string }[] = [
@@ -103,6 +104,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
   };
 
   if (result && !result.pixPayment) return <div className="checkout-done" role="status">
+    <ConfettiBurst trigger={result.code} />
     <span className="checkout-done-icon"><Check /></span>
     <h3>{when === 'amanha' ? 'Reserva feita!' : 'Pedido feito!'}</h3>
     <p>Código <strong>#{result.code}</strong> · Total {formatPrice(totals.total)}</p>
@@ -147,6 +149,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
 
     <Dialog open={paymentDialog} onOpenChange={setPaymentDialog}>
       <DialogContent className="payment-method-dialog">
+        {result?.pixPayment && <ConfettiBurst trigger={result.code} />}
         {result?.pixPayment ? <div className="detail-content pix-payment-content">
           <p className="meal-tag">PIX · MERCADO PAGO</p>
           <DialogTitle>{pixStatus === 'approved' ? 'Pix confirmado!' : 'Pague com Pix'}</DialogTitle>
