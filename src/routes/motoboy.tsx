@@ -92,7 +92,7 @@ function CourierLogin() {
     }
   }
 
-  if (pathname === '/motoboy/entregas') return <Outlet />;
+  if (pathname.replace(/\/+$/, '').startsWith('/motoboy/entregas')) return <Outlet />;
 
   return <main className="courier-screen flex min-h-screen items-center justify-center bg-[#f7f4ed] px-4 py-10 text-[#25251f]">
     <section className="w-full max-w-md rounded-3xl border border-[#e5dfd2] bg-white p-6 shadow-sm sm:p-8">

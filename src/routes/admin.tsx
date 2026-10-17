@@ -331,8 +331,10 @@ function AdminPage() {
       case 'novo': return { label: 'Confirmar pedido', icon: Check, next: 'confirmado' };
       case 'confirmado': return { label: 'Iniciar preparo', icon: ChefHat, next: 'preparando' };
       case 'preparando': return { label: 'Marcar como pronto', icon: Check, next: o.fulfillment === 'entrega' ? 'pronto_entrega' : 'pronto_retirada' };
-      case 'pronto_entrega': return { label: 'Despachar p/ motoboy', icon: Bike, next: 'saiu_entrega' };
-      case 'saiu_entrega': return { label: 'Marcar entregue', icon: CheckCircle2, next: 'concluido' };
+      // Entregas: a partir daqui quem avança é o motoboy no app dele
+      // (Iniciar entrega -> Cheguei -> código de confirmação do cliente).
+      case 'pronto_entrega': return { label: 'Aguardando motoboy', icon: Bike, disabled: true };
+      case 'saiu_entrega': return { label: 'Com o motoboy', icon: Bike, disabled: true };
       case 'pronto_retirada': return { label: 'Cliente retirou', icon: CheckCircle2, next: 'concluido' };
       default: return null;
     }
