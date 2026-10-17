@@ -10,6 +10,8 @@ type Delivery = {
   confirmation_code: string | null; items: Array<{ meal_name: string; size_label: string; quantity: number; notes?: string }>;
 };
 type Geo = { latitude: number; longitude: number };
+type Tab = 'inicio' | 'pedidos' | 'mapa' | 'ganhos';
+type Filter = 'todos' | 'preparo' | 'prontos';
 type CompletedDelivery = { id: string; code: string; fee: number; at: string };
 
 const coords = (address: unknown): Geo | null => {
@@ -69,6 +71,8 @@ function CourierDeliveries() {
   const [presenceError, setPresenceError] = useState('');
   const [roadOrderIds, setRoadOrderIds] = useState<string[]>([]);
   const [routeCalculation, setRouteCalculation] = useState('');
+  const [tab, setTab] = useState<Tab>('inicio');
+  const [filter, setFilter] = useState<Filter>('todos');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [success, setSuccess] = useState<CompletedDelivery | null>(null);
@@ -379,7 +383,7 @@ function CourierDeliveries() {
         setSuccess(done);
         setConfirmation(v => ({ ...v, [order.id]: '' }));
       }
-      if (next === 'start') { setSelectedId(order.id); setDetailsId(null); }
+      if (next === 'start') { setSelectedId(order.id); setDetailsId(null); setTab('mapa'); }
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro na entrega.'); }
     finally { setBusy(''); }
@@ -414,6 +418,7 @@ function CourierDeliveries() {
   // "Ajustar ordem": usa o GPS (pedido no toque) para sequenciar da mais perto para a mais longe.
   const adjustOrder = () => {
     getLocation();
+    setFilter('todos');
   };
   const logout = async () => {
     try { await fetch('/api/courier/logout', { method: 'POST', credentials: 'same-origin', cache: 'no-store' }); }
@@ -424,6 +429,7 @@ function CourierDeliveries() {
   const current = (selectedId && orders.find(o => o.id === selectedId && isRouteable(o))) || routeOrders.find(o => o.order_status === 'saiu_entrega') || routeOrders[0] || null;
   const nextDelivery = routeOrders[0] || ordered[0] || null;
   const detailsOrder = detailsId ? orders.find(o => o.id === detailsId) || null : null;
+  const filtered = ordered.filter(o => filter === 'todos' ? true : filter === 'preparo' ? isPrep(o) : isRouteable(o));
   const kmTo = (o: Delivery) => { const p = coords(o.address); return location && p ? `${distance(location, p).toFixed(1)} km` : null; };
   const mapCenter = (current && coords(current.address)) || location;
   const mapSrc = mapCenter ? `https://www.openstreetmap.org/export/embed.html?bbox=${mapCenter.longitude-0.02}%2C${mapCenter.latitude-0.014}%2C${mapCenter.longitude+0.02}%2C${mapCenter.latitude+0.014}&layer=mapnik&marker=${mapCenter.latitude}%2C${mapCenter.longitude}` : '';
@@ -469,75 +475,152 @@ function CourierDeliveries() {
     </div>;
   };
 
-  const OrderCard = ({ order }: { order: Delivery }) => {
+  const OrderCard = ({ order, highlight }: { order: Delivery; highlight?: boolean }) => {
     const s = statusInfo(order);
     const km = kmTo(order);
-    const ready = order.order_status === 'pronto_entrega';
-    const prep = isPrep(order);
-    return <article className={`rounded-2xl border p-4 ${ready ? 'border-2 border-red-500 bg-gradient-to-br from-[#2a0f17] to-[#101722]' : 'border-white/10 bg-[#101722]'}`}>
+    return <article className={`rounded-2xl border p-4 ${highlight ? 'border-red-500/70 bg-gradient-to-br from-[#2a0f17] to-[#101722]' : 'border-white/10 bg-[#101722]'}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${prep ? 'bg-orange-400/15 text-orange-300' : s.cls}`}>{prep ? 'Em preparo na cozinha' : s.label}</span>
-          <p className="mt-2 text-sm text-slate-400">#{order.code} · {new Date(order.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · {paymentLabel(order.payment_method)}</p>
+          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${s.cls}`}>{s.label}</span>
+          <p className="mt-2 text-sm text-slate-400">#{order.code} · {new Date(order.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
           <p className="mt-0.5 truncate font-bold">{order.customer_name}</p>
           <p className="mt-0.5 truncate text-sm text-slate-400">{order.items.map(i => `${i.quantity}× ${i.meal_name}`).join(' · ')}</p>
         </div>
         <div className="shrink-0 text-right"><p className="font-black">{currency(Number(order.total))}</p>{km && <p className="mt-1 text-sm text-slate-400">{km}</p>}</div>
       </div>
       <p className="mt-3 flex gap-2 text-sm text-slate-300"><MapPin size={16} className="mt-0.5 shrink-0 text-red-400"/><span className="min-w-0">{addressText(order.address)}</span></p>
-      <div className="mt-3 space-y-2">
-        {prep && <p className="rounded-xl bg-white/[.04] p-3 text-center text-sm font-semibold text-slate-400">Aguardando liberação da cozinha. O botão de saída aparecerá assim que a comida estiver pronta.</p>}
-        {order.order_status === 'saiu_entrega' && <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => waze(order)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 text-sm font-bold text-white hover:bg-red-400"><Navigation size={16}/> Waze</button>
-          <button type="button" onClick={() => googleMaps(order)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 text-sm font-bold hover:bg-white/5"><MapIcon size={16}/> Google Maps</button>
-          {order.customer_phone && <>
-            <a href={`tel:${order.customer_phone.replace(/[^+\d]/g, '')}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 text-sm font-bold hover:bg-white/5"><Phone size={16}/> Ligar</a>
-            <button type="button" onClick={() => whatsapp(order)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white hover:bg-emerald-500"><MessageCircle size={16}/> WhatsApp</button>
-          </>}
-        </div>}
-        {!prep && <ActionArea order={order}/>}
-        <button type="button" onClick={() => setDetailsId(order.id)} className="inline-flex min-h-10 w-full items-center justify-center gap-1 rounded-xl text-sm font-bold text-slate-300 hover:bg-white/5">Ver detalhes <ChevronRight size={16}/></button>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => setDetailsId(order.id)} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-white/15 text-sm font-bold hover:bg-white/5">Ver detalhes <ChevronRight size={16}/></button>
+        {order.order_status === 'pronto_entrega'
+          ? <button type="button" disabled={busy === order.id} onClick={() => void action(order, 'start')} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-red-500 text-sm font-extrabold text-white hover:bg-red-400 disabled:opacity-50"><Navigation size={15}/> Iniciar rota</button>
+          : order.order_status === 'saiu_entrega'
+            ? <button type="button" onClick={() => { setSelectedId(order.id); setTab('mapa'); }} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-sky-500 text-sm font-extrabold text-slate-950 hover:bg-sky-400"><MapIcon size={15}/> Ver rota</button>
+            : <span className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white/[.04] text-xs font-semibold text-slate-500">Aguardando cozinha</span>}
       </div>
     </article>;
   };
 
+  const tabs: Array<{ id: Tab; label: string; icon: typeof Home; badge?: number }> = [
+    { id: 'inicio', label: 'Início', icon: Home },
+    { id: 'pedidos', label: 'Pedidos', icon: ListOrdered, badge: readyCount + activeCount },
+    { id: 'mapa', label: 'Mapa', icon: MapIcon },
+    { id: 'ganhos', label: 'Ganhos', icon: Wallet },
+  ];
+
   return <main className="courier-screen min-h-screen bg-[#070b12] text-slate-100" data-courier-theme="dark">
-    <div className="mx-auto max-w-lg space-y-4 px-4 pb-16 pt-5">
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <img src="/icons/motoboy-192.png" alt="Tia Val Motoboy" className="h-12 w-12 shrink-0 rounded-2xl object-cover"/>
-          <div className="min-w-0"><p className="truncate text-lg font-black"><span className="text-red-500">Tia Val</span> · Motoboy</p>
-            <span className={`mt-1 inline-flex items-center gap-2 rounded-full px-3 py-0.5 text-xs font-bold ${isOnline ? 'bg-emerald-400/15 text-emerald-300' : 'bg-slate-700/60 text-slate-300'}`}><span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-slate-400'}`}/>{isOnline ? 'Online' : 'Offline'}</span></div>
+    <div className="mx-auto max-w-lg px-4 pb-28 pt-5">
+      {tab === 'inicio' && <div className="space-y-4">
+        <header className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <img src="/icons/motoboy-192.png" alt="Tia Val Motoboy" className="h-12 w-12 shrink-0 rounded-2xl object-cover"/>
+            <div className="min-w-0"><p className="truncate text-lg font-black"><span className="text-red-500">Tia Val</span> · Motoboy</p><p className="truncate text-xs text-slate-400">Entregas rápidas · Com segurança</p></div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <button type="button" onClick={() => setTab('pedidos')} aria-label="Pedidos prontos" className="relative rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><Bell size={20}/>{readyCount > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500"/>}</button>
+            <button type="button" onClick={() => void logout()} aria-label="Sair" className="rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><LogOut size={20}/></button>
+          </div>
+        </header>
+        <div>
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${isOnline ? 'bg-emerald-400/15 text-emerald-300' : 'bg-slate-700/60 text-slate-300'}`}><span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-slate-400'}`}/>{isOnline ? 'Online' : 'Offline'}</span>
+          <h1 className="mt-3 flex items-center gap-2 text-3xl font-black">Olá, parceiro! <Hand size={26} className="text-amber-300"/></h1>
+          <p className="mt-1 text-slate-400">{isOnline ? 'Bora fazer mais entregas hoje?' : 'Fique online quando estiver pronto para rodar.'}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => void load()} aria-label="Atualizar" className="rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><RefreshCw size={20}/></button>
-          <button type="button" onClick={() => void logout()} aria-label="Sair" className="rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><LogOut size={20}/></button>
+        <button type="button" onClick={() => void togglePresence()} disabled={presenceBusy} className={isOnline ? ghostBtn : primaryBtn}>{isOnline ? <WifiOff size={18}/> : <Wifi size={18}/>}{presenceBusy ? 'Salvando…' : isOnline ? 'Ficar offline' : 'Ficar online e ativar GPS'}</button>
+        {presenceError && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{presenceError}</p>}
+        <GeoBox/>
+        <div className={`${card} grid grid-cols-3 divide-x divide-white/10`}>
+          <div className="p-3"><p className="text-xs text-slate-400">Na fila</p><p className="mt-1 text-2xl font-black">{orders.length}</p></div>
+          <div className="p-3"><p className="text-xs text-slate-400">Ganhos do dia</p><p className="mt-1 text-lg font-black">{currency(dailyEarnings)}</p></div>
+          <div className="p-3"><p className="text-xs text-slate-400">Em rota</p><p className="mt-1 text-2xl font-black">{activeCount}</p></div>
         </div>
-      </header>
-      <button type="button" onClick={() => void togglePresence()} disabled={presenceBusy} className={isOnline ? ghostBtn : primaryBtn}>{isOnline ? <WifiOff size={18}/> : <Wifi size={18}/>}{presenceBusy ? 'Salvando…' : isOnline ? 'Ficar offline' : 'Ficar online e ativar GPS'}</button>
-      {presenceError && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{presenceError}</p>}
-      <div className={`${card} p-4`}><p className="flex items-center gap-2 text-xs text-slate-400"><Wallet size={14}/> Ganhos do dia</p><p className="mt-1 text-3xl font-black">{currency(dailyEarnings)}</p></div>
-      <div className={`${card} grid grid-cols-3 divide-x divide-white/10`}>
-        <div className="p-3"><p className="text-xs text-slate-400">Em preparo</p><p className="mt-1 text-2xl font-black">{prepCount}</p></div>
-        <div className="p-3"><p className="text-xs text-slate-400">Prontos</p><p className="mt-1 text-2xl font-black text-red-400">{readyCount}</p></div>
-        <div className="p-3"><p className="text-xs text-slate-400">Em rota</p><p className="mt-1 text-2xl font-black">{activeCount}</p></div>
-      </div>
-      <div className="relative h-56 overflow-hidden rounded-2xl border border-white/10 bg-[#0b1420]">
-        {mapSrc ? <iframe title="Mapa da entrega" src={mapSrc} className="h-full w-full border-0 opacity-90" loading="lazy" referrerPolicy="no-referrer-when-downgrade"/> : <div className="flex h-full flex-col items-center justify-center px-6 text-center"><MapPin size={34} className="text-red-400"/><p className="mt-2 font-bold">Ative o GPS para ver o mapa</p><button type="button" onClick={getLocation} className="mt-3 rounded-xl bg-red-500 px-4 py-2.5 font-bold text-white">Ativar GPS</button></div>}
-        <span className="absolute bottom-3 left-3 flex items-center gap-2 rounded-xl bg-[#080d16]/90 px-3 py-1.5 text-xs font-bold"><span className={`h-2 w-2 rounded-full ${location ? 'bg-emerald-400' : 'bg-amber-400'}`}/>{location ? (hasActive ? 'Compartilhando localização' : 'GPS conectado') : 'GPS aguardando'}</span>
-      </div>
-      <GeoBox/>
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xl font-black">Entregas disponíveis ({orders.length})</h2>
-          <button type="button" onClick={adjustOrder} className="inline-flex items-center gap-1 rounded-xl border border-white/15 px-3 py-2 text-sm font-bold hover:bg-white/5"><RouteIcon size={16}/> Ajustar ordem</button>
+        {nextDelivery ? <div className="rounded-2xl border border-red-500/60 bg-gradient-to-br from-[#2a0f17] via-[#1a1016] to-[#101722] p-4">
+          <p className="text-xs font-black uppercase tracking-widest text-red-400">Próxima entrega</p>
+          <p className="mt-2 text-xl font-black">Pedido #{nextDelivery.code}</p>
+          <p className="text-sm text-slate-300">{nextDelivery.customer_name}</p>
+          <span className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusInfo(nextDelivery).cls}`}>{statusInfo(nextDelivery).label}</span>
+          <p className="mt-3 flex gap-2 text-sm text-slate-300"><MapPin size={16} className="mt-0.5 shrink-0 text-red-400"/>{addressText(nextDelivery.address)}{kmTo(nextDelivery) ? ` · ${kmTo(nextDelivery)}` : ''}</p>
+          <div className="mt-4">{isRouteable(nextDelivery) && nextDelivery.order_status === 'saiu_entrega'
+            ? <button type="button" onClick={() => { setSelectedId(nextDelivery.id); setTab('mapa'); }} className={primaryBtn}>Abrir rota <ChevronRight size={18}/></button>
+            : nextDelivery.order_status === 'pronto_entrega'
+              ? <button type="button" disabled={busy === nextDelivery.id} onClick={() => void action(nextDelivery, 'start')} className={primaryBtn}><Navigation size={18}/> Iniciar entrega</button>
+              : <button type="button" onClick={() => setDetailsId(nextDelivery.id)} className={primaryBtn}>Ver detalhes <ChevronRight size={18}/></button>}</div>
+        </div> : <div className={`${card} px-5 py-10 text-center`}><PackageCheck className="mx-auto text-slate-500" size={34}/><p className="mt-3 font-bold">{loaded ? 'Nenhuma entrega na fila' : 'Carregando entregas…'}</p><p className="mt-1 text-sm text-slate-400">Os pedidos aparecem aqui assim que forem registrados.</p></div>}
+        <div className={`${card} p-4`}>
+          <p className="flex items-center gap-2 font-bold"><Clock3 size={18} className="text-red-400"/> Resumo do turno</p>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+            <div><p className="text-xs text-slate-400">Em preparo</p><p className="text-xl font-black">{prepCount}</p></div>
+            <div><p className="text-xs text-slate-400">Prontos</p><p className="text-xl font-black">{readyCount}</p></div>
+            <div><p className="text-xs text-slate-400">Expediente</p><p className="text-xl font-black">11h–14h</p></div>
+          </div>
         </div>
-        <p className="text-xs text-slate-500">{geoMessage}{updated && ` · Atualizado às ${updated} (a cada 5s)`}</p>
-        {routeCalculation && <p className="text-xs text-slate-500">{routeCalculation}</p>}
         <ErrorBox/>
-        {ordered.length === 0 && <div className={`${card} px-5 py-10 text-center`}><PackageCheck className="mx-auto text-slate-500" size={34}/><p className="mt-3 font-bold">{loaded ? 'Nenhuma entrega na fila' : 'Carregando entregas…'}</p><p className="mt-1 text-sm text-slate-400">Os pedidos aparecem aqui assim que forem feitos no site.</p></div>}
-        {ordered.map(o => <OrderCard key={o.id} order={o}/>)}
-      </section>
+      </div>}
+
+      {tab === 'pedidos' && <div className="space-y-4">
+        <header className="flex items-center justify-between"><h1 className="text-2xl font-black">Pedidos</h1><button type="button" onClick={() => void load()} aria-label="Atualizar" className="rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><RefreshCw size={20}/></button></header>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {([['todos', `Todos (${orders.length})`], ['preparo', `Em preparo (${prepCount})`], ['prontos', `Prontos (${readyCount + activeCount})`]] as Array<[Filter, string]>).map(([id, label]) => <button key={id} type="button" onClick={() => setFilter(id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${filter === id ? 'bg-red-500 text-white' : 'border border-white/15 text-slate-300'}`}>{label}</button>)}
+        </div>
+        <div className={`${card} p-3`}>
+          <button type="button" onClick={adjustOrder} className={primaryBtn}><RouteIcon size={18}/> Ajustar ordem (mais perto primeiro)</button>
+          <p className="mt-2 text-xs text-slate-400">{geoMessage}</p>
+          {routeCalculation && <p className="mt-1 text-xs text-slate-500">{routeCalculation}{updated && ` · Atualizado às ${updated}`}</p>}
+        </div>
+        <GeoBox/>
+        <ErrorBox/>
+        {filtered.length === 0 && <div className={`${card} px-5 py-10 text-center text-sm text-slate-400`}>Nenhum pedido neste filtro.</div>}
+        <div className="space-y-3">{filtered.map((o, i) => <OrderCard key={o.id} order={o} highlight={i === 0 && isRouteable(o)}/>)}</div>
+      </div>}
+
+      {tab === 'mapa' && <div className="space-y-4">
+        <header><h1 className="text-2xl font-black">{current ? (current.courier_status === 'cheguei' ? 'Chegou' : current.order_status === 'saiu_entrega' ? 'Em rota' : 'Próxima rota') : 'Mapa'}</h1>{current && <p className="text-sm text-slate-400">Pedido #{current.code}</p>}</header>
+        <div className="relative h-64 overflow-hidden rounded-2xl border border-white/10 bg-[#0b1420]">
+          {mapSrc ? <iframe title="Mapa da entrega" src={mapSrc} className="h-full w-full border-0 opacity-90" loading="lazy" referrerPolicy="no-referrer-when-downgrade"/> : <div className="flex h-full flex-col items-center justify-center px-6 text-center"><MapPin size={34} className="text-red-400"/><p className="mt-2 font-bold">Ative o GPS para ver o mapa</p><button type="button" onClick={getLocation} className="mt-3 rounded-xl bg-red-500 px-4 py-2.5 font-bold text-white">Ativar GPS</button></div>}
+          {current && kmTo(current) && <span className="absolute right-3 top-3 rounded-xl bg-[#080d16]/90 px-3 py-1.5 text-sm font-bold">{kmTo(current)}</span>}
+          <span className="absolute bottom-3 left-3 flex items-center gap-2 rounded-xl bg-[#080d16]/90 px-3 py-1.5 text-xs font-bold"><span className={`h-2 w-2 rounded-full ${location ? 'bg-emerald-400' : 'bg-amber-400'}`}/>{location ? (hasActive ? 'Compartilhando localização' : 'GPS conectado') : 'GPS aguardando'}</span>
+        </div>
+        <GeoBox/>
+        <ErrorBox/>
+        {current ? <>
+          <div className={`${card} p-4`}>
+            <p className="text-xs text-slate-400">Cliente</p>
+            <p className="font-bold">{current.customer_name}</p>
+            <p className="mt-2 text-xs text-slate-400">Endereço</p>
+            <p className="text-sm">{addressText(current.address)}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => waze(current)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-red-500 font-bold text-white hover:bg-red-400"><Navigation size={17}/> Waze</button>
+              <button type="button" onClick={() => googleMaps(current)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 font-bold hover:bg-white/5"><MapIcon size={17}/> Google Maps</button>
+              {current.customer_phone && <>
+                <a href={`tel:${current.customer_phone.replace(/[^+\d]/g, '')}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 font-bold hover:bg-white/5"><Phone size={17}/> Ligar</a>
+                <button type="button" onClick={() => whatsapp(current)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 font-bold text-white hover:bg-emerald-500"><MessageCircle size={17}/> WhatsApp</button>
+              </>}
+            </div>
+            {current.order_status !== 'pronto_entrega' && <Steps order={current}/>}
+          </div>
+          <div className={`${card} p-4`}>
+            <p className="font-bold">Estimar horário de chegada</p>
+            <p className="mt-1 text-xs text-slate-400">O cliente verá essa previsão. Atual: {etaText(current.estimated_delivery_at)}</p>
+            <div className="mt-3 grid grid-cols-4 gap-2">{[15, 30, 45, 60].map(m => <button key={m} type="button" disabled={busy === current.id} onClick={() => void estimateDelivery(current, m)} className="min-h-11 rounded-xl border border-white/15 text-sm font-extrabold hover:border-red-400 hover:bg-red-500/10 disabled:opacity-50">{m} min</button>)}</div>
+          </div>
+          <ActionArea order={current}/>
+          {routeOrders.length > 1 && <div className={`${card} p-3`}><p className="mb-2 text-xs font-bold text-slate-400">Outras paradas</p><div className="flex gap-2 overflow-x-auto">{routeOrders.filter(o => o.id !== current.id).map(o => <button key={o.id} type="button" onClick={() => setSelectedId(o.id)} className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-sm font-bold">#{o.code}</button>)}</div></div>}
+        </> : <div className={`${card} px-5 py-10 text-center text-sm text-slate-400`}>Nenhuma entrega pronta ou em rota agora.</div>}
+      </div>}
+
+      {tab === 'ganhos' && <div className="space-y-4">
+        <header className="flex items-center justify-between"><h1 className="text-2xl font-black">Ganhos</h1><span className="rounded-full bg-red-500 px-4 py-1.5 text-sm font-bold text-white">Hoje</span></header>
+        <div className={`${card} p-5`}>
+          <p className="text-sm text-slate-400">Total do dia (taxas de entrega)</p>
+          <p className="mt-1 text-4xl font-black">{currency(dailyEarnings)}</p>
+          <p className="mt-2 text-xs text-slate-500">Soma das taxas das entregas concluídas hoje. O pagamento do motoboy continua sendo feito pela loja.</p>
+        </div>
+        <div>
+          <p className="mb-2 font-bold">Entregas concluídas hoje</p>
+          {completed.length === 0 ? <div className={`${card} px-5 py-8 text-center text-sm text-slate-400`}>Nenhuma entrega concluída neste aparelho hoje.</div>
+            : <div className={`${card} divide-y divide-white/10`}>{completed.map(c => <div key={c.id} className="flex items-center justify-between gap-3 p-4"><div className="flex min-w-0 items-center gap-3"><CheckCircle2 size={20} className="shrink-0 text-emerald-400"/><div className="min-w-0"><p className="font-bold">Pedido #{c.code}</p><p className="text-xs text-slate-400">{new Date(c.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p></div></div><p className="shrink-0 font-black">{currency(c.fee)}</p></div>)}</div>}
+          <p className="mt-2 text-xs text-slate-500">A lista mostra as entregas finalizadas neste celular. O total acima vem do sistema.</p>
+        </div>
+      </div>}
     </div>
 
     {detailsOrder && <div className="fixed inset-0 z-40 overflow-y-auto bg-[#070b12]">
@@ -563,9 +646,17 @@ function CourierDeliveries() {
         <h2 className="mt-4 text-2xl font-black">Entrega concluída!</h2>
         <p className="mt-1 text-sm text-slate-400">Obrigado por mais uma entrega!</p>
         <div className="mt-4 rounded-xl bg-white/[.04] p-3 text-left text-sm"><div className="flex justify-between"><span>Pedido #{success.code}</span><span className="font-bold">{currency(success.fee)}</span></div></div>
-        <button type="button" onClick={() => { setSuccess(null); setDetailsId(null); setSelectedId(null); }} className={`${primaryBtn} mt-5`}>Ver próximo pedido</button>
+        <button type="button" onClick={() => { setSuccess(null); setDetailsId(null); setSelectedId(null); setTab(routeOrders.length ? 'mapa' : 'inicio'); }} className={`${primaryBtn} mt-5`}>Ver próximo pedido</button>
       </div>
     </div>}
 
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#0a0f18]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <div className="mx-auto grid max-w-lg grid-cols-4">
+        {tabs.map(t => <button key={t.id} type="button" onClick={() => { setTab(t.id); setDetailsId(null); }} className={`relative flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-bold ${tab === t.id ? 'text-red-500' : 'text-slate-400'}`}>
+          <span className="relative"><t.icon size={22}/>{t.badge ? <span className="absolute -right-2.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{t.badge}</span> : null}</span>
+          {t.label}
+        </button>)}
+      </div>
+    </nav>
   </main>;
 }
