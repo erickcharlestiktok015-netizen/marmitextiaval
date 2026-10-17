@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { sendFacebookServerEvent } from '@/lib/facebook-capi.server';
+import { sendFacebookServerEvent } from '@/lib/facebook-capi.server.ts';
 
 export const fetchPendingDeliveries = createServerFn({ method: 'GET' }).handler(async () => {
   // Em produção, isso faria uma chamada para o Supabase ou API real

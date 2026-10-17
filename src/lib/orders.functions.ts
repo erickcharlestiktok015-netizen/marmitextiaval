@@ -1,6 +1,6 @@
 // Orders functions - lógica de criação e processamento de pedidos
 
-import { sendFacebookServerEvent } from './facebook-capi.server';
+import { sendFacebookServerEvent } from './facebook-capi.server.ts';
 
 /**
  * Processa o pedido e dispara o evento CAPI de InitiateCheckout

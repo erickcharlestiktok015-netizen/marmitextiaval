@@ -1,7 +1,7 @@
 // Admin orders - rota para gerenciar pedidos
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { sendFacebookServerEvent } from '@/lib/facebook-capi.server';
+import { sendFacebookServerEvent } from '@/lib/facebook-capi.server.ts';
 
 export const updateOrderStatus = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => z.object({
