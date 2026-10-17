@@ -52,7 +52,7 @@ const statusInfo = (o: Delivery) => {
 };
 
 export const Route = createFileRoute('/motoboy/entregas')({
-  head: () => ({ meta: [{ title: 'Entregas | Tia Val Entregas' }, { name: 'theme-color', content: '#070b12' }], links: [{ rel: 'manifest', href: '/manifest-motoboy.webmanifest' }] }),
+  head: () => ({ meta: [{ title: 'Entregas | Tia Val Entregas' }, { name: 'theme-color', content: '#070b12' }], links: [{ rel: 'manifest', href: '/manifest-motoboy.webmanifest' }, { rel: 'apple-touch-icon', href: '/icons/motoboy-180.png' }, { rel: 'icon', type: 'image/png', href: '/icons/motoboy-192.png' }] }),
   component: CourierDeliveries,
 });
 
@@ -512,7 +512,7 @@ function CourierDeliveries() {
       {tab === 'inicio' && <div className="space-y-4">
         <header className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-red-500 text-white"><Bike size={26}/></div>
+            <img src="/icons/motoboy-192.png" alt="Tia Val Motoboy" className="h-12 w-12 shrink-0 rounded-2xl object-cover"/>
             <div className="min-w-0"><p className="truncate text-lg font-black"><span className="text-red-500">Tia Val</span> · Motoboy</p><p className="truncate text-xs text-slate-400">Entregas rápidas · Com segurança</p></div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
