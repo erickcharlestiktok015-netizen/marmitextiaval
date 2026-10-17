@@ -19,33 +19,40 @@ export const Route = createFileRoute('/api/courier/orders')({
         return Response.json({ error: 'Faça login como motoboy.' }, { status: 401 });
       }
       try {
+        // select=* evita erro caso alguma coluna opcional não exista no schema.
         const orders = await supabaseRequest<OrderRow[]>(
-          "orders?select=id,code,customer_name,customer_phone,address,order_status,payment_method,payment_status,total,delivery_fee,estimated_delivery_at,courier_status,courier_latitude,courier_longitude,courier_location_updated_at,created_at,confirmation_code&fulfillment=eq.entrega&order=created_at.asc&limit=100",
+          'orders?select=*&fulfillment=eq.entrega&order=created_at.asc&limit=100',
         );
-        // Soma apenas as taxas das entregas concluídas hoje (Fortaleza, UTC-3).
-        // O trigger de orders atualiza updated_at quando o status muda para concluido.
-        const fortalezaDate = new Intl.DateTimeFormat('sv-SE', {
-          timeZone: 'America/Fortaleza', year: 'numeric', month: '2-digit', day: '2-digit',
-        }).format(new Date());
-        const dayStart = new Date(`${fortalezaDate}T00:00:00-03:00`).toISOString();
-        const completedToday = await supabaseRequest<OrderRow[]>(
-          `orders?select=delivery_fee&fulfillment=eq.entrega&order_status=eq.concluido&updated_at=gte.${encodeURIComponent(dayStart)}&limit=1000`,
-        );
-        const dailyEarnings = completedToday.reduce((sum, order) => {
-          const fee = Number(order.delivery_fee);
-          return sum + (Number.isFinite(fee) && fee > 0 ? fee : 0);
-        }, 0);
-        // Mostrar o pedido ao motoboy assim que entrar na operação de entrega,
-        // mas a tela só permite iniciar a saída quando a cozinha marcar pronto_entrega.
+        let dailyEarnings = 0;
+        try {
+          const fortalezaDate = new Intl.DateTimeFormat('sv-SE', {
+            timeZone: 'America/Fortaleza', year: 'numeric', month: '2-digit', day: '2-digit',
+          }).format(new Date());
+          const dayStart = new Date(`${fortalezaDate}T00:00:00-03:00`).toISOString();
+          const completedToday = await supabaseRequest<OrderRow[]>(
+            `orders?select=*&fulfillment=eq.entrega&order_status=eq.concluido&updated_at=gte.${encodeURIComponent(dayStart)}&limit=1000`,
+          );
+          dailyEarnings = completedToday.reduce((sum, order) => {
+            const fee = Number(order.delivery_fee);
+            return sum + (Number.isFinite(fee) && fee > 0 ? fee : 0);
+          }, 0);
+        } catch { /* ganhos são opcionais; não derrubam a fila */ }
+        // Todos os pedidos ativos aparecem, inclusive pagamento na entrega.
+        // Só ocultamos pagamento online ainda não aprovado.
         const visibleStatuses = ['novo', 'confirmado', 'preparando', 'pronto_entrega', 'saiu_entrega'];
         const queue = orders.filter(o =>
           visibleStatuses.includes(String(o.order_status)) &&
-          (o.payment_method !== 'online' || o.payment_status === 'approved')
+          !(o.payment_method === 'online' && o.payment_status && !['approved', 'paid', 'aprovado'].includes(String(o.payment_status)))
         );
         const ids = queue.map(o => o.id);
-        const items = ids.length
-          ? await supabaseRequest<OrderRow[]>(`order_items?select=order_id,meal_name,size_label,quantity,notes&order_id=in.(${ids.join(',')})&order=created_at.asc`)
-          : [];
+        let items: OrderRow[] = [];
+        if (ids.length) {
+          try {
+            items = await supabaseRequest<OrderRow[]>(`order_items?select=*&order_id=in.(${ids.join(',')})`);
+          } catch (e) {
+            console.warn('[courier-orders] Itens indisponíveis; retornando pedidos sem itens.', { type: e instanceof Error ? e.name : 'unknown' });
+          }
+        }
         return Response.json({
           dailyEarnings,
           orders: queue.map(o => ({
