@@ -335,3 +335,33 @@
   .hero { height:calc(100svh - 66px); max-height:none; }
   .hero-media:after { background:linear-gradient(180deg,color-mix(in oklch,var(--hero-background) 80%,transparent),transparent 30%),linear-gradient(0deg,color-mix(in oklch,var(--hero-background) 55%,transparent),transparent 18%); }
 }
+
+
+/* Correções pontuais: manter os diálogos centralizados na viewport e conter gestos de overscroll. */
+html, body {
+  overscroll-behavior-x: none;
+}
+
+.restaurant-page {
+  overscroll-behavior-x: none;
+}
+
+.meal-dialog {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  /* Use transform for centering; explicitly reset Tailwind's individual translate. */
+  translate: none !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  z-index: 60;
+  max-height: min(90dvh, calc(100dvh - 2rem));
+  overscroll-behavior: contain;
+  overflow-y: auto;
+}
+
+@supports not (height: 100dvh) {
+  .meal-dialog { max-height: calc(100vh - 2rem); }
+}
