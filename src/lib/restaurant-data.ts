@@ -83,7 +83,7 @@ export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, BH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };
-export const deliveryFeePerKm = 1; // R$1 por km de motoboy.
+export const deliveryFeePerKm = 1.5; // R$1,50 por km de motoboy.
 export const formatPrice = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 export const openingHours = { weekdays: 'Segunda a sábado · 11h às 14h', sunday: 'Domingo · fechado' };
 export function isRestaurantOpen(date = new Date()) {

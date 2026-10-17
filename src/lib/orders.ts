@@ -18,7 +18,7 @@ export type Order = {
 };
 export type OrderTotals = { subtotal: number; deliveryFee: number; total: number };
 
-// Cobrança proporcional à distância real da rota: R$ 1,00 por km, sem arredondar o km para cima.
+// Cobrança proporcional à distância real da rota: R$ 1,50 por km, sem arredondar o km para cima.
 export const deliveryFeeForKm = (km: number) => Math.round(Math.max(0, km) * deliveryFeePerKm * 100) / 100;
 
 export function calculateTotals(items: OrderItem[], fulfillment: 'entrega' | 'retirada', km: number | null): OrderTotals {
