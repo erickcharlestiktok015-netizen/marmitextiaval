@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
-import { z } from 'zord';
+import { z } from 'zod';
+import { sendFacebookServerEvent } from '@/lib/facebook-capi.server';
 
 export const fetchPendingDeliveries = createServerFn({ method: 'GET' }).handler(async () => {
   // Em produção, isso faria uma chamada para o Supabase ou API real
@@ -30,3 +31,39 @@ export const fetchPendingDeliveries = createServerFn({ method: 'GET' }).handler(
     }
   ];
 });
+
+// Ação de confirmação de entrega pelo motoboy (código de 6 dígitos)
+export const confirmDelivery = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => z.object({
+    orderCode: z.string().length(6),
+    verificationCode: z.string().length(6),
+    courierId: z.string(),
+  }).parse(data))
+  .handler(async ({ data, request }) => {
+    const { orderCode, verificationCode, courierId } = data;
+
+    // Em produção: validar código no banco
+    // const order = await validateDeliveryCode(orderCode, verificationCode);
+    // if (!order) throw new Error('Código inválido');
+
+    // Dispara evento Purchase via CAPI para pagamento na entrega/retirada
+    try {
+      await sendFacebookServerEvent({
+        eventName: 'Purchase',
+        eventId: orderCode,
+        order: {
+          code: orderCode,
+          total: 25.00, // valor real viria do banco
+          customer: {
+            name: 'Cliente',
+            phone: '(31) 99999-8888',
+          },
+        },
+        req: request,
+      });
+    } catch (error) {
+      console.error(`Falha ao enviar evento Purchase para entrega ${orderCode}:`, error);
+    }
+
+    return { success: true, message: 'Entrega confirmada' };
+  });
