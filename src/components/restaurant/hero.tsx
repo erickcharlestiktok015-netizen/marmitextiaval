@@ -1,5 +1,4 @@
-import { ArrowDown, ArrowUpRight, ChevronDown, Heart, Star } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowDown, ChevronDown, Heart, Star } from 'lucide-react';
 import { ScrollAnimation } from './scroll-animation';
 
 export function Hero() {
@@ -13,7 +12,6 @@ export function Hero() {
         <p className="hero-description">Tempero de casa. Carinho em cada detalhe.<br />Aquela comida que abraça de verdade.</p>
       </div>
         <div className="hero-actions">
-          <Button asChild size="lg"><a href="#pratos">Ver o cardápio <ArrowUpRight /></a></Button>
           <a className="hero-rating" href="#avaliacoes"><Star className="filled-star" /><strong>4,9</strong><span>no Google<br /><small>50 avaliações</small></span></a>
         </div>
     </div>
