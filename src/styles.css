@@ -298,7 +298,7 @@
 @media(max-width:700px) { .delivery-address { grid-template-columns:1fr 90px; } .delivery-address>* { grid-column:auto!important; } .delivery-address .da-cep,.delivery-address .da-comp,.delivery-address .da-btn { grid-column:1/-1!important; } }
 /* Capa no celular: foto/vídeo ocupando a tela inteira, sem faixa escura embaixo */
 @media(max-width:700px) {
-  .hero { height:calc(100svh - 66px); max-height:none; }
+  .hero { height:100vh; height:100svh; height:100dvh; min-height:0; max-height:none; }
   .hero-media:after { background:linear-gradient(180deg,color-mix(in oklch,var(--hero-background) 80%,transparent),transparent 30%),linear-gradient(0deg,color-mix(in oklch,var(--hero-background) 55%,transparent),transparent 18%); }
 }
 

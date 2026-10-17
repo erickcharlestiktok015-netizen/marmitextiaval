@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useRouterState, createFileRoute } from '@tanstack/react-router';
-import { LockKeyhole, Smartphone, Stethoscope } from 'lucide-react';
-import motoboyIcon from '@/assets/motoboy-icon.png.asset.json';
+import { Bike, LockKeyhole, Smartphone, Stethoscope } from 'lucide-react';
 
 export const Route = createFileRoute('/motoboy')({
   head: () => ({ meta: [{ title: 'Motoboy | Tia Val Entregas' }, { name: 'theme-color', content: '#25251f' }, { name: 'apple-mobile-web-app-capable', content: 'yes' }, { name: 'apple-mobile-web-app-title', content: 'Tia Val Entregas' }], links: [{ rel: 'manifest', href: '/manifest-motoboy.webmanifest' }, { rel: 'apple-touch-icon', href: '/icons/motoboy-180.png' }, { rel: 'icon', type: 'image/png', href: '/icons/motoboy-192.png' }] }),
@@ -97,7 +96,7 @@ function CourierLogin() {
 
   return <main className="courier-screen flex min-h-screen items-center justify-center bg-[#f7f4ed] px-4 py-10 text-[#25251f]">
     <section className="w-full max-w-md rounded-3xl border border-[#e5dfd2] bg-white p-6 shadow-sm sm:p-8">
-      <img src={motoboyIcon.url} alt="Tia Val Motoboy" className="h-20 w-20 rounded-3xl object-cover shadow-md ring-1 ring-[#e5dfd2]"/>
+      <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#25251f] text-[#e9c878]"><Bike size={30}/></div>
       <p className="mt-5 text-xs font-bold uppercase tracking-[.2em] text-[#9a742a]">Marmitex da Tia Val</p>
       <h1 className="mt-2 text-3xl font-bold text-center">Área do Motoboy</h1>
       <p className="mt-2 text-sm leading-6 text-[#777266] text-center">Entre para ver entregas liberadas, abrir rotas no Waze e avisar o cliente quando chegar.</p>

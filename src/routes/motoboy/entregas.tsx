@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Bike, Bell, CheckCircle2, ChevronRight, Clock3, Home, ListOrdered, LogOut, MapPin, Map as MapIcon, Navigation, PackageCheck, Phone, MessageCircle, RefreshCw, Route as RouteIcon, Wallet, Wifi, WifiOff, AlertTriangle, X, Hand } from 'lucide-react';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import motoboyIcon from '@/assets/motoboy-icon.png.asset.json';
 
 type Delivery = {
   id: string; code: string; customer_name: string; customer_phone: string; address: unknown;
@@ -513,7 +512,8 @@ function CourierDeliveries() {
       {tab === 'inicio' && <div className="space-y-4">
         <header className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <img src={motoboyIcon.url} alt="Tia Val Motoboy" className="h-14 w-14 shrink-0 rounded-2xl object-cover ring-1 ring-white/15"/>
+            <img src="/icons/motoboy-192.png" alt="Tia Val Motoboy" className="h-12 w-12 shrink-0 rounded-2xl object-cover"/>
+
             <div className="min-w-0"><p className="truncate text-lg font-black"><span className="text-red-500">Tia Val</span> · Motoboy</p><p className="truncate text-xs text-slate-400">Entregas rápidas · Com segurança</p></div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
