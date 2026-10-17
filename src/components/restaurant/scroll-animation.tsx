@@ -58,6 +58,8 @@ export function ScrollAnimation() {
       if (stopped) return;
       setLoading(false);
       if (reduced.matches || lowPower) return;
+      ScrollTrigger.config({ ignoreMobileResize: true });
+      if (window.innerWidth < 701 && CSS.supports('height', '100lvh')) hero.style.height = '100lvh';
       animationContext = gsap.context(() => {
         const timeline = gsap.timeline({ scrollTrigger: { trigger: hero, start: 'top top', end: () => `+=${Math.round(window.innerHeight * (window.innerWidth < 701 ? 1.6 : 1.8))}`, scrub: 0.65, pin: true, anticipatePin: 1, invalidateOnRefresh: true } });
         timeline.to(playhead, { frame: frames.length - 1, ease: 'none', onUpdate: draw, duration: 1 }, 0);
