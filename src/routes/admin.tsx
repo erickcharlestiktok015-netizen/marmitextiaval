@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Bell, Ban, Bike, CheckCircle2, Clock3, LogOut, MapPin, Phone, RefreshCw, ShieldCheck, Store, X } from 'lucide-react';
+import {
+  Ban, Bell, Bike, CheckCircle2, ChefHat, Check, ChevronDown, ChevronRight, Clock3, CreditCard, Banknote,
+  LayoutDashboard, LineChart, LogOut, MapPin, Menu, MessageCircle, MoreVertical, Phone, QrCode,
+  ReceiptText, RefreshCw, ShieldCheck, ShoppingBag, Store, User, UtensilsCrossed, Wallet, X, BookOpen, CalendarDays, Hourglass,
+} from 'lucide-react';
 
 type OrderItem = { meal_name: string; size_label: string; quantity: number; unit_price: number; notes?: string | null };
 type Order = {
@@ -21,155 +25,170 @@ const statuses = [
 ];
 const money = (value: number) => Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const phoneDigits = (value: string) => value.replace(/\D/g, '');
-const statusLabel = (value: string) => statuses.find((s) => s.value === value)?.label ?? value;
-const paymentLabel = (value: string) => ({
-  online: 'Online (Mercado Pago)', 'entrega-pix': 'Pix na entrega',
-  'entrega-cartao': 'Cartão na entrega', 'entrega-dinheiro': 'Dinheiro na entrega',
-})[value] ?? value;
-const paymentStatusLabel = (value: string) => ({
-  pending: 'Aguardando pagamento', approved: 'Pagamento aprovado', rejected: 'Pagamento recusado',
-  cancelled: 'Pagamento cancelado', refunded: 'Estornado', not_required: 'Pagar na entrega/retirada',
-})[value] ?? value;
+const timeLabel = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const addressLine = (o: Order) => o.address
+  ? [[o.address.street, o.address.number].filter(Boolean).join(', '), o.address.complement, o.address.bairro].filter(Boolean).join(' · ') || 'Endereço não informado'
+  : 'Endereço não informado';
+const whatsappUrl = (phone: string) => {
+  const d = phoneDigits(phone);
+  return `https://wa.me/${d.startsWith('55') ? d : `55${d}`}`;
+};
+const isFinished = (o: Order) => ['concluido', 'cancelado'].includes(o.order_status);
+const isUnpaidOnline = (o: Order) => o.payment_method === 'online' && o.payment_status !== 'approved';
 
-export const Route = createFileRoute('/admin')({ component: AdminPage });
+type Tone = { bar: string; border: string; badge: string; label: string };
+const toneFor = (o: Order): Tone => {
+  if (isUnpaidOnline(o)) return { bar: 'bg-amber-400', border: 'border-amber-400/60 shadow-[0_0_24px_-8px_rgba(251,191,36,.6)]', badge: 'bg-amber-400/15 text-amber-300 border-amber-400/50', label: 'Aguardando pagamento' };
+  switch (o.order_status) {
+    case 'novo': return { bar: 'bg-rose-500', border: 'border-rose-500/70 shadow-[0_0_28px_-8px_rgba(244,63,94,.7)]', badge: 'bg-rose-600 text-white border-rose-500', label: 'Novo' };
+    case 'confirmado': return { bar: 'bg-sky-400', border: 'border-sky-400/60 shadow-[0_0_24px_-8px_rgba(56,189,248,.6)]', badge: 'bg-sky-400/15 text-sky-300 border-sky-400/50', label: 'Confirmado' };
+    case 'preparando': return { bar: 'bg-sky-400', border: 'border-sky-400/60 shadow-[0_0_24px_-8px_rgba(56,189,248,.6)]', badge: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/50', label: 'Em preparação' };
+    case 'pronto_entrega': return { bar: 'bg-emerald-400', border: 'border-emerald-400/60 shadow-[0_0_24px_-8px_rgba(52,211,153,.6)]', badge: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/50', label: 'Pronto para entrega' };
+    case 'pronto_retirada': return { bar: 'bg-emerald-400', border: 'border-emerald-400/60 shadow-[0_0_24px_-8px_rgba(52,211,153,.6)]', badge: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/50', label: 'Pronto p/ retirada' };
+    case 'saiu_entrega': return { bar: 'bg-blue-500', border: 'border-blue-500/60 shadow-[0_0_24px_-8px_rgba(59,130,246,.6)]', badge: 'bg-blue-500/15 text-blue-300 border-blue-500/50', label: 'Em rota' };
+    case 'cancelado': return { bar: 'bg-red-700', border: 'border-red-800/60', badge: 'bg-red-900/40 text-red-300 border-red-700/50', label: 'Cancelado' };
+    default: return { bar: 'bg-slate-500', border: 'border-slate-600/60', badge: 'bg-slate-700/60 text-slate-200 border-slate-500/50', label: 'Concluído' };
+  }
+};
+
+const paymentInfo = (o: Order) => {
+  const icon = o.payment_method === 'online' ? Wallet : o.payment_method === 'entrega-pix' ? QrCode : o.payment_method === 'entrega-cartao' ? CreditCard : Banknote;
+  const label = o.payment_method === 'online' ? 'Mercado Pago (online)' : o.payment_method === 'entrega-pix' ? 'Pix na entrega' : o.payment_method === 'entrega-cartao' ? 'Cartão na maquininha' : o.payment_method === 'entrega-dinheiro' ? 'Dinheiro na entrega' : o.payment_method;
+  const status = o.payment_method === 'online'
+    ? ({ approved: 'Aprovado', pending: 'Pendente', rejected: 'Recusado', cancelled: 'Cancelado', refunded: 'Estornado' } as Record<string, string>)[o.payment_status] ?? o.payment_status
+    : 'Pagar na entrega';
+  const ok = o.payment_method === 'online' && o.payment_status === 'approved';
+  return { icon, label, status, ok };
+};
+
+const SOUND_KEY = 'tiaval-admin-sound';
+
+export const Route = createFileRoute('/admin')({
+  head: () => ({
+    meta: [
+      { title: 'Painel da Cozinha · Marmitex da Tia Val' }, { name: 'robots', content: 'noindex' },
+      { name: 'theme-color', content: '#070818' }, { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }, { name: 'apple-mobile-web-app-title', content: 'Tia Val Cozinha' },
+    ],
+    links: [
+      { rel: 'manifest', href: '/manifest-admin.webmanifest' }, { rel: 'apple-touch-icon', href: '/icons/cozinha-180.png' },
+      { rel: 'icon', type: 'image/png', href: '/icons/cozinha-192.png' },
+    ],
+  }),
+  component: AdminPage,
+});
 
 function AdminPage() {
   const [password, setPassword] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
+  const [checked, setChecked] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('ativos');
   const [clockNow, setClockNow] = useState(() => Date.now());
-  const [busyUpdate, setBusyUpdate] = useState<string | null>(null); // For button loading states
-  const [notifiedOrders, setNotifiedOrders] = useState<Set<string>>(new Set()); // Track which orders have been notified
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [busyUpdate, setBusyUpdate] = useState<string | null>(null);
+  const [soundOn, setSoundOn] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
+  const [section, setSection] = useState<'painel' | 'pedidos' | 'financeiro' | 'relatorios'>('painel');
+  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+  const audioRef = useRef<AudioContext | null>(null);
+  const knownIds = useRef<Set<string> | null>(null);
+  const soundRef = useRef(false);
+  soundRef.current = soundOn;
 
-  // Initialize audio and notification permission
   useEffect(() => {
-    // Check if we're in browser environment
-    if (typeof window !== 'undefined') {
-      // Create audio context for the alert sound
-      audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66VVxa3rxyd3T3QDgcCA4=');
-      audioRef.current.volume = 0.8;
-
-      // Check notification permission
-      if ('Notification' in window) {
-        setNotificationPermission(Notification.permission);
-      }
-
-      // Resume audio context on first user interaction
-      const resumeAudio = () => {
-        if (audioRef.current) {
-          audioRef.current.play().catch(() => {}).then(() => audioRef.current!.pause());
-        }
-        document.removeEventListener('click', resumeAudio);
-        document.removeEventListener('keydown', resumeAudio);
-      };
-      document.addEventListener('click', resumeAudio);
-      document.addEventListener('keydown', resumeAudio);
-    }
-  }, []);
-
-  // Session check on mount
-  useEffect(() => {
+    setSoundOn(window.localStorage.getItem(SOUND_KEY) === '1');
     const timer = window.setInterval(() => setClockNow(Date.now()), 15000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Sininho gerado pelo próprio navegador (não depende de arquivo de som).
+  const playBell = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!audioRef.current) audioRef.current = new Ctx();
+      const ctx = audioRef.current;
+      if (ctx.state === 'suspended') void ctx.resume();
+      const ring = (start: number, freq: number) => {
+        [1, 2.76, 5.4].forEach((mult, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq * mult;
+          const vol = [0.5, 0.18, 0.08][i] ?? 0.1;
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(vol, start + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.4);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(start); osc.stop(start + 1.5);
+        });
+      };
+      const t = ctx.currentTime + 0.05;
+      ring(t, 1318); ring(t + 0.35, 1046); ring(t + 0.9, 1318); ring(t + 1.25, 1046);
+    } catch { /* navegador sem suporte a som */ }
+  }, []);
+
+  const notify = useCallback((order: Order) => {
+    if (!soundRef.current) return;
+    playBell();
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const n = new Notification('Pedido da Tia Val!', {
+        body: `Pedido #${order.code} · ${order.customer_name} · ${money(order.total)}`,
+        icon: '/favicon.ico', tag: order.id, requireInteraction: true,
+      });
+      n.onclick = () => window.focus();
+    }
+  }, [playBell]);
 
   const loadOrders = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
       const response = await fetch('/api/admin/orders', { cache: 'no-store' });
-      if (response.status === 401) { 
-        setLoggedIn(false); 
-        // Don't return here - we want to show login screen
-      }
+      if (response.status === 401) { setLoggedIn(false); setOrders([]); knownIds.current = null; return; }
       const data = await response.json() as { orders?: Order[]; error?: string };
       if (!response.ok) throw new Error(data.error || 'Não foi possível carregar os pedidos.');
-      
-      // Check for new orders to trigger notifications
-      const newOrders = data.orders || [];
-      if (!quiet && newOrders.length > 0) {
-        newOrders.forEach(order => {
-          // Check if this is a new order (not previously notified) and is in an active status
-          const isActiveOrder = !['concluido', 'cancelado'].includes(order.order_status);
-          const isNotNotifiedYet = !notifiedOrders.has(order.id);
-          
-          if (isActiveOrder && isNotNotifiedYet) {
-            triggerOrderNotification(order);
-            // Add to notified set
-            setNotifiedOrders(prev => {
-              const newSet = new Set(prev);
-              newSet.add(order.id);
-              return newSet;
-            });
-          }
-        });
+      const list = data.orders ?? [];
+      // Avisa só sobre pedidos que chegaram depois da primeira carga e que já podem ir para a cozinha.
+      if (knownIds.current) {
+        for (const o of list) {
+          if (!knownIds.current.has(o.id) && !isFinished(o) && !isUnpaidOnline(o)) notify(o);
+        }
       }
-      
-      setOrders(data.orders ?? []);
+      knownIds.current = new Set(list.filter((o) => !isUnpaidOnline(o)).map((o) => o.id));
+      setOrders(list);
       setLoggedIn(true);
+      setLastUpdate(Date.now());
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar pedidos.');
     } finally {
       if (!quiet) setLoading(false);
+      setChecked(true);
     }
-  }, []);
+  }, [notify]);
 
-  // Trigger visual and audio notification for a new order
-  const triggerOrderNotification = async (order: Order) => {
-    // Play sound alert (very loud bell/alert sound)
-    try {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        await audioRef.current.play();
-      }
-    } catch (e) {
-      console.warn('Could not play notification sound:', e);
-    }
-    
-    // Show browser notification
-    if ('Notification' in window && notificationPermission === 'granted') {
-      new Notification('Pedido da Tia Val!', {
-        body: `Pedido #${order.code} · ${order.customer_name} · ${money(order.total)}`,
-        icon: '/favicon.ico',
-        tag: order.id,
-        requireInteraction: true,
-      }).onclick = () => {
-        window.focus();
-      };
-    }
-  };
-
-  // Request notification permission
-  const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      if (permission === 'granted') {
-        // Play confirmation sound
-        if (audioRef.current) {
-          audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => {});
-        }
-      }
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    void loadOrders(true);
-  }, [loadOrders]);
-
-  // Auto-refresh when logged in
+  useEffect(() => { void loadOrders(true); }, [loadOrders]);
   useEffect(() => {
     if (!loggedIn) return;
     const timer = window.setInterval(() => { void loadOrders(true); }, 15000);
     return () => window.clearInterval(timer);
   }, [loggedIn, loadOrders]);
+
+  const toggleSound = async () => {
+    const next = !soundOn;
+    if (next) {
+      if ('Notification' in window && Notification.permission === 'default') {
+        try { await Notification.requestPermission(); } catch { /* ignore */ }
+      }
+      playBell();
+    }
+    setSoundOn(next);
+    window.localStorage.setItem(SOUND_KEY, next ? '1' : '0');
+  };
 
   const login = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -187,58 +206,28 @@ function AdminPage() {
     } finally { setLoading(false); }
   };
 
-  const updateStatus = async (order: Order, order_status: string) => {
+  const patchOrder = async (order: Order, body: Record<string, unknown>, fallback: string) => {
     setError('');
+    setBusyUpdate(order.id);
     try {
-      setBusyUpdate(order.id);
       const response = await fetch('/api/admin/orders', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: order.id, order_status }),
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: order.id, ...body }),
       });
       const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar o pedido.');
+      if (!response.ok) throw new Error(data.error || fallback);
       await loadOrders(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao atualizar pedido.');
-    } finally {
-      setBusyUpdate(null);
-    }
+      setError(err instanceof Error ? err.message : fallback);
+    } finally { setBusyUpdate(null); }
+  };
+  const updateStatus = (order: Order, order_status: string) => patchOrder(order, { order_status }, 'Não foi possível atualizar o pedido.');
+  const updateEta = (order: Order, value: string) => patchOrder(order, { estimated_delivery_at: value ? new Date(value).toISOString() : null }, 'Não foi possível salvar a previsão.');
+  const cancelOrder = (order: Order) => {
+    setMenuOpen(null);
+    if (window.confirm(`Tem certeza que deseja cancelar o pedido #${order.code} de ${order.customer_name}?`)) void updateStatus(order, 'cancelado');
   };
 
-  const updateEta = async (order: Order, value: string) => {
-    setError('');
-    try {
-      setBusyUpdate(order.id);
-      const response = await fetch('/api/admin/orders', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: order.id, estimated_delivery_at: value ? new Date(value).toISOString() : null }),
-      });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar a previsão.');
-      await loadOrders(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar previsão.');
-    } finally {
-      setBusyUpdate(null);
-    }
-  };
-
-  // Wrapper div for the entire admin panel content
-const adminPanel = () => (
-  <div className="min-h-screen bg-[linear-gradient(to_bottom,_#0f172a,_#1e293b)] text-white flex items-center justify-center p-4">
-    <div className="w-full max-w-md space-y-6">
-      {/* Rest of the content follows */}
-      {filter === "pagamentos-pendentes" ? "Nenhum pagamento pendente" : "Nenhum pedido por aqui"}
-      <p className="text-[#94a3b8] text-sm">
-        {filter === "pagamentos-pendentes" 
-          ? "Pedidos online só são liberados para a cozinha após a confirmação do Mercado Pago."
-          : "Quando houver pedidos liberados, eles aparecerão nesta tela."}
-      </p>
-    </div>
-  </div>
-);
-
-const toLocalDateTime = (value?: string | null) => {
+  const toLocalDateTime = (value?: string | null) => {
     if (!value) return '';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
@@ -246,433 +235,392 @@ const toLocalDateTime = (value?: string | null) => {
   };
 
   const logout = async () => {
-    try {
-      await fetch('/api/admin/logout', { method: 'POST' });
-    } finally {
-      setLoggedIn(false); setOrders([]);
-    }
+    try { await fetch('/api/admin/logout', { method: 'POST' }); }
+    finally { setLoggedIn(false); setOrders([]); knownIds.current = null; }
   };
 
-  // Pedidos pagos online e pedidos para pagar na entrega podem ir para a cozinha.
-  // Pedidos online pendentes ficam numa fila separada e nunca contam como pedido ativo.
-  const isKitchenEligible = (order: Order) =>
-    order.payment_method !== 'online' || order.payment_status === 'approved';
-  const unpaidOnlineOrders = orders.filter(
-    (order) => order.payment_method === 'online' && order.payment_status !== 'approved',
-  );
-  const eligibleOrders = orders.filter(isKitchenEligible);
+  // Pedidos online só vão para a cozinha depois do pagamento aprovado.
+  const unpaidOnlineOrders = orders.filter(isUnpaidOnline);
+  const eligibleOrders = orders.filter((o) => !isUnpaidOnline(o));
+  const activeOrders = eligibleOrders.filter((o) => !isFinished(o));
   const visibleOrders = filter === 'pagamentos-pendentes'
     ? unpaidOnlineOrders
-    : eligibleOrders.filter((order) =>
-        filter === 'todos'
-          ? true
-          : filter === 'ativos'
-            ? !['concluido', 'cancelado'].includes(order.order_status)
-            : order.order_status === filter,
-      );
-  const pendingCount = eligibleOrders.filter((order) => order.order_status === 'novo').length;
-  
-  // Financial metrics
-  const totalSales = eligibleOrders.reduce((sum, order) => sum + order.total, 0);
-  const pendingPayments = eligibleOrders
-    .filter(order => order.payment_method === 'online' && order.payment_status === 'pending')
-    .reduce((sum, order) => sum + order.total, 0);
-  const approvedPayments = eligibleOrders
-    .filter(order => order.payment_method === 'online' && order.payment_status === 'approved')
-    .reduce((sum, order) => sum + order.total, 0);
-    
+    : eligibleOrders.filter((o) => filter === 'todos' ? true : filter === 'ativos' ? !isFinished(o) : o.order_status === filter);
+  const newCount = eligibleOrders.filter((o) => o.order_status === 'novo').length;
+  const inProgressCount = activeOrders.filter((o) => o.order_status !== 'novo').length;
+  const todayCount = orders.filter((o) => new Date(o.created_at).toDateString() === new Date().toDateString()).length;
+  const totalSales = eligibleOrders.filter((o) => o.order_status !== 'cancelado').reduce((s, o) => s + Number(o.total), 0);
+  const pendingPayments = orders.filter((o) => o.payment_method === 'online' && o.payment_status === 'pending').reduce((s, o) => s + Number(o.total), 0);
+  const approvedPayments = orders.filter((o) => o.payment_method === 'online' && o.payment_status === 'approved').reduce((s, o) => s + Number(o.total), 0);
+
   const orderAgeMinutes = (createdAt: string) => Math.max(0, Math.floor((clockNow - new Date(createdAt).getTime()) / 60000));
-  const orderAgeLabel = (createdAt: string) => {
-    const minutes = orderAgeMinutes(createdAt);
-    if (minutes < 1) return 'Feito agora';
-    if (minutes < 60) return `Há ${minutes} min`;
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return remainingMinutes ? `Há ${hours}h ${remainingMinutes}min` : `Há ${hours}h`;
+
+  const goTo = (s: typeof section) => {
+    setSection(s); setNavOpen(false);
+    if (s === 'painel') setFilter('ativos');
+    if (s === 'pedidos') setFilter('todos');
+    if (s === 'relatorios') setFilter('concluido');
+    if (s === 'financeiro') document.getElementById('resumo')?.scrollIntoView({ behavior: 'smooth' });
+    else document.getElementById('lista')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   if (!loggedIn) {
-    // Login screen - matching motoboy style
     return (
-      <main className="min-h-screen bg-[linear-gradient(to_bottom,_#0f172a,_#1e293b)] text-white flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-6">
-          <div className="text-center">
-            <div className="mx-auto h-16 w-16 rounded-3xl bg-[linear-gradient(to_bottom_right,_#e11d48,_#dc262d)] flex items-center justify-center">
-              <ShieldCheck className="h-8 w-8 text-white" />
-            </div>
-            <p className="text-xs font-bold uppercase tracking-[.25em] text-[#e11d48]/80">Marmitex da Tia Val</p>
-            <h1 className="text-3xl font-bold text-center">Painel de Pedidos</h1>
-            <p className="text-sm text-[#94a3b8]">Área privada da família</p>
+      <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1a1d3a,_#070818_70%)] text-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6 rounded-3xl border border-rose-500/30 bg-[#0b0d22]/80 p-8 shadow-[0_0_60px_-20px_rgba(244,63,94,.6)]">
+          <div className="text-center space-y-2">
+<img src="/icons/cozinha-logo.webp" alt="Tia Val Cozinha" className="mx-auto h-20 w-20 rounded-2xl" />
+            <p className="text-xs font-bold uppercase tracking-[.25em] text-rose-400">Marmitex da Tia Val</p>
+            <h1 className="text-3xl font-bold">Painel da Cozinha</h1>
+            <p className="text-sm text-slate-400">Área privada da família</p>
           </div>
-          
-          <form onSubmit={login} className="space-y-4">
-            <label className="block">
-              <span className="text-sm font-medium mb-1 block">Senha de acesso</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                required
-                maxLength={256}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-[#334155] bg-[rgba(30,41,59,0.5)] text-white placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#e11d48]/50 focus:border-[#e11d48] transition-colors"
-                placeholder="Digite sua senha"
-              />
-            </label>
-            
-            {error && (
-              <p role="alert" className="w-full px-4 py-3 rounded-xl bg-[rgba(220,38,38,0.1)] border border-[#ef4444] text-[#ef4444] text-sm">
-                {error}
-              </p>
-            )}
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full px-4 py-3 rounded-xl bg-[linear-gradient(to_bottom_right,_#e11d48,_#dc262d)] text-white font-medium font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[0.98]"
-            >
-              {loading ? 'Entrando…' : 'Entrar no painel'}
-            </button>
-          </form>
-          
-          <div className="border-t border-[#334155]/50 pt-6">
-            <p className="mb-2 text-center text-sm text-[#94a3b8]">Ou entre como entregador</p>
-            <a 
-              href="/motoboy"
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-[#e11d48]/50 bg-[rgba(225,29,72,0.1)] text-[#e11d48] font-medium transition-all hover:bg-[rgba(225,29,72,0.2)]"
-            >
+          {!checked ? (
+            <p className="text-center text-sm text-slate-400">Carregando…</p>
+          ) : (
+            <form onSubmit={login} className="space-y-4">
+              <label className="block">
+                <span className="text-sm font-medium mb-1 block">Senha de acesso</span>
+                <input type="password" autoComplete="current-password" required maxLength={256} value={password}
+                  onChange={(e) => setPassword(e.target.value)} placeholder="Digite sua senha"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500" />
+              </label>
+              {error && <p role="alert" className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500 text-red-400 text-sm">{error}</p>}
+              <button type="submit" disabled={loading}
+                className="w-full px-4 py-3 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 font-semibold disabled:opacity-50 transition hover:brightness-110">
+                {loading ? 'Entrando…' : 'Entrar no painel'}
+              </button>
+            </form>
+          )}
+          <div className="border-t border-slate-700/50 pt-6">
+            <p className="mb-2 text-center text-sm text-slate-400">Ou entre como entregador</p>
+            <a href="/motoboy" className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-rose-500/50 bg-rose-500/10 text-rose-400 font-medium hover:bg-rose-500/20">
               <Bike className="h-5 w-5" /> Área do motoboy
             </a>
-          </div>
-          
-          <div className="mt-4 p-3 rounded-xl border border-[#334155]/30 bg-[rgba(255,250,240,0.05)]">
-            <p className="text-xs text-[#94a3b8] font-medium mb-1">🔔 Notificações</p>
-            <p className="text-xs text-[#6b7280] leading-relaxed">
-              Ao ativar, você receberá notificação sonora e visual quando houver novos pedidos. As notificações funcionam no navegador e no celular quando a página estiver aberta.
-            </p>
           </div>
         </div>
       </main>
     );
   }
 
+  const navItems = [
+    { id: 'painel' as const, label: 'Painel', icon: LayoutDashboard },
+    { id: 'pedidos' as const, label: 'Pedidos', icon: ReceiptText },
+    { id: 'financeiro' as const, label: 'Financeiro', icon: Wallet },
+    { id: 'relatorios' as const, label: 'Relatórios', icon: LineChart },
+  ];
+
+  const stats = [
+    { label: 'Pedidos novos', value: String(newCount), sub: 'Aguardando confirmação', icon: ShoppingBag, cls: 'border-rose-500/60 text-rose-400 shadow-[0_0_24px_-10px_rgba(244,63,94,.8)]', ic: 'bg-rose-500', onClick: () => { setFilter('novo'); goToList(); } },
+    { label: 'Em andamento', value: String(inProgressCount), sub: 'Na cozinha ou em rota', icon: ChefHat, cls: 'border-sky-500/60 text-sky-400 shadow-[0_0_24px_-10px_rgba(56,189,248,.8)]', ic: 'bg-sky-500', onClick: () => { setFilter('ativos'); goToList(); } },
+    { label: 'Hoje', value: String(todayCount), sub: 'Total de pedidos', icon: CalendarDays, cls: 'border-amber-500/60 text-amber-400 shadow-[0_0_24px_-10px_rgba(245,158,11,.8)]', ic: 'bg-amber-500', onClick: () => { setFilter('todos'); goToList(); } },
+    { label: 'Vendas totais', value: money(totalSales), sub: 'Faturamento', icon: LineChart, cls: 'border-emerald-500/60 text-emerald-400 shadow-[0_0_24px_-10px_rgba(16,185,129,.8)]', ic: 'bg-emerald-500' },
+    { label: 'Pendentes', value: money(pendingPayments), sub: 'Aguardando aprovação', icon: Clock3, cls: 'border-violet-500/60 text-violet-400 shadow-[0_0_24px_-10px_rgba(139,92,246,.8)]', ic: 'bg-violet-500', onClick: () => { setFilter('pagamentos-pendentes'); goToList(); } },
+    { label: 'Aprovados', value: money(approvedPayments), sub: 'Pagamento aprovado', icon: CheckCircle2, cls: 'border-teal-500/60 text-teal-400 shadow-[0_0_24px_-10px_rgba(20,184,166,.8)]', ic: 'bg-teal-500' },
+  ];
+  function goToList() { document.getElementById('lista')?.scrollIntoView({ behavior: 'smooth' }); }
+
+  const tabs = [
+    { id: 'ativos', label: 'Pedidos Ativos', short: 'Ativos', count: activeOrders.length, icon: ShoppingBag },
+    { id: 'todos', label: 'Todos os Pedidos', short: 'Todos', count: eligibleOrders.length, icon: RefreshCw },
+    { id: 'pagamentos-pendentes', label: 'Pagamentos Pendentes', short: 'Pendentes', count: unpaidOnlineOrders.length, icon: Wallet },
+  ];
+
+  const primaryAction = (o: Order): { label: string; icon: typeof Check; next?: string; disabled?: boolean } | null => {
+    if (isUnpaidOnline(o)) return { label: 'Aguardando aprovação', icon: Hourglass, disabled: true };
+    switch (o.order_status) {
+      case 'novo': return { label: 'Confirmar pedido', icon: Check, next: 'confirmado' };
+      case 'confirmado': return { label: 'Iniciar preparo', icon: ChefHat, next: 'preparando' };
+      case 'preparando': return { label: 'Marcar como pronto', icon: Check, next: o.fulfillment === 'entrega' ? 'pronto_entrega' : 'pronto_retirada' };
+      case 'pronto_entrega': return { label: 'Despachar p/ motoboy', icon: Bike, next: 'saiu_entrega' };
+      case 'saiu_entrega': return { label: 'Marcar entregue', icon: CheckCircle2, next: 'concluido' };
+      case 'pronto_retirada': return { label: 'Cliente retirou', icon: CheckCircle2, next: 'concluido' };
+      default: return null;
+    }
+  };
+
+  const updatedAgo = lastUpdate ? Math.max(0, Math.round((clockNow - lastUpdate) / 1000)) : null;
+
   return (
-    <main className="min-h-screen bg-[linear-gradient(to_bottom,_#0f172a,_#1e293b)] text-white">
-      {/* Header */}
-      <header className="border-b border-[#334155]/50 bg-[rgba(15,23,42,0.8)]/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
-            <div className="text-center md:text-left">
-              <p className="text-xs font-bold uppercase tracking-[.2em] text-[#e11d48]/80">Marmitex da Tia Val</p>
-              <h1 className="text-2xl font-bold text-center md:text-left">Pedidos da cozinha</h1>
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#14183a,_#070818_65%)] text-slate-100 lg:flex">
+      {/* Sidebar (PC) / gaveta (celular) */}
+      {navOpen && <button aria-label="Fechar menu" className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setNavOpen(false)} />}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-60 shrink-0 border-r border-slate-800 bg-[#080a1c] p-4 flex flex-col transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between lg:justify-center py-2">
+<img src="/icons/cozinha-logo.webp" alt="Tia Val Cozinha" className="h-20 w-20 rounded-2xl" />
+          <button className="lg:hidden p-2" aria-label="Fechar" onClick={() => setNavOpen(false)}><X className="h-5 w-5" /></button>
+        </div>
+        <nav className="mt-6 space-y-1">
+          {navItems.map((item) => (
+            <button key={item.id} onClick={() => goTo(item.id)}
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${section === item.id ? 'bg-gradient-to-r from-rose-600 to-red-700 text-white shadow-[0_0_20px_-6px_rgba(244,63,94,.9)]' : 'text-slate-300 hover:bg-slate-800/60'}`}>
+              <item.icon className="h-5 w-5" /> {item.label}
+            </button>
+          ))}
+          <a href="/" target="_blank" rel="noreferrer" className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800/60">
+            <BookOpen className="h-5 w-5" /> Cardápio
+          </a>
+        </nav>
+        <p className="mt-auto pb-4 text-center font-[cursive] text-xl leading-tight text-amber-300 -rotate-6">Aqui tem sabor<br />e carinho! <span className="text-rose-500">♥</span></p>
+      </aside>
+
+      <div className="flex-1 min-w-0 flex flex-col pb-20 lg:pb-0">
+        {/* Header */}
+        <header className="sticky top-0 z-30 border-b border-slate-800 bg-[#080a1c]/90 backdrop-blur px-4 py-3 lg:px-6 lg:py-4">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 lg:flex lg:justify-between">
+            <button className="lg:hidden p-1" aria-label="Abrir menu" onClick={() => setNavOpen(true)}><Menu className="h-6 w-6" /></button>
+            <div className="min-w-0 flex items-center gap-3">
+              <img src="/icons/cozinha-logo.webp" alt="" className="h-10 w-10 shrink-0 rounded-xl lg:hidden" />
+              <div className="min-w-0">
+              <p className="text-xs lg:text-sm font-semibold text-slate-300 truncate">Marmitex da Tia Val</p>
+              <h1 className="text-lg lg:text-2xl font-bold truncate">Painel da Cozinha</h1>
+              <p className="hidden lg:block text-sm text-slate-400">Comida caseira de verdade! <span className="text-rose-500">♥</span></p>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => void loadOrders()}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#334155]/50 bg-[rgba(51,65,85,0.3)] text-[#e2e8f0] text-sm font-medium hover:bg-[rgba(51,65,85,0.4)] transition-colors"
-              >
-                <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Atualizar</span>
+            <div className="flex items-center gap-2 lg:gap-3">
+              <div className="hidden md:flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-sm">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span className="font-medium text-emerald-300">Sistema online</span>
+                <span className="text-xs text-slate-400">Atualiza a cada 15s{updatedAgo !== null ? ` · há ${updatedAgo}s` : ''}</span>
+              </div>
+              <button onClick={() => void loadOrders()} aria-label="Atualizar agora" className="hidden sm:inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/60 p-2.5 hover:bg-slate-800">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
-              
-              <button
-                onClick={logout}
-                aria-label="Sair"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#334155]/50 bg-[rgba(51,65,85,0.3)] text-[#e2e8f0] text-sm font-medium hover:bg-[rgba(51,65,85,0.4)] transition-colors"
-              >
+              <button onClick={() => void toggleSound()} role="switch" aria-checked={soundOn}
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${soundOn ? 'border-rose-500/60 bg-rose-500/10 text-rose-300' : 'border-slate-700 bg-slate-900/60 text-slate-300'}`}>
+                <Bell className="h-4 w-4" /> <span className="hidden sm:inline">Avisos sonoros</span>
+                <span className={`relative h-5 w-9 rounded-full transition ${soundOn ? 'bg-rose-500' : 'bg-slate-600'}`}>
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${soundOn ? 'left-[18px]' : 'left-0.5'}`} />
+                </span>
+              </button>
+              <button onClick={logout} aria-label="Sair" className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm hover:bg-slate-800">
                 <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sair</span>
               </button>
-              
-              {notificationPermission !== 'granted' && (
-                <button
-                  onClick={requestNotificationPermission}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#f59e0b]/50 bg-[rgba(245,158,11,0.1)] text-[#f59e0b] text-sm font-medium hover:bg-[rgba(245,158,11,0.2)] transition-colors"
-                >
-                  <Bell className="h-4 w-4" /> <span className="hidden sm:inline">Ativar avisos sonoros</span>
-                </button>
-              )}
-              {notificationPermission === 'granted' && (
-                <button
-                  onClick={() => { /* already granted, just visual indicator */ }}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#10b981]/50 bg-[rgba(16,185,129,0.1)] text-[#10b981] text-sm font-medium"
-                >
-                  <Bell className="h-4 w-4 text-[#10b981]" /> <span className="hidden sm:inline text-[#10b981]">Avisos ativados</span>
-                </button>
-              )}
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Stats Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
-          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#e11d48]/60">Pedidos novos</p>
-            <p className="mt-2 text-3xl font-bold text-[#e11d48]">{pendingCount}</p>
-          </div>
-          
-          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#10b981]/60">Em andamento</p>
-            <p className="mt-2 text-3xl font-bold text-[#10b981]">{eligibleOrders.filter((o) => !['concluido', 'cancelado'].includes(o.order_status)).length}</p>
-          </div>
-          
-          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#f59e0b]/60">Hoje</p>
-            <p className="mt-2 text-3xl font-bold text-[#f59e0b]">{orders.filter((o) => new Date(o.created_at).toDateString() === new Date().toDateString()).length}</p>
-          </div>
-          
-          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#3b82f6]/60">Vendas totais</p>
-            <p className="mt-2 text-3xl font-bold text-[#3b82f6]">{money(totalSales)}</p>
-          </div>
-          
-          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#f59e0b]/60">Pendentes</p>
-            <p className="mt-2 text-3xl font-bold text-[#f59e0b]">{money(pendingPayments)}</p>
-          </div>
-          
-          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#10b981]/60">Aprovados</p>
-            <p className="mt-2 text-3xl font-bold text-[#10b981]">{money(approvedPayments)}</p>
-          </div>
-        </div>
+        <main className="flex-1 px-3 py-4 lg:px-6 lg:py-6 space-y-5">
+          {/* Resumo */}
+          <section id="resumo" className="grid grid-cols-3 gap-2 sm:gap-3 xl:grid-cols-6">
+            {stats.map((s) => {
+              const Tag = s.onClick ? 'button' : 'div';
+              return (
+                <Tag key={s.label} onClick={s.onClick}
+                  className={`relative min-w-0 rounded-2xl border bg-[#0b0e24]/80 p-2.5 sm:p-4 text-left transition ${s.onClick ? 'hover:brightness-125' : ''} ${s.cls}`}>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className={`grid h-7 w-7 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-full text-white ${s.ic}`}><s.icon className="h-4 w-4 sm:h-5 sm:w-5" /></span>
+                    <span className="text-[11px] sm:text-sm font-medium leading-tight">{s.label}</span>
+                  </div>
+                  <p className="mt-1 sm:mt-2 text-lg sm:text-2xl xl:text-[1.6rem] font-extrabold truncate">{s.value}</p>
+                  <p className="hidden sm:block text-xs text-slate-300 truncate">{s.sub}</p>
+                  {s.onClick && <ChevronRight className="hidden sm:block absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />}
+                </Tag>
+              );
+            })}
+          </section>
 
-        {/* Filter */}
-        <div className="mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-[#e2e8f0]">Lista de pedidos</h2>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="min-w-[180px] px-3 py-2 rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)] text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#e11d48]/50"
-            >
-              <option value="ativos">Pedidos ativos</option>
-              <option value="todos">Todos os pedidos</option>
-              {statuses.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+          {/* Abas e filtro */}
+          <section id="lista" className="scroll-mt-24 rounded-2xl border border-slate-800 bg-[#0b0e24]/70 p-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="grid grid-cols-3 gap-1 lg:flex">
+              {tabs.map((t) => (
+                <button key={t.id} onClick={() => setFilter(t.id)}
+                  className={`flex items-center justify-center gap-2 rounded-xl px-2 py-2.5 lg:px-4 text-xs sm:text-sm font-medium transition ${filter === t.id ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-[0_0_20px_-6px_rgba(244,63,94,.9)]' : 'text-slate-300 hover:bg-slate-800/60'}`}>
+                  <t.icon className="hidden sm:block h-4 w-4" />
+                  <span className="lg:hidden">{t.short}</span><span className="hidden lg:inline">{t.label}</span>
+                  <span className={`rounded-full px-2 text-xs ${filter === t.id ? 'bg-white/25' : 'bg-slate-700'}`}>{t.count}</span>
+                </button>
               ))}
-            </select>
-          </div>
-        </div>
+            </div>
+            <label className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm">
+              <span className="hidden sm:inline text-slate-300 shrink-0">Filtrar por status</span>
+              <span className="relative flex-1">
+                <select value={filter} onChange={(e) => setFilter(e.target.value)}
+                  className="w-full appearance-none bg-transparent py-1 pr-6 text-slate-100 focus:outline-none lg:min-w-[180px]">
+                  <option className="bg-slate-900" value="ativos">Pedidos ativos</option>
+                  <option className="bg-slate-900" value="todos">Todos os status</option>
+                  <option className="bg-slate-900" value="pagamentos-pendentes">Pagamentos pendentes</option>
+                  {statuses.map((s) => <option className="bg-slate-900" key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2" />
+              </span>
+            </label>
+          </section>
 
-        {/* Error/Empty States */}
-        {error && (
-          <div className="rounded-xl border border-[#ef4444]/50 bg-[rgba(220,38,38,0.1)] p-6">
-            <p role="alert" className="text-[#ef4444] text-sm font-medium">{error}</p>
-          </div>
-        )}
-        
-        {loading && orders.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-[#94a3b8] text-sm">Carregando pedidos…</p>
-          </div>
-        )}
-        
-        {!loading && visibleOrders.length === 0 && (
-          <div className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm p-8 text-center">
-            <Store className="mx-auto h-12 w-12 text-[#6b7280] mb-4" />
-            <h3 className="font-semibold text-[#e2e8f0] mb-2">
-              {filter === "pagamentos-pendentes" ? "Nenhum pagamento pendente" : "Nenhum pedido por aqui"}
-            </h3>
-            <p className="text-[#94a3b8] text-sm">
-              {filter === "pagamentos-pendentes" 
-                ? "Pedidos online só são liberados para a cozinha após a confirmação do Mercado Pago."
-                : "Quando houver pedidos liberados, eles aparecerão nesta tela."}
-            </p>
-          </div>
-        )}
+          {error && <div role="alert" className="rounded-xl border border-red-500/50 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>}
+          {loading && orders.length === 0 && <p className="py-12 text-center text-sm text-slate-400">Carregando pedidos…</p>}
 
-        {/* Orders List */}
-        {!loading && visibleOrders.length > 0 && (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {visibleOrders.map((order) => (
-              <article 
-                key={order.id} 
-                className="rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)]/50 backdrop-blur-sm overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-              >
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4 p-4 border-b border-[#334155]/50">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#94a3b8]/80">Pedido #{order.code}</p>
-                    <h3 className="mt-1 text-lg font-bold text-[#e2e8f0]">{order.customer_name}</h3>
-                    <p className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${orderAgeMinutes(order.created_at) >= 15 && !['concluido', 'cancelado'].includes(order.order_status) ? 'bg-[rgba(239,68,68,0.2)] text-[#ef4444]' : orderAgeMinutes(order.created_at) >= 5 && !['concluido', 'cancelado'].includes(order.order_status) ? 'bg-[rgba(245,158,11,0.2)] text-[#f59e0b]' : 'bg-[rgba(148,163,184,0.2)] text-[#d1d5db]'}`}>
-                      <Clock3 className="h-4 w-4" /> {orderAgeLabel(order.created_at)}
-                    </p>
-                  </div>
-                  
-                  <span className={`rounded-full px-3 py-1 text-center text-xs font-semibold ${order.order_status === 'novo' ? 'bg-[rgba(245,158,11,0.2)] text-[#f5e0b]' : order.order_status === 'concluido' ? 'bg-[rgba(16,185,129,0.2)] text-[#10b981]' : order.order_status === 'cancelado' ? 'bg-[rgba(239,68,68,0.2)] text-[#ef4444]' : 'bg-[rgba(148,163,184,0.2)] text-[#d1d5db]'}`}>
-                    {statusLabel(order.order_status)}
-                  </span>
-                </div>
+          {!loading && visibleOrders.length === 0 && (
+            <div className="rounded-2xl border border-slate-800 bg-[#0b0e24]/70 p-10 text-center">
+              <Store className="mx-auto mb-4 h-12 w-12 text-slate-500" />
+              <h3 className="mb-2 font-semibold">{filter === 'pagamentos-pendentes' ? 'Nenhum pagamento pendente' : 'Nenhum pedido por aqui'}</h3>
+              <p className="text-sm text-slate-400">{filter === 'pagamentos-pendentes' ? 'Pedidos online só são liberados para a cozinha após a confirmação do Mercado Pago.' : 'Quando houver pedidos liberados, eles aparecerão nesta tela.'}</p>
+            </div>
+          )}
 
-                {/* Body */}
-                <div className="p-4 space-y-4">
-                  {/* Items */}
-                  <div className="space-y-2">
-                    {order.items?.map((item, index) => (
-                      <div key={index} className="flex justify-between gap-3 text-sm text-[#94a3b8]">
-                        <div>
-                          <p className="font-medium">{item.quantity}× {item.meal_name}</p>
-                          {item.notes && <p className="text-xs text-[#6b7280] mt-0.5">{item.notes}</p>}
-                        </div>
-                        <span className="font-medium">{money(Number(item.unit_price) * item.quantity)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Totals */}
-                  <div className="mt-2">
-                    <div className="grid gap-4 grid-cols-2 text-[#94a3b8] text-sm">
-                      <div>
-                        <p className="font-semibold">Marmitas</p>
-                        <p>{money(Number(order.subtotal))}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Entrega</p>
-                        <p>{money(Number(order.delivery_fee))}</p>
-                      </div>
-                      <div className="col-span-2 border-t border-[#334155]/30 pt-2">
-                        <p className="font-semibold text-[#e2e8f0]">Total</p>
-                        <p className="text-2xl font-bold">{money(Number(order.total))}</p>
-                      </div>
+          {visibleOrders.length > 0 && (
+            <div className="grid gap-3 lg:gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {visibleOrders.map((order) => {
+                const tone = toneFor(order);
+                const pay = paymentInfo(order);
+                const action = primaryAction(order);
+                const open = expanded === order.id;
+                const busy = busyUpdate === order.id;
+                const age = orderAgeMinutes(order.created_at);
+                const late = !isFinished(order) && age >= 15;
+                return (
+                  <article key={order.id} className={`relative flex flex-col rounded-2xl border-2 bg-[#0b0e24]/90 p-4 ${tone.border}`}>
+                    {/* Topo */}
+                    <div className="flex items-center gap-3">
+                      <span className={`h-7 w-1.5 shrink-0 rounded-full ${tone.bar}`} />
+                      <h3 className="text-xl lg:text-2xl font-extrabold">#{order.code}</h3>
+                      <span className={`inline-flex items-center gap-1 text-sm ${late ? 'text-red-400 font-bold' : 'text-slate-300'}`} title={`Há ${age} min`}>
+                        <Clock3 className="h-4 w-4" /> {timeLabel(order.created_at)}
+                      </span>
+                      {order.order_for === 'amanha' && <span className="rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-violet-300">Amanhã</span>}
+                      <span className={`ml-auto shrink-0 rounded-md border px-2 py-1 text-[10px] sm:text-xs font-bold uppercase ${tone.badge}`}>{tone.label}</span>
                     </div>
-                  </div>
 
-                  {/* Details */}
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-start gap-3 text-sm text-[#94a3b8]">
-                      <Phone className="h-4 w-4 mr-1" />{order.customer_phone}
+                    {/* Cliente */}
+                    <div className="mt-3 flex items-center gap-3 border-b border-slate-800 pb-3">
+                      <User className="h-5 w-5 shrink-0 text-slate-400" />
+                      <span className="min-w-0 flex-1 truncate font-semibold">{order.customer_name}</span>
+                      <a href={whatsappUrl(order.customer_phone)} target="_blank" rel="noreferrer"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/60 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-500/10">
+                        <MessageCircle className="h-4 w-4" /> WhatsApp
+                      </a>
                     </div>
-                    
-                    <div className="flex items-start gap-3 text-sm text-[#94a3b8]">
+
+                    {/* Entrega + pagamento */}
+                    <div className="mt-3 space-y-2 text-sm">
                       {order.fulfillment === 'entrega' ? (
-                        <>
-                          <Bike className="h-4 w-4 mr-1" />
-                          <span>{order.address ? [order.address.street, order.address.number, order.address.complement, order.address.bairro, order.address.cep].filter(Boolean).join(', ') || 'Endereço não informado' : 'Endereço não informado'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Store className="h-4 w-4 mr-1" />
-                          <span>Retirada na cozinha</span>
-                        </>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-start gap-3 text-sm text-[#94a3b8]">
-                      <span className="font-medium">Pagamento:</span> <span>{order.payment_method === 'online' ? 'Online' : order.payment_method === 'entrega-pix' ? 'Pix na entrega' : order.payment_method === 'entrega-cartao' ? 'Cartão na entrega' : order.payment_method === 'entrega-dinheiro' ? 'Dinheiro na entrega' : order.payment_method}</span>
-                      <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${order.payment_method === 'online' ? (order.payment_status === 'approved' ? 'bg-[rgba(16,185,129,0.2)] text-[#10b981]' : 'bg-[rgba(250,204,21,0.2)] text-[#f59e0b]') : 'bg-[rgba(107,114,128,0.2)] text-[#6b7280] '}`}>
-                        {order.payment_method === 'online' ? (order.payment_status === 'approved' ? 'Pagamento aprovado' : 'Aguardando confirmação') : 'Pagamento na entrega'}
-                      </span>
-                    </div>
-                    
-                    {/* Payment method badge */}
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-[rgba(59,130,246,0.2)] text-[#3b82f6] border border-[rgba(59,130,246,0.3)]">
-                        {order.payment_method === 'online' ? (
-                          <>
-                            <span className="uppercase font-bold">MP</span>
-                            <span className="capitalize">{order.payment_status === 'approved' ? 'aprovado' : order.payment_status}</span>
-                          </>
-                        ) : order.payment_method === 'entrega-pix' ? (
-                          <>💰 <span>Pix na entrega</span></>
-                        ) : order.payment_method === 'entrega-cartao' ? (
-                          <>💳 <span>Cartão na entrega</span></>
-                        ) : order.payment_method === 'entrega-dinheiro' ? (
-                          <>💵 <span>Dinheiro na entrega</span></>
-                        ) : (
-                          <>{order.payment_method}</>
-                        )}
-                      </span>
-                    </div>
-                    
-                    {order.change_for && (
-                      <div className="flex items-start gap-3 text-sm text-[#94a3b8] mt-2">
-                        <span className="font-medium">Troco para:</span> <span>{money(Number(order.change_for))}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-start gap-2 text-sm text-[#94a3b8]">
-                      <Phone className="h-4 w-4 mr-1" />
-                      <a href={`tel:+55${phoneDigits(order.customer_phone)}`} className="text-[#3b82f6] hover:underline">Ligar</a>
-                    </div>
-                    
-                    {order.fulfillment === 'entrega' && (
-                      <>
-                        <div className="flex items-start gap-2 text-sm text-[#94a3b8] mt-2">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          <a 
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([order.address.street, order.address.number, order.address.complement, order.address.bairro, order.address.cep].filter(Boolean).join(', '))}`} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="text-[#3b82f6] hover:underline"
-                          >
-                            Abrir mapa
-                          </a>
+                        <div className="flex items-start gap-3">
+                          <Bike className="mt-0.5 h-5 w-5 shrink-0 text-slate-300" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium">Entrega Motoboy</p>
+                            <p className="flex items-start gap-1 text-xs text-slate-400"><MapPin className="h-3.5 w-3.5 shrink-0 text-rose-500 mt-0.5" /> {addressLine(order)}</p>
+                          </div>
+                          <span className="shrink-0 rounded-md bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">Taxa: {money(Number(order.delivery_fee))}</span>
                         </div>
-                        
-                        {order.fulfillment === 'entrega' && order.order_for === 'amanha' && !['concluido', 'cancelado'].includes(order.order_status) && (
-                          <label className="block space-y-2 mt-4">
-                            <span className="text-sm font-bold text-[#94a3b8] block mb-1">Agendamento da entrega</span>
-                            <input
-                              type="datetime-local"
-                              value={toLocalDateTime(order.estimated_delivery_at)}
-                              onChange={(e) => void updateEta(order, e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)] text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#e11d48]/50"
-                            />
-                            <span className="block text-xs font-normal text-[#6b7280] mt-1">
-                              Use este campo somente para pedidos agendados. Para pedidos do dia, o motoboy informa a previsão no painel de entregas.
-                            </span>
+                      ) : (
+                        <div className="flex items-center gap-3"><Store className="h-5 w-5 text-slate-300" /> <span className="font-medium">Retirada no balcão</span></div>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-2.5 py-1">
+                          <pay.icon className="h-4 w-4 text-teal-300" /> {pay.label}
+                        </span>
+                        <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${pay.ok ? 'bg-emerald-500/15 text-emerald-300' : order.payment_method === 'online' ? 'bg-amber-500/15 text-amber-300' : 'bg-slate-700/60 text-slate-300'}`}>{pay.status}</span>
+                        {order.change_for ? <span className="text-xs text-slate-300">Troco p/ {money(Number(order.change_for))}</span> : null}
+                      </div>
+                    </div>
+
+                    {/* Itens */}
+                    <div className="mt-3 flex gap-3 text-sm">
+                      <UtensilsCrossed className="mt-0.5 h-5 w-5 shrink-0 text-slate-300" />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="font-medium">Itens do pedido</p>
+                        {order.items?.map((item, i) => (
+                          <div key={i} className="flex gap-2 text-slate-300">
+                            <span className="shrink-0 font-semibold">{item.quantity}x</span>
+                            <span className="min-w-0">{item.meal_name}{item.size_label ? <span className="text-slate-400"> · {item.size_label}</span> : null}</span>
+                            <span className="ml-auto shrink-0 text-xs text-slate-400">{money(Number(item.unit_price) * item.quantity)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {order.items?.filter((i) => i.notes).map((item, i) => (
+                      <p key={i} className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/70 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-200">
+                        <MessageCircle className="h-4 w-4 shrink-0" /> <span><b>Observação:</b> {item.notes}</span>
+                      </p>
+                    ))}
+
+                    {/* Detalhes extras */}
+                    {open && (
+                      <div className="mt-3 space-y-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm">
+                        <div className="grid grid-cols-2 gap-2 text-slate-300">
+                          <p>Marmitas: <b>{money(Number(order.subtotal))}</b></p>
+                          <p>Entrega: <b>{money(Number(order.delivery_fee))}</b></p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <a href={`tel:+55${phoneDigits(order.customer_phone)}`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 hover:bg-slate-800"><Phone className="h-4 w-4" /> {order.customer_phone}</a>
+                          {order.fulfillment === 'entrega' && order.address && (
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([order.address.street, order.address.number, order.address.complement, order.address.bairro, order.address.cep].filter(Boolean).join(', '))}`}
+                              target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 hover:bg-slate-800"><MapPin className="h-4 w-4" /> Abrir mapa</a>
+                          )}
+                        </div>
+                        {order.fulfillment === 'entrega' && order.order_for === 'amanha' && !isFinished(order) && (
+                          <label className="block space-y-1">
+                            <span className="text-xs font-bold text-slate-300">Agendamento da entrega</span>
+                            <input type="datetime-local" value={toLocalDateTime(order.estimated_delivery_at)} onChange={(e) => void updateEta(order, e.target.value)}
+                              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100" />
                           </label>
                         )}
-                      </>
+                        <label className="flex items-center gap-2">
+                          <span className="shrink-0 text-xs font-bold text-slate-300">Situação</span>
+                          <select value={order.order_status} disabled={busy} onChange={(e) => void updateStatus(order, e.target.value)}
+                            className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-slate-100 disabled:opacity-50">
+                            {statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                          </select>
+                        </label>
+                      </div>
                     )}
-                    
-                    <div className="flex items-start gap-2 text-sm text-[#94a3b8] mt-2">
-                      <label className="flex items-center gap-1 text-sm font-medium">
-                        Atualizar situação
-                        <select
-                          value={order.order_status}
-                          onChange={(e) => void updateStatus(order, e.target.value)}
-                          className={`ml-2 min-w-[120px] px-2 py-1 rounded-xl border border-[#334155]/50 bg-[rgba(30,41,59,0.5)] text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#e11d48]/50 ${busyUpdate === order.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <option value="" disabled>Escolha o status</option>
-                          {statuses.map((s) => (
-                            <option key={s.value} value={s.value}>{s.label}</option>
-                          ))}
-                        </select>
-                      </label>
-                      
-                      {(!["concluido", "cancelado"].includes(order.order_status)) && (
-                        <button
-                          type="button"
-                          onClick={() => { 
-                            if (window.confirm(`Tem certeza que deseja cancelar o pedido #${order.code} de ${order.customer_name}?`)) 
-                              void updateStatus(order, "cancelado"); 
-                          }}
-                          disabled={busyUpdate === order.id}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#ef4444]/50 bg-[rgba(239,68,68,0.1)] text-[#ef4444] text-sm font-medium hover:bg-[rgba(239,68,68,0.2)] transition-colors disabled:opacity-50 cursor-not-allowed"
-                        >
-                          <Ban className="h-4 w-4 mr-1" /> Cancelar pedido
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
 
-{/* Footer Info */}
-        <p className="mt-8 text-center text-[#64748b] text-xs">
-          <Clock3 className="h-4 w-4 mr-1" /> Atualização automática a cada 15 segundos <CheckCircle2 className="h-4 w-4 ml-1" />
-        </p>
+                    {/* Total + ações */}
+                    <div className="mt-auto pt-3">
+                      <div className="text-right">
+                        <p className="text-xs text-slate-400">Total do pedido</p>
+                        <p className="text-xl font-extrabold">{money(Number(order.total))}</p>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        {action && (
+                          <button type="button" disabled={busy || action.disabled} onClick={() => action.next && void updateStatus(order, action.next)}
+                            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed ${action.disabled ? 'border border-slate-700 bg-slate-900/60 text-slate-300' : 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-[0_0_20px_-6px_rgba(244,63,94,.9)] hover:brightness-110 disabled:opacity-60'}`}>
+                            <action.icon className="h-4 w-4" /> {busy ? 'Salvando…' : action.label}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => setExpanded(open ? null : order.id)}
+                          className="flex-1 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2.5 text-sm font-medium hover:bg-slate-800">
+                          {open ? 'Ocultar detalhes' : 'Ver detalhes'}
+                        </button>
+                        <div className="relative">
+                          <button type="button" aria-label="Mais opções" onClick={() => setMenuOpen(menuOpen === order.id ? null : order.id)}
+                            className="rounded-xl border border-slate-700 bg-slate-900/60 p-2.5 hover:bg-slate-800"><MoreVertical className="h-4 w-4" /></button>
+                          {menuOpen === order.id && (
+                            <div className="absolute bottom-full right-0 z-20 mb-2 w-48 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                              <a href={`tel:+55${phoneDigits(order.customer_phone)}`} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-800"><Phone className="h-4 w-4" /> Ligar para cliente</a>
+                              {!isFinished(order) && (
+                                <button type="button" disabled={busy} onClick={() => cancelOrder(order)} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10"><Ban className="h-4 w-4" /> Cancelar pedido</button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </main>
+
+        <footer className="hidden lg:flex items-center justify-between border-t border-slate-800 px-6 py-3 text-xs text-slate-400">
+          <span>Marmitex da Tia Val · Painel da Cozinha</span>
+          <span><span className="text-rose-500">♥</span> Comida caseira feita com amor!</span>
+        </footer>
+
+        {/* Barra inferior (celular) */}
+        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-slate-800 bg-[#080a1c]/95 backdrop-blur lg:hidden">
+          <button onClick={() => goTo('painel')} className={`relative flex flex-col items-center gap-1 py-2.5 text-xs ${section === 'painel' ? 'text-rose-400' : 'text-slate-300'}`}>
+            <ReceiptText className="h-5 w-5" /> Pedidos
+            {newCount > 0 && <span className="absolute top-1 left-1/2 ml-2 rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white">{newCount}</span>}
+          </button>
+          <button onClick={() => { setFilter('pagamentos-pendentes'); setSection('pedidos'); goToList(); }} className={`flex flex-col items-center gap-1 py-2.5 text-xs ${filter === 'pagamentos-pendentes' ? 'text-rose-400' : 'text-slate-300'}`}>
+            <Wallet className="h-5 w-5" /> Pendentes
+          </button>
+          <button onClick={() => goTo('financeiro')} className={`flex flex-col items-center gap-1 py-2.5 text-xs ${section === 'financeiro' ? 'text-rose-400' : 'text-slate-300'}`}>
+            <LineChart className="h-5 w-5" /> Ganhos
+          </button>
+        </nav>
       </div>
-      </main>
-   );
+    </div>
+  );
 }
