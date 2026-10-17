@@ -3,7 +3,7 @@ import { Outlet, useRouterState, createFileRoute } from '@tanstack/react-router'
 import { Bike, LockKeyhole, Smartphone, Stethoscope } from 'lucide-react';
 
 export const Route = createFileRoute('/motoboy')({
-  head: () => ({ meta: [{ title: 'Motoboy | Tia Val Entregas' }, { name: 'theme-color', content: '#25251f' }], links: [{ rel: 'manifest', href: '/manifest-motoboy.webmanifest' }] }),
+  head: () => ({ meta: [{ title: 'Motoboy | Tia Val Entregas' }, { name: 'theme-color', content: '#25251f' }, { name: 'apple-mobile-web-app-capable', content: 'yes' }, { name: 'apple-mobile-web-app-title', content: 'Tia Val Entregas' }], links: [{ rel: 'manifest', href: '/manifest-motoboy.webmanifest' }, { rel: 'apple-touch-icon', href: '/icons/motoboy-180.png' }, { rel: 'icon', type: 'image/png', href: '/icons/motoboy-192.png' }] }),
   component: CourierLogin,
 });
 
