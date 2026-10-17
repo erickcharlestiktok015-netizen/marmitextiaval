@@ -20,9 +20,11 @@ export const Route = createFileRoute('/api/courier/orders')({
       }
       try {
         // select=* evita erro caso alguma coluna opcional não exista no schema.
+        // Filtra os status ativos no banco: com mais de 100 pedidos antigos, um limite
+        // sem filtro deixava os pedidos novos de fora da fila do motoboy.
         const orders = await supabaseRequest<OrderRow[]>(
-          'orders?select=*&fulfillment=eq.entrega&order=created_at.asc&limit=100',
-        );
+          'orders?select=*&fulfillment=eq.entrega&order_status=in.(novo,confirmado,preparando,pronto_entrega,saiu_entrega)&order=created_at.desc&limit=200',
+        ).then(rows => rows.reverse());
         let dailyEarnings = 0;
         try {
           const fortalezaDate = new Intl.DateTimeFormat('sv-SE', {
