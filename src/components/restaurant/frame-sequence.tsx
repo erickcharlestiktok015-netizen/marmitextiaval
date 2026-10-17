@@ -58,7 +58,7 @@ export function FrameSequence({ frames, poster, alt }: FrameSequenceProps) {
       if (stopped) return;
       if (reduced.matches || lowPower) return;
       animationContext = gsap.context(() => {
-        const timeline = gsap.timeline({ scrollTrigger: { trigger: container, start: 'top bottom', end: 'bottom top', scrub: 0.5, invalidateOnRefresh: true } });
+        const timeline = gsap.timeline({ scrollTrigger: { trigger: container, scroller: document.getElementById('scroll-root') ?? window, start: 'top bottom', end: 'bottom top', scrub: 0.5, invalidateOnRefresh: true } });
         timeline.to(playhead, { frame: frames.length - 1, ease: 'none', onUpdate: draw, duration: 1 }, 0);
       }, container);
       const worker = async () => { while (next < frames.length && !stopped) { const index = next++; await load(index); } };

@@ -126,7 +126,7 @@ fbq('track', 'PageView');
         </noscript>
       </head>
       <body>
-        {children}
+        <div id="scroll-root" className="scroll-root">{children}</div>
         <Scripts />
       </body>
     </html>

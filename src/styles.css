@@ -81,7 +81,8 @@
 }
 @layer base {
   * { border-color: var(--border); letter-spacing: 0; }
-  html { scroll-behavior: smooth; scroll-padding-top: 25px; }
+  html { scroll-behavior: smooth; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-body); font-size: 14px; }
   a { text-decoration: none; } button, a { -webkit-tap-highlight-color: transparent; }
   ::selection { background: var(--primary); color: var(--primary-foreground); }
@@ -89,6 +90,8 @@
   h1,h2,h3,p { margin: 0; } h2 { font-family: var(--font-editorial); font-size: 58px; line-height: 1; font-weight: 500; }
   h2 em { color: var(--primary); font-weight: 400; }
 }
+.scroll-root { position:fixed; inset:0; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; overscroll-behavior-y:none; scroll-behavior:auto; scroll-padding-top:25px; padding-bottom:env(safe-area-inset-bottom); }
+body[data-scroll-locked] .scroll-root { overflow:hidden; }
 .restaurant-page { isolation:isolate; overflow:clip; }
 .page-width { width:min(1160px, calc(100% - 96px)); margin-inline:auto; }
 .site-header { height:86px; position:absolute; z-index:20; top:0; width:100%; color:var(--hero-foreground); border-bottom:1px solid color-mix(in oklch,var(--hero-foreground) 18%,transparent); }
