@@ -105,6 +105,16 @@ export const createOrder = createServerFn({ method: 'POST' })
         notes: item.notes ?? null,
       })));
 
+      stage = 'sending InitiateCheckout to Meta';
+      try {
+        const { sendFacebookServerEvent, currentRequestInfo } = await import('@/lib/facebook-capi.server');
+        await sendFacebookServerEvent({
+          eventName: 'InitiateCheckout', eventId: code,
+          order: { code, total, customer_name: data.customer.name, customer_phone: data.customer.phone, customer_email: data.customer.email ?? null },
+          req: await currentRequestInfo(),
+        });
+      } catch (capiError) { console.error('[facebook-capi] InitiateCheckout ignorado', capiError); }
+
       if (data.payment !== 'online') return { code, trackingToken, paymentUrl: null as string | null };
 
       if (data.onlineMethod === 'pix') {
@@ -169,6 +179,12 @@ export const checkPixPayment = createServerFn({ method: 'GET' })
         method: 'PATCH', headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({ payment_status: status, mp_payment_id: String(payment.id) }),
       });
+    }
+    if (status === 'approved') {
+      try {
+        const { sendPurchaseOnce, currentRequestInfo } = await import('@/lib/facebook-capi.server');
+        await sendPurchaseOnce(order.id, { email: (payment as { payer?: { email?: string } }).payer?.email ?? null, req: await currentRequestInfo() });
+      } catch (capiError) { console.error('[facebook-capi] Purchase ignorado', capiError); }
     }
     return { status };
   });

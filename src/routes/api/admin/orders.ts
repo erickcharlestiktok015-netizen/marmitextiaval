@@ -47,6 +47,15 @@ export const Route = createFileRoute('/api/admin/orders')({
             headers: { Prefer: 'return=minimal' },
             body: JSON.stringify(patch),
           });
+          if (body.order_status === 'concluido') {
+            try {
+              const rows = await supabaseRequest<Array<Row>>(`orders?select=id,payment_method&id=eq.${encodeURIComponent(body.id)}&limit=1`);
+              if (rows[0] && rows[0]['payment_method'] !== 'online') {
+                const { sendPurchaseOnce } = await import('@/lib/facebook-capi.server');
+                await sendPurchaseOnce(body.id);
+              }
+            } catch (capiError) { console.error('[facebook-capi] Purchase ignorado', capiError); }
+          }
           return Response.json({ ok: true });
         } catch {
           return Response.json({ error: 'Não foi possível atualizar o pedido.' }, { status: 503 });

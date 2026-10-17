@@ -125,6 +125,12 @@ export const Route = createFileRoute('/api/courier/orders')({
           patch = { order_status: 'concluido', courier_status: 'entregue' };
         }
         await supabaseRequest(`orders?id=eq.${encodeURIComponent(order.id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch) });
+        if (action === 'delivered' && order.payment_method !== 'online') {
+          try {
+            const { sendPurchaseOnce } = await import('@/lib/facebook-capi.server');
+            await sendPurchaseOnce(order.id);
+          } catch (capiError) { console.error('[facebook-capi] Purchase ignorado', capiError); }
+        }
         return Response.json({ ok: true });
       } catch (error) {
         console.error('[courier-orders] Falha ao atualizar entrega:', { type: error instanceof Error ? error.name : 'unknown' });
