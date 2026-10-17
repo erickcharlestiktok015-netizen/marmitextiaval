@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUpRight, Heart, Star } from 'lucide-react';
+import { ArrowDown, ArrowUpRight, ChevronDown, Heart, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollAnimation } from './scroll-animation';
 
@@ -16,6 +16,10 @@ export function Hero() {
           <Button asChild size="lg"><a href="#pratos">Ver o cardápio <ArrowUpRight /></a></Button>
           <a className="hero-rating" href="#avaliacoes"><Star className="filled-star" /><strong>4,9</strong><span>no Google<br /><small>50 avaliações</small></span></a>
         </div>
+    </div>
+    <div className="swipe-hint" aria-hidden="true">
+      <span className="swipe-hint-arrows"><ChevronDown /><ChevronDown /></span>
+      <span className="swipe-hint-label">ARRASTE PARA BAIXO</span>
     </div>
     <div className="hero-bottom page-width"><a href="#horarios" className="scroll-cue"><span className="scroll-icon"><ArrowDown size={14} /></span> DESÇA PARA CONHECER NOSSA COZINHA</a><span className="hero-location">DOIS CLÁSSICOS DO DIA · FEITOS COM AMOR</span></div>
   </section>;
