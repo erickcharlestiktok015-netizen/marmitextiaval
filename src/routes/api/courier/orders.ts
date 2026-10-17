@@ -2,7 +2,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { isCourierRequest } from '@/lib/courier-auth.server';
 import { supabaseRequest } from '@/lib/supabase.server';
 
-type OrderRow = Record<string, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type OrderRow = any;
 const safeDatabaseError = (error: unknown, fallback: string) => {
   const message = error instanceof Error ? error.message : '';
   if (message.includes('SUPABASE_URL') || message.includes('SUPABASE_SECRET_KEY')) {

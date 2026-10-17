@@ -7,12 +7,12 @@ export type OnlinePaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'ticket
 export type Order = {
   when: 'hoje' | 'amanha';
   items: OrderItem[];
-  customer: { name: string; phone: string; email?: string };
+  customer: { name: string; phone: string; email?: string | undefined };
   fulfillment: 'entrega' | 'retirada';
   address?: { cep: string; street: string; number: string; complement: string; bairro: string; latitude?: number; longitude?: number } | undefined;
   distanceKm: number | null;
   payment: PaymentMethod;
-  onlineMethod?: OnlinePaymentMethod;
+  onlineMethod?: OnlinePaymentMethod | undefined;
   changeFor?: number | null;
   totals: OrderTotals;
 };

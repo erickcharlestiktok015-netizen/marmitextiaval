@@ -87,7 +87,7 @@ export const meals: Meal[] = [
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
 // Pratos de segunda-feira (domingo não abre): o caseirinho.
-export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string; video?: string; poster?: string };
+export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
   { id: 'caseirinho-segunda', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Segunda-feira', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
 ];

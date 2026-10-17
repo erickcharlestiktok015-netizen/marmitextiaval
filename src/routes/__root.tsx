@@ -103,7 +103,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  const pixelId = import.meta.env.VITE_FACEBOOK_PIXEL_ID || "2189508064965438";
+  const pixelId = import.meta.env['VITE_FACEBOOK_PIXEL_ID'] || "2189508064965438";
   return (
     <html lang="pt-BR">
       <head>

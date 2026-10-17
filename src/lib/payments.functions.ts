@@ -7,6 +7,7 @@ const schema = z.object({
   fulfillment: z.enum(['entrega', 'retirada']),
   distanceKm: z.number().positive().max(100).nullable(),
   customer: z.object({ name: z.string().min(2).max(80), phone: z.string().regex(/^\d{10,11}$/) }),
+  onlineMethod: z.enum(['pix', 'credit_card', 'debit_card', 'ticket', 'account_money']).default('pix'),
 });
 
 export const createMercadoPagoCheckout = createServerFn({ method: 'POST' })
@@ -14,6 +15,6 @@ export const createMercadoPagoCheckout = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { buildPreferenceItems, createPreference } = await import('./mercadopago.server');
     const items = buildPreferenceItems(data.items, data.fulfillment, data.distanceKm);
-    const url = await createPreference({ code: data.code, items, payer: data.customer });
+    const url = await createPreference({ code: data.code, items, payer: data.customer, onlineMethod: data.onlineMethod });
     return { url };
   });

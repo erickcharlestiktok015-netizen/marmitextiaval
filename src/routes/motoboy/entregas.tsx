@@ -15,7 +15,7 @@ type CompletedDelivery = { id: string; code: string; fee: number; at: string };
 const coords = (address: unknown): Geo | null => {
   if (!address || typeof address !== 'object') return null;
   const a = address as Record<string, unknown>;
-  const latitude = Number(a.latitude ?? a.lat), longitude = Number(a.longitude ?? a.lng ?? a.lon);
+  const latitude = Number(a['latitude'] ?? a['lat']), longitude = Number(a['longitude'] ?? a['lng'] ?? a['lon']);
   return Number.isFinite(latitude) && Math.abs(latitude) <= 90 && Number.isFinite(longitude) && Math.abs(longitude) <= 180 ? { latitude, longitude } : null;
 };
 // Fórmula de Haversine: distância em linha reta entre dois pontos do GPS.
@@ -29,7 +29,7 @@ const addressText = (value: unknown) => {
   if (typeof value === 'string') return value;
   if (!value || typeof value !== 'object') return 'Endereço não informado';
   const a = value as Record<string, unknown>;
-  return [a.street ?? a.rua, a.number ?? a.numero, a.complement ?? a.complemento, a.reference ?? a.referencia, a.bairro, a.cidade, a.state ?? a.estado ?? a.uf, a.cep].filter(Boolean).join(', ') || 'Endereço não informado';
+  return [a['street'] ?? a['rua'], a['number'] ?? a['numero'], a['complement'] ?? a['complemento'], a['reference'] ?? a['referencia'], a['bairro'], a['cidade'], a['state'] ?? a['estado'] ?? a['uf'], a['cep']].filter(Boolean).join(', ') || 'Endereço não informado';
 };
 const etaText = (value: string | null) => value ? new Date(value).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'A combinar';
 const currency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -152,7 +152,7 @@ function CourierDeliveries() {
         }
         let bestIndex = -1, bestDistance = Infinity;
         for (let i = 0; i < remaining.length; i++) {
-          const point = coords(remaining[i].address);
+          const point = coords(remaining[i]!.address);
           const d = point ? distance(current, point) : Infinity;
           if (d < bestDistance) { bestDistance = d; bestIndex = i; }
         }
@@ -160,7 +160,7 @@ function CourierDeliveries() {
           remaining.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           result.push(...remaining); break;
         }
-        const next = remaining.splice(bestIndex, 1)[0];
+        const next = remaining.splice(bestIndex, 1)[0]!;
         result.push(next); current = coords(next.address);
       }
       // Melhora a sequência inicial com 2-opt: reverte trechos quando isso
@@ -196,7 +196,7 @@ function CourierDeliveries() {
       return result;
     };
     const activeOrdered = nearestSequence(active, location);
-    const lastActive = activeOrdered.length ? coords(activeOrdered[activeOrdered.length - 1].address) : location;
+    const lastActive = activeOrdered.length ? coords(activeOrdered[activeOrdered.length - 1]!.address) : location;
     const routeOrders = [...activeOrdered, ...nearestSequence(ready, lastActive)];
     if (roadOrderIds.length > 1) {
       const byId = new Map(routeOrders.map(order => [order.id, order]));
@@ -253,10 +253,10 @@ function CourierDeliveries() {
         while (remaining.length) {
           let bestAt = 0, bestDistance = Infinity;
           for (let i = 0; i < remaining.length; i++) {
-            const d = matrix[current]?.[remaining[i]];
+            const d = matrix[current]?.[remaining[i]!];
             if (typeof d === 'number' && d < bestDistance) { bestDistance = d; bestAt = i; }
           }
-          const next = remaining.splice(bestAt, 1)[0];
+          const next = remaining.splice(bestAt, 1)[0]!;
           sequence.push(next);
           current = next;
         }
@@ -285,7 +285,7 @@ function CourierDeliveries() {
           }
         }
         if (cancelled) return;
-        setRoadOrderIds(sequence.map(index => stops[index - 1].id));
+        setRoadOrderIds(sequence.map(index => stops[index - 1]!.id));
         setRouteCalculation(`Sequência otimizada pelas ruas para ${stops.length} entrega(s); demais paradas ficam depois, com ordem aproximada.`);
       } catch {
         if (cancelled) return;
@@ -368,7 +368,7 @@ function CourierDeliveries() {
     setBusy(order.id); setError('');
     try {
       const body: Record<string, unknown> = { id: order.id, action: next };
-      if (next === 'delivered') body.code = confirmation[order.id] || '';
+      if (next === 'delivered') body['code'] = confirmation[order.id] || '';
       const response = await fetch('/api/courier/orders', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar a entrega.');
