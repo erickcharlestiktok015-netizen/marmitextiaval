@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { FacebookPixel } from "@/components/facebook-pixel";
 
 function NotFoundComponent() {
   return (
@@ -77,13 +78,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
       { title: "Marmitex da Tia Val" },
       { name: "description", content: "Comida caseira feita com amor em Belo Horizonte." },
       { property: "og:title", content: "Marmitex da Tia Val" },
       { property: "og:description", content: "Comida caseira feita com amor em Belo Horizonte." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "facebook-domain-verification", content: "gmi3266uysp5g72ubanjl4xs2l15w4" },
     ],
     links: [
       {
@@ -101,10 +103,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const pixelId = import.meta.env['VITE_FACEBOOK_PIXEL_ID'] || "2189508064965438";
   return (
     <html lang="pt-BR">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: `
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '${pixelId}');
+fbq('track', 'PageView');
+        ` }} />
+        <noscript>
+          <img height="1" width="1" style={{ display: "none" }}
+            src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`} alt="" />
+        </noscript>
       </head>
       <body>
         {children}
