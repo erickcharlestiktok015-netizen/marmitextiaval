@@ -41,7 +41,7 @@ export const tropeiroMeal: Meal = {
   ],
 };
 
-// Caseirinho: fora dos pratos do dia por enquanto, aparece só em "Pratos de segunda-feira".
+// Caseirinho: fora dos pratos do dia por enquanto, aparece só em "Pratos de amanhã".
 export const caseirinhoMeal: Meal = {
   id: 'caseirinho',
   name: 'Arroz, feijão, macarronada e linguiça',
@@ -55,30 +55,15 @@ export const caseirinhoMeal: Meal = {
   ],
 };
 
-// Pratos do dia na ordem em que aparecem no site: feijoada primeiro, depois o frango assado com salpicão.
-// "Só feijoada" (sem acompanhamentos) custa 20 (pequena) e 25 (grande); a completa é preço normal.
+// Prato do dia de hoje (vídeo hospedado no CDN do Lovable).
 export const meals: Meal[] = [
   {
-    id: 'feijoada',
-    name: 'Feijoada',
-    description: 'Feijoada encorpada, cheia de sabor e carinho.',
-    video: videoFeijoada,
-    poster: posterFeijoada,
-    badge: 'O mais pedido',
-    sizes: [
-      { id: 'pequena', label: 'Completa pequena · 500ml', price: 16 },
-      { id: 'grande', label: 'Completa grande · 750ml', price: 18 },
-      { id: 'so-pequena', label: 'Só feijoada pequena · 500ml', price: 20 },
-      { id: 'so-grande', label: 'Só feijoada grande · 750ml', price: 25 },
-    ],
-  },
-  {
-    id: 'frango-salpicao',
-    name: 'Arroz, feijão, salpicão e frango assado',
-    description: 'Frango assado douradinho com salpicão cremoso, arroz e feijão.',
-    video: videoFrangoSalpicao,
-    poster: posterFrangoSalpicao,
-    badge: null,
+    id: 'macarronada-bife',
+    name: 'Arroz, macarronada e bife',
+    description: 'Macarronada caprichada com bife suculento e arroz soltinho.',
+    video: 'https://id-preview--06df6bfc-9d33-4bfc-b3a1-afe99da33579.lovable.app/__l5e/assets-v1/568e4646-b0ef-4858-ad63-90820cbe3516/hoje.mp4',
+    poster: 'https://id-preview--06df6bfc-9d33-4bfc-b3a1-afe99da33579.lovable.app/__l5e/assets-v1/3b5171a8-d637-43b0-855a-cbe9f86ab9ee/poster-hoje.jpg',
+    badge: 'Prato do dia',
     sizes: [
       { id: 'pequena', label: 'Pequena · 500ml', price: 16 },
       { id: 'grande', label: 'Grande · 750ml', price: 18 },
@@ -86,13 +71,16 @@ export const meals: Meal[] = [
   },
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos de segunda-feira (domingo não abre): o caseirinho.
+// Pratos de amanhã: frango com quiabo e o caseirinho.
+const frangoQuiabo = { id: 'frango-quiabo', name: 'Frango com quiabo', description: 'Frango caipira ensopado com quiabo, do jeitinho mineiro.', video: 'https://id-preview--06df6bfc-9d33-4bfc-b3a1-afe99da33579.lovable.app/__l5e/assets-v1/514eda6d-dd26-4c8f-a7b5-8dc03e8850a4/frango-quiabo.mp4', poster: 'https://id-preview--06df6bfc-9d33-4bfc-b3a1-afe99da33579.lovable.app/__l5e/assets-v1/e6fbf7a7-6e09-4b1a-a810-dfdf1d65e637/poster-frango-quiabo.jpg' };
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
-  { id: 'caseirinho-segunda', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Segunda-feira', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
+  { ...frangoQuiabo, id: 'frango-quiabo-amanha', badge: 'Amanhã' },
+  { id: 'caseirinho-amanha', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Amanhã', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
 ];
-// Opções para reservar na segunda-feira.
+// Opções para reservar amanhã.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
+  { id: 'frango-quiabo', name: frangoQuiabo.name, sizes: caseirinhoMeal.sizes },
   { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, BH).

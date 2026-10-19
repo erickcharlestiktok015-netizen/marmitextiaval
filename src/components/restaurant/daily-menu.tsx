@@ -58,7 +58,7 @@ export function DailyMenu() {
   const count = cart.reduce((sum, i) => sum + i.quantity, 0);
   return <section id="pratos" className="section menu-section"><div className="page-width">
     <div className="section-heading reveal"><div><p className="eyebrow"><Utensils size={14} /> O CARINHO TÁ SERVIDO</p><h2>Os dois clássicos<br /><em>do dia.</em></h2></div><p>Todo almoço, duas opções.<br />O mesmo carinho de sempre.</p></div>
-    <div className="menu-category"><Utensils size={16} /><span>Dois pratos do dia</span><span>Pequena 500ml · Grande 750ml</span></div>
+    <div className="menu-category"><Utensils size={16} /><span>Prato do dia</span><span>Pequena 500ml · Grande 750ml</span></div>
     <div className="meal-grid">{meals.map(meal => <MealCard key={meal.id} meal={meal} selected={cart.some(i => i.meal.id === meal.id)} onSelect={() => openMeal(meal)} />)}</div>
     <p className="demo-note">Disponibilidade dos pratos a confirmar com a Tia Val.</p>
     {cart.length > 0 && <div id="carrinho" className="cart-panel" aria-label="Carrinho">
