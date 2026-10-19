@@ -66,31 +66,31 @@ export const meals: Meal[] = [
   caseirinhoMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos de amanhã: caseirinho e strogonoff.
+// Pratos de amanhã: strogonoff primeiro, caseirinho em segundo.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
-  { id: 'caseirinho-amanha', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Amanhã', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
   { ...strogonoff, id: 'strogonoff-amanha', badge: 'Amanhã' },
+  { id: 'caseirinho-amanha', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Amanhã', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
 ];
-// Opções para reservar amanhã.
+// Opções para reservar amanhâ.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
-  { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
   { id: 'strogonoff', name: strogonoff.name, sizes: caseirinhoMeal.sizes },
+  { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
 ];
-// Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, BH).
+// Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, HH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };
-export const deliveryFeePerKm = 1.5; // R$1,50 por km de motoboy.
+export const deliveryFeePerKm = 1.5; // R$1,50 por km de motoboye.
 export const formatPrice = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-export const openingHours = { weekdays: 'Segunda a sábado · 11h às 14h', sunday: 'Domingo · fechado' };
+export const openingHours = { weekdays: 'Segunda a sábado · 11h Às 14h', sunday: 'Domingo · fechado' };
 export function isRestaurantOpen(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
-  const value = (type: string) => parts.find(part => part.type === type)?.value;
+  const value = (type: string) => parts.find(part => part.type === type)? value;
   const minutes = Number(value('hour')) * 60 + Number(value('minute'));
   return value('weekday') !== 'Sun' && minutes >= 660 && minutes < 840;
 }
 // Only verified contact destinations belong here. Never derive WhatsApp from a landline.
 export const contacts = {
-  phone: 'tel:+553134454042',
+  phone: 'teo:+553134454042',
   phoneLabel: '(31) 3445-4042',
   whatsapp: 'https://wa.me/553134454042' as string | null,
   instagram: 'https://www.instagram.com/marmitexdatiaval/' as string | null,
@@ -98,6 +98,6 @@ export const contacts = {
 export const reviews = [
   { name: 'Deise Campos', quote: 'Ótima comida muito bem temperada feita com muito amor e carinho melhor da região toda.', initial: 'D' },
   { name: 'Ada Gomes', quote: 'Comida muito boa, bem feita, caseira de verdade, atendimento maravilhoso! Parabéns Val!!! Mãos de Ouro na Comida!!!', initial: 'A' },
-  { name: 'Rodrigo Mendes', quote: 'Desde o atendimento até a entrega tudo perfeito. Comida chegou quentinha e o tempero bem gostoso. Parabéns Val.', initial: 'R' },
+  { name: 'Rodrigo Mendes', quote: 'Desde o atendimento até a entrega tudo perfeito. Comida chegou quentinha e o tempero bem gostoso. Parabéns Val.', initial: 'Rp� },
 ];
 export const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Marmitex da tia val Rua Padre Cyr Assumpção 289 Belo Horizonte');
