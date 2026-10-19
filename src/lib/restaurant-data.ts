@@ -41,7 +41,7 @@ export const tropeiroMeal: Meal = {
   ],
 };
 
-// Caseirinho: fora dos pratos do dia por enquanto, aparece só em "Pratos de amanhã".
+// Caseirinho: nos pratos do dia e em "Pratos de amanhã".
 export const caseirinhoMeal: Meal = {
   id: 'caseirinho',
   name: 'Arroz, feijão, macarronada e linguiça',
@@ -55,33 +55,27 @@ export const caseirinhoMeal: Meal = {
   ],
 };
 
-// Prato do dia de hoje (vídeo hospedado no CDN do Lovable).
+// Vídeos novos (frango com quiabo e strogonoff).
+const novoHost = 'https://id-preview--514ffa97-f293-4acf-afff-b74c58c15c56.lovable.app/__l5e/assets-v1/';
+const frangoQuiabo = { id: 'frango-quiabo', name: 'Frango com quiabo', description: 'Frango caipira ensopado com quiabo, do jeitinho mineiro.', video: novoHost + '6dee4917-c2da-4580-a00c-0943867491d0/frango-quiabo.mp4', poster: novoHost + 'fdbb88e7-58b7-481f-877f-d1795d010a25/poster-frango-quiabo.jpg' };
+const strogonoff = { id: 'strogonoff', name: 'Strogonoff', description: 'Strogonoff cremoso, com arroz soltinho e batata palha.', video: novoHost + '4edafc47-2031-459a-a011-e53af21d3ff2/strogonoff.mp4', poster: novoHost + '10daedcf-920f-4b0c-a238-325e16dec0c3/poster-strogonoff.jpg' };
+
+// Pratos do dia de hoje.
 export const meals: Meal[] = [
-  {
-    id: 'macarronada-bife',
-    name: 'Arroz, macarronada e bife',
-    description: 'Macarronada caprichada com bife suculento e arroz soltinho.',
-    video: 'https://id-preview--06df6bfc-9d33-4bfc-b3a1-afe99da33579.lovable.app/__l5e/assets-v1/568e4646-b0ef-4858-ad63-90820cbe3516/hoje.mp4',
-    poster: 'https://id-preview--06df6bfc-9d33-4bfc-b3a1-afe99da33579.lovable.app/__l5e/assets-v1/3b5171a8-d637-43b0-855a-cbe9f86ab9ee/poster-hoje.jpg',
-    badge: 'Prato do dia',
-    sizes: [
-      { id: 'pequena', label: 'Pequena · 500ml', price: 16 },
-      { id: 'grande', label: 'Grande · 750ml', price: 18 },
-    ],
-  },
+  { ...frangoQuiabo, badge: 'Mais pedido', sizes: caseirinhoMeal.sizes },
+  caseirinhoMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos de amanhã: frango com quiabo e o caseirinho.
-const frangoQuiabo = { id: 'frango-quiabo', name: 'Frango com quiabo', description: 'Frango caipira ensopado com quiabo, do jeitinho mineiro.', video: 'https://id-preview--06df6bfc-9d33-4bfc-b3a1-afe99da33579.lovable.app/__l5e/assets-v1/514eda6d-dd26-4c8f-a7b5-8dc03e8850a4/frango-quiabo.mp4', poster: 'https://id-preview--06df6bfc-9d33-4bfc-b3a1-afe99da33579.lovable.app/__l5e/assets-v1/e6fbf7a7-6e09-4b1a-a810-dfdf1d65e637/poster-frango-quiabo.jpg' };
+// Pratos de amanhã: caseirinho e strogonoff.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
-  { ...frangoQuiabo, id: 'frango-quiabo-amanha', badge: 'Amanhã' },
   { id: 'caseirinho-amanha', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Amanhã', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
+  { ...strogonoff, id: 'strogonoff-amanha', badge: 'Amanhã' },
 ];
 // Opções para reservar amanhã.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
-  { id: 'frango-quiabo', name: frangoQuiabo.name, sizes: caseirinhoMeal.sizes },
   { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
+  { id: 'strogonoff', name: strogonoff.name, sizes: caseirinhoMeal.sizes },
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, BH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };
