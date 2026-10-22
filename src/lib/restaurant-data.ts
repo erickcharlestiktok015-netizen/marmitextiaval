@@ -83,13 +83,13 @@ export const formatPrice = (value: number) => value.toLocaleString('pt-BR', { st
 export const openingHours = { weekdays: 'Segunda a sábado · 11h Às 14h', sunday: 'Domingo · fechado' };
 export function isRestaurantOpen(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
-  const value = (type: string) => parts.find(part => part.type === type)? value;
+  const value = (type: string) => parts.find(part => part.type === type)?.value;
   const minutes = Number(value('hour')) * 60 + Number(value('minute'));
   return value('weekday') !== 'Sun' && minutes >= 660 && minutes < 840;
 }
 // Only verified contact destinations belong here. Never derive WhatsApp from a landline.
 export const contacts = {
-  phone: 'teo:+553134454042',
+  phone: 'tel:+553134454042',
   phoneLabel: '(31) 3445-4042',
   whatsapp: 'https://wa.me/553134454042' as string | null,
   instagram: 'https://www.instagram.com/marmitexdatiaval/' as string | null,
@@ -97,6 +97,6 @@ export const contacts = {
 export const reviews = [
   { name: 'Deise Campos', quote: 'Ótima comida muito bem temperada feita com muito amor e carinho melhor da região toda.', initial: 'D' },
   { name: 'Ada Gomes', quote: 'Comida muito boa, bem feita, caseira de verdade, atendimento maravilhoso! Parabéns Val!!! Mãos de Ouro na Comida!!!', initial: 'A' },
-  { name: 'Rodrigo Mendes', quote: 'Desde o atendimento até a entrega tudo perfeito. Comida chegou quentinha e o tempero bem gostoso. Parabéns Val.', initial: 'Rp� },
+  { name: 'Rodrigo Mendes', quote: 'Desde o atendimento até a entrega tudo perfeito. Comida chegou quentinha e o tempero bem gostoso. Parabéns Val.', initial: 'R' },
 ];
 export const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Marmitex da tia val Rua Padre Cyr Assumpção 289 Belo Horizonte');
