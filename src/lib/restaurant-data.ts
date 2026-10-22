@@ -60,22 +60,21 @@ const novoHost = 'https://id-preview--514ffa97-f293-4acf-afff-b74c58c15c56.lovab
 const frangoQuiabo = { id: 'frango-quiabo', name: 'Frango com quiabo', description: 'Frango caipira ensopado com quiabo, do jeitinho mineiro.', video: novoHost + '6dee4917-c2da-4580-a00c-0943867491d0/frango-quiabo.mp4', poster: novoHost + 'fdbb88e7-58b7-481f-877f-d1795d010a25/poster-frango-quiabo.jpg' };
 const strogonoff = { id: 'strogonoff', name: 'Strogonoff', description: 'Strogonoff cremoso, com arroz soltinho e batata palha.', video: novoHost + '4edafc47-2031-459a-a011-e53af21d3ff2/strogonoff.mp4', poster: novoHost + '10daedcf-920f-4b0c-a238-325e16dec0c3/poster-strogonoff.jpg' };
 
-// Pratos do dia de hoje.
+// Pratos do dia de hoje: só o tropeiro.
 export const meals: Meal[] = [
-  { ...frangoQuiabo, badge: 'Mais pedido', sizes: caseirinhoMeal.sizes },
-  caseirinhoMeal,
+  tropeiroMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos de amanhã: strogonoff primeiro, caseirinho em segundo.
+// Pratos de amanhã: caseirinho primeiro, feijoada em segundo.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
-  { ...strogonoff, id: 'strogonoff-amanha', badge: 'Amanhã' },
   { id: 'caseirinho-amanha', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Amanhã', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
+  { id: 'feijoada-amanha', name: 'Feijoada', description: 'Feijoada completa, com couve, laranja e torresmo.', badge: 'Amanhã', video: videoFeijoada, poster: posterFeijoada },
 ];
-// Opções para reservar amanhâ.
+// Opções para reservar amanhã.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
-  { id: 'strogonoff', name: strogonoff.name, sizes: caseirinhoMeal.sizes },
   { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
+  { id: 'feijoada', name: 'Feijoada', sizes: caseirinhoMeal.sizes },
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, HH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };
