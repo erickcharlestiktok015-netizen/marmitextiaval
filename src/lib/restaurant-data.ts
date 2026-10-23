@@ -61,20 +61,29 @@ const frangoQuiabo = { id: 'frango-quiabo', name: 'Frango com quiabo', descripti
 const strogonoff = { id: 'strogonoff', name: 'Strogonoff', description: 'Strogonoff cremoso, com arroz soltinho e batata palha.', video: novoHost + '4edafc47-2031-459a-a011-e53af21d3ff2/strogonoff.mp4', poster: novoHost + '10daedcf-920f-4b0c-a238-325e16dec0c3/poster-strogonoff.jpg' };
 
 // Pratos do dia de hoje: só o tropeiro.
+export const feijoadaMeal: Meal = {
+  id: 'feijoada',
+  name: 'Feijoada',
+  description: 'Feijoada completa, com couve, laranja e torresmo.',
+  video: videoFeijoada,
+  poster: posterFeijoada,
+  badge: 'O mais pedido',
+  sizes: caseirinhoMeal.sizes,
+};
 export const meals: Meal[] = [
-  tropeiroMeal,
+  feijoadaMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
 // Pratos de amanhã: caseirinho primeiro, feijoada em segundo.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
   { id: 'caseirinho-amanha', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Amanhã', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
-  { id: 'feijoada-amanha', name: 'Feijoada', description: 'Feijoada completa, com couve, laranja e torresmo.', badge: 'Amanhã', video: videoFeijoada, poster: posterFeijoada },
+  { id: 'tropeiro-amanha', name: tropeiroMeal.name, description: tropeiroMeal.description, badge: 'Amanhã', video: tropeiroMeal.video, poster: tropeiroMeal.poster },
 ];
 // Opções para reservar amanhã.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
   { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
-  { id: 'feijoada', name: 'Feijoada', sizes: caseirinhoMeal.sizes },
+  { id: 'tropeiro', name: tropeiroMeal.name, sizes: tropeiroMeal.sizes },
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, HH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };
