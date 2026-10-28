@@ -57,10 +57,32 @@ export const caseirinhoMeal: Meal = {
 
 // Vídeos novos (frango com quiabo e strogonoff).
 const novoHost = 'https://id-preview--514ffa97-f293-4acf-afff-b74c58c15c56.lovable.app/__l5e/assets-v1/';
-const frangoQuiabo = { id: 'frango-quiabo', name: 'Frango com quiabo', description: 'Frango caipira ensopado com quiabo, do jeitinho mineiro.', video: novoHost + '6dee4917-c2da-4580-a00c-0943867491d0/frango-quiabo.mp4', poster: novoHost + 'fdbb88e7-58b7-481f-877f-d1795d010a25/poster-frango-quiabo.jpg' };
-const strogonoff = { id: 'strogonoff', name: 'Strogonoff', description: 'Strogonoff cremoso, com arroz soltinho e batata palha.', video: novoHost + '4edafc47-2031-459a-a011-e53af21d3ff2/strogonoff.mp4', poster: novoHost + '10daedcf-920f-4b0c-a238-325e16dec0c3/poster-strogonoff.jpg' };
+export const frangoQuiaboMeal: Meal = {
+  id: 'frango-quiabo',
+  name: 'Frango com quiabo',
+  description: 'Frango caipira ensopado com quiabo, do jeitinho mineiro.',
+  video: novoHost + '6dee4917-c2da-4580-a00c-0943867491d0/frango-quiabo.mp4',
+  poster: novoHost + 'fdbb88e7-58b7-481f-877f-d1795d010a25/poster-frango-quiabo.jpg',
+  badge: 'O mais pedido',
+  sizes: [
+    { id: 'pequena', label: 'Pequena · 500ml', price: 16 },
+    { id: 'grande', label: 'Grande · 750ml', price: 18 },
+  ],
+};
+export const strogonoffMeal: Meal = {
+  id: 'strogonoff',
+  name: 'Strogonoff',
+  description: 'Strogonoff cremoso, com arroz soltinho e batata palha.',
+  video: novoHost + '4edafc47-2031-459a-a011-e53af21d3ff2/strogonoff.mp4',
+  poster: novoHost + '10daedcf-920f-4b0c-a238-325e16dec0c3/poster-strogonoff.jpg',
+  badge: null,
+  sizes: [
+    { id: 'pequena', label: 'Pequena · 500ml', price: 16 },
+    { id: 'grande', label: 'Grande · 750ml', price: 18 },
+  ],
+};
 
-// Pratos do dia de hoje: só o tropeiro.
+// Feijoada fora do cardápio por enquanto (reserva). Para voltar, recoloque em `meals`.
 export const feijoadaMeal: Meal = {
   id: 'feijoada',
   name: 'Feijoada',
@@ -70,20 +92,20 @@ export const feijoadaMeal: Meal = {
   badge: 'O mais pedido',
   sizes: caseirinhoMeal.sizes,
 };
+// Pratos do dia de hoje: frango com quiabo e strogonoff.
 export const meals: Meal[] = [
-  feijoadaMeal,
+  frangoQuiaboMeal,
+  strogonoffMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos de amanhã: caseirinho primeiro, feijoada em segundo.
+// Pratos de amanhã: só o caseirinho (arroz, feijão, macarronada e linguiça).
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
   { id: 'caseirinho-amanha', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Amanhã', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
-  { id: 'tropeiro-amanha', name: tropeiroMeal.name, description: tropeiroMeal.description, badge: 'Amanhã', video: tropeiroMeal.video, poster: tropeiroMeal.poster },
 ];
 // Opções para reservar amanhã.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
   { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
-  { id: 'tropeiro', name: tropeiroMeal.name, sizes: tropeiroMeal.sizes },
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, HH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };
