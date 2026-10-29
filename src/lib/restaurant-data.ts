@@ -25,7 +25,7 @@ const posterFeijoada = mediaHost + '/__l5e/assets-v1/98c44e2a-0001-4869-82f4-a20
 const videoFrangoSalpicao = mediaHost + '/__l5e/assets-v1/332c95e8-4614-4a3e-9782-e974ad8a8ee8/frango-salpicao.mp4';
 const posterFrangoSalpicao = mediaHost + '/__l5e/assets-v1/edba03dc-06bc-4e3e-8619-bf461af5e6e0/poster-frango.jpg';
 
-// Tropeiro fora do cardápio temporariamente. Para voltar, recoloque este item no início de `meals`.
+// Tropeiro: prato do dia de hoje.
 export const tropeiroMeal: Meal = {
   id: 'tropeiro',
   name: 'Feijão Tropeiro',
@@ -82,7 +82,7 @@ export const strogonoffMeal: Meal = {
   ],
 };
 
-// Feijoada fora do cardápio por enquanto (reserva). Para voltar, recoloque em `meals`.
+// Feijoada: prato de amanhã (reserva do cardápio do dia).
 export const feijoadaMeal: Meal = {
   id: 'feijoada',
   name: 'Feijoada',
@@ -92,20 +92,19 @@ export const feijoadaMeal: Meal = {
   badge: 'O mais pedido',
   sizes: caseirinhoMeal.sizes,
 };
-// Pratos do dia de hoje: frango com quiabo e strogonoff.
+// Pratos do dia de hoje: só o tropeiro.
 export const meals: Meal[] = [
-  frangoQuiaboMeal,
-  strogonoffMeal,
+  tropeiroMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos de amanhã: só o caseirinho (arroz, feijão, macarronada e linguiça).
+// Pratos de amanhã: só a feijoada.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
-  { id: 'caseirinho-amanha', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Amanhã', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
+  { id: 'feijoada-amanha', name: feijoadaMeal.name, description: feijoadaMeal.description, badge: 'Amanhã', video: feijoadaMeal.video, poster: feijoadaMeal.poster },
 ];
 // Opções para reservar amanhã.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
-  { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
+  { id: 'feijoada', name: feijoadaMeal.name, sizes: feijoadaMeal.sizes },
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, HH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };
