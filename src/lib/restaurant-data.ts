@@ -25,7 +25,24 @@ const posterFeijoada = mediaHost + '/__l5e/assets-v1/98c44e2a-0001-4869-82f4-a20
 const videoFrangoSalpicao = mediaHost + '/__l5e/assets-v1/332c95e8-4614-4a3e-9782-e974ad8a8ee8/frango-salpicao.mp4';
 const posterFrangoSalpicao = mediaHost + '/__l5e/assets-v1/edba03dc-06bc-4e3e-8619-bf461af5e6e0/poster-frango.jpg';
 
-// Tropeiro: prato do dia de hoje.
+// Feijoada: prato do dia de hoje.
+// "Só feijoada" (sem acompanhamentos) custa 20 (pequena) e 25 (grande); a completa é preço normal.
+export const feijoadaMeal: Meal = {
+  id: 'feijoada',
+  name: 'Feijoada',
+  description: 'Feijoada completa, com couve, laranja e torresmo.',
+  video: videoFeijoada,
+  poster: posterFeijoada,
+  badge: 'O mais pedido',
+  sizes: [
+    { id: 'pequena', label: 'Completa pequena · 500ml', price: 16 },
+    { id: 'grande', label: 'Completa grande · 750ml', price: 18 },
+    { id: 'so-pequena', label: 'Só feijoada pequena · 500ml', price: 20 },
+    { id: 'so-grande', label: 'Só feijoada grande · 750ml', price: 25 },
+  ],
+};
+
+// Tropeiro: fora do cardápio temporariamente. Para voltar, recoloque este item no início de `meals`.
 export const tropeiroMeal: Meal = {
   id: 'tropeiro',
   name: 'Feijão Tropeiro',
@@ -41,7 +58,7 @@ export const tropeiroMeal: Meal = {
   ],
 };
 
-// Caseirinho: nos pratos do dia e em "Pratos de amanhã".
+// Caseirinho: em "Pratos de segunda-feira".
 export const caseirinhoMeal: Meal = {
   id: 'caseirinho',
   name: 'Arroz, feijão, macarronada e linguiça',
@@ -82,29 +99,19 @@ export const strogonoffMeal: Meal = {
   ],
 };
 
-// Feijoada: prato de amanhã (reserva do cardápio do dia).
-export const feijoadaMeal: Meal = {
-  id: 'feijoada',
-  name: 'Feijoada',
-  description: 'Feijoada completa, com couve, laranja e torresmo.',
-  video: videoFeijoada,
-  poster: posterFeijoada,
-  badge: 'O mais pedido',
-  sizes: caseirinhoMeal.sizes,
-};
-// Pratos do dia de hoje: só o tropeiro.
+// Pratos do dia de hoje: só a feijoada.
 export const meals: Meal[] = [
-  tropeiroMeal,
+  feijoadaMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos de amanhã: só a feijoada.
+// Pratos de segunda-feira: só o caseirinho.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
-  { id: 'feijoada-amanha', name: feijoadaMeal.name, description: feijoadaMeal.description, badge: 'Amanhã', video: feijoadaMeal.video, poster: feijoadaMeal.poster },
+  { id: 'caseirinho-segunda', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Segunda', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
 ];
-// Opções para reservar amanhã.
+// Opções para reservar segunda-feira.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
-  { id: 'feijoada', name: feijoadaMeal.name, sizes: feijoadaMeal.sizes },
+  { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, HH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };
