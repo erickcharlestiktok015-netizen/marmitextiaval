@@ -25,7 +25,7 @@ const posterFeijoada = mediaHost + '/__l5e/assets-v1/98c44e2a-0001-4869-82f4-a20
 const videoFrangoSalpicao = mediaHost + '/__l5e/assets-v1/332c95e8-4614-4a3e-9782-e974ad8a8ee8/frango-salpicao.mp4';
 const posterFrangoSalpicao = mediaHost + '/__l5e/assets-v1/edba03dc-06bc-4e3e-8619-bf461af5e6e0/poster-frango.jpg';
 
-// Feijoada: prato do dia de hoje.
+// Feijoada: fora do cardápio hoje.
 // "Só feijoada" (sem acompanhamentos) custa 20 (pequena) e 25 (grande); a completa é preço normal.
 export const feijoadaMeal: Meal = {
   id: 'feijoada',
@@ -99,9 +99,23 @@ export const strogonoffMeal: Meal = {
   ],
 };
 
-// Pratos do dia de hoje: só a feijoada.
+// Frango assado com salpicão: prato do dia de hoje.
+export const frangoSalpicaoMeal: Meal = {
+  id: 'frango-salpicao',
+  name: 'Arroz, feijão, salpicão e frango assado',
+  description: 'Frango assado douradinho com salpicão cremoso, arroz soltinho e feijão.',
+  video: videoFrangoSalpicao,
+  poster: posterFrangoSalpicao,
+  badge: 'O mais pedido',
+  sizes: [
+    { id: 'pequena', label: 'Pequena · 500ml', price: 16 },
+    { id: 'grande', label: 'Grande · 750ml', price: 18 },
+  ],
+};
+
+// Pratos do dia de hoje: arroz, feijão, salpicão e frango assado.
 export const meals: Meal[] = [
-  feijoadaMeal,
+  frangoSalpicaoMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
 // Pratos de segunda-feira: só o caseirinho.
