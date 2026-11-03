@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { deliveryFeeForKm } from '@/lib/orders';
 import { deliveryFeePerKm, formatPrice, restaurantLocation } from '@/lib/restaurant-data';
 
-export type FeeResult = { cep: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; km: number; taxa: number };
+export type FeeResult = { cep: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; km: number; taxa: number; latitude: number; longitude: number };
 
 const onlyDigits = (value: string) => value.replace(/\D/g, '');
 const maskCep = (value: string) => {
@@ -72,7 +72,7 @@ export function DeliveryFee({ onResult, compact }: { onResult?: (result: FeeResu
         ?? await geocode([`${rua.trim()}`, ...base].join(', '));
       if (!point) throw new Error('endereco-nao-localizado');
       const km = await distanceKm(point.lat, point.lng);
-      const next: FeeResult = { cep: onlyDigits(cep), rua: rua.trim(), numero: numero.trim(), complemento: complemento.trim(), bairro: info.bairro, cidade: info.cidade, km, taxa: deliveryFeeForKm(km) };
+      const next: FeeResult = { cep: onlyDigits(cep), rua: rua.trim(), numero: numero.trim(), complemento: complemento.trim(), bairro: info.bairro, cidade: info.cidade, km, taxa: deliveryFeeForKm(km), latitude: point.lat, longitude: point.lng };
       setResult(next);
       onResult?.(next);
     } catch {

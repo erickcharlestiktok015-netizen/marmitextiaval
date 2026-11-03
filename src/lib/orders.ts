@@ -7,18 +7,18 @@ export type OnlinePaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'ticket
 export type Order = {
   when: 'hoje' | 'amanha';
   items: OrderItem[];
-  customer: { name: string; phone: string; email?: string };
+  customer: { name: string; phone: string; email?: string | undefined };
   fulfillment: 'entrega' | 'retirada';
-  address?: { cep: string; street: string; number: string; complement: string; bairro: string } | undefined;
+  address?: { cep: string; street: string; number: string; complement: string; bairro: string; latitude?: number; longitude?: number } | undefined;
   distanceKm: number | null;
   payment: PaymentMethod;
-  onlineMethod?: OnlinePaymentMethod;
+  onlineMethod?: OnlinePaymentMethod | undefined;
   changeFor?: number | null;
   totals: OrderTotals;
 };
 export type OrderTotals = { subtotal: number; deliveryFee: number; total: number };
 
-// Cobrança proporcional à distância real da rota: R$ 1,00 por km, sem arredondar o km para cima.
+// Cobrança proporcional à distância real da rota: R$ 1,50 por km, sem arredondar o km para cima.
 export const deliveryFeeForKm = (km: number) => Math.round(Math.max(0, km) * deliveryFeePerKm * 100) / 100;
 
 export function calculateTotals(items: OrderItem[], fulfillment: 'entrega' | 'retirada', km: number | null): OrderTotals {
@@ -27,7 +27,7 @@ export function calculateTotals(items: OrderItem[], fulfillment: 'entrega' | 're
   return { subtotal, deliveryFee, total: subtotal + deliveryFee };
 }
 
-export type SubmitResult = { code: string; paymentUrl: string | null; pixPayment?: { paymentId: string; qrCode: string; qrCodeBase64: string; status: string } };
+export type SubmitResult = { code: string; trackingToken: string; paymentUrl: string | null; pixPayment?: { paymentId: string; qrCode: string; qrCodeBase64: string; status: string } };
 
 export async function submitOrder(order: Order): Promise<SubmitResult> {
   const { createOrder } = await import('@/lib/orders.functions');

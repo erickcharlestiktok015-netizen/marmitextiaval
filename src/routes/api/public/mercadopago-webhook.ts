@@ -47,6 +47,12 @@ export const Route = createFileRoute('/api/public/mercadopago-webhook')({
                     body: JSON.stringify({ payment_status: paymentStatus, mp_payment_id: String(p.id) }),
                   },
                 );
+                if (paymentStatus === 'approved') {
+                  try {
+                    const { sendPurchaseOnce } = await import('@/lib/facebook-capi.server');
+                    await sendPurchaseOnce(order.id, { email: (p as { payer?: { email?: string } }).payer?.email ?? null });
+                  } catch (capiError) { console.error('[facebook-capi] Purchase ignorado', capiError); }
+                }
               }
             }
           }

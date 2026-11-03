@@ -38,8 +38,9 @@ function env(name: string) {
 
 // Normaliza o token caso tenha sido colado com espaços ou com o prefixo "Bearer ".
 function mpAccessToken() {
-  const token = env('MP_ACCESS_TOKEN').replace(/^Bearer\s+/i, '');
-  if (!token) throw new Error('MP_ACCESS_TOKEN está vazio');
+  const raw = (process.env['MP_ACCESS_TOKEN'] || process.env['MERCADO_PAGO_ACCESS_TOKEN'] || '').trim();
+  const token = raw.replace(/^Bearer\s+/i, '');
+  if (!token) throw new Error('MP_ACCESS_TOKEN (ou MERCADO_PAGO_ACCESS_TOKEN) não configurada ou vazia');
   return token;
 }
 

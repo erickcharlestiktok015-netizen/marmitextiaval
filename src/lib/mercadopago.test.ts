@@ -7,9 +7,9 @@ describe('Mercado Pago', () => {
     expect(items).toHaveLength(1);
     expect(items[0]!.unit_price).toBe(25);
   });
-  it('cobra R$1 por km arredondado para cima na entrega', () => {
+  it('cobra R$1,50 por km na entrega', () => {
     const items = buildPreferenceItems([{ name: 'X', sizeLabel: 'Pequena · 500ml', quantity: 1 }], 'entrega', 3.2);
-    expect(items[1]!.unit_price).toBe(4);
+    expect(items[1]!.unit_price).toBe(4.8);
   });
   it('recusa item que não existe no cardápio', () => {
     expect(() => buildPreferenceItems([{ name: 'X', sizeLabel: 'Gigante', quantity: 1 }], 'retirada', null)).toThrow();

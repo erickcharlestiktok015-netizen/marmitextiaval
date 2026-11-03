@@ -8,7 +8,7 @@ export function BrandValues() {
 }
 export function Promotions() {
   return <section id="promocoes" className="section promotions-section"><div className="page-width reveal">
-    <div className="tomorrow-head"><p className="eyebrow">NOVIDADES · PRÓXIMO DIA</p><h2>O que sai<br /><em>amanhã.</em></h2><p>Já vai se programando e reserve a sua!</p></div>
+    <div className="tomorrow-head"><p className="eyebrow">NOVIDADES · SEGUNDA-FEIRA</p><h2>Pratos de<br /><em>segunda-feira.</em></h2><p>Domingo a gente não abre. Já vai se programando e reserve a sua para segunda!</p></div>
     <div className="tomorrow-grid">{tomorrowDishes.map((dish, index) => <article key={dish.id} className={`tomorrow-card${index === 0 ? ' is-next' : ''}`}>
       <span className="tomorrow-badge">{dish.badge}</span>
       {dish.video

@@ -17,9 +17,9 @@ export function ReserveTomorrowButton() {
   return <>
     <Button variant="outline" className="tomorrow-cta" onClick={() => { reset(); setOpen(true); }}>Reservar minha marmitex <ArrowUpRight /></Button>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="meal-dialog"><div className="detail-content">
-      <p className="meal-tag">RESERVA PARA AMANHÃ</p>
+      <p className="meal-tag">RESERVA PARA SEGUNDA-FEIRA</p>
       <DialogTitle>Reservar marmitex</DialogTitle>
-      <DialogDescription>Escolha o prato de amanhã, a gente separa o seu.</DialogDescription>
+      <DialogDescription>Escolha o prato de segunda-feira, a gente separa o seu.</DialogDescription>
       {step === 'pick' ? <>
         <div className="checkout-choice">{tomorrowMenu.map(d => <button key={d.id} type="button" aria-pressed={d.id === dishId} onClick={() => { setDishId(d.id); setSizeId(d.sizes[0]!.id); }}>{d.name}</button>)}</div>
         <div className="size-picker" role="radiogroup" aria-label="Tamanho">{dish.sizes.map(o => <button key={o.id} type="button" role="radio" aria-checked={o.id === size.id} className={`size-option${o.id === size.id ? ' selected' : ''}`} onClick={() => setSizeId(o.id)}><span>{o.label}</span><strong>{formatPrice(o.price)}</strong></button>)}</div>

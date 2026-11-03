@@ -23,16 +23,18 @@ export function RestaurantPage() {
       if (!link || !target || link.classList.contains('skip-link')) return;
       event.preventDefault();
       cancelScroll();
-      const start = window.scrollY;
-      const end = Math.max(0, Math.min(start + target.getBoundingClientRect().top - 24, document.documentElement.scrollHeight - window.innerHeight));
+      const scroller = document.getElementById('scroll-root');
+      const start = scroller ? scroller.scrollTop : window.scrollY;
+      const maxScroll = scroller ? scroller.scrollHeight - scroller.clientHeight : document.documentElement.scrollHeight - window.innerHeight;
+      const end = Math.max(0, Math.min(start + target.getBoundingClientRect().top - 24, maxScroll));
       const distance = end - start;
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.scrollTo({ top: end, behavior: 'instant' }); return; }
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { if (scroller) scroller.scrollTop = end; else window.scrollTo({ top: end, behavior: 'instant' }); return; }
       const duration = Math.min(5200, Math.max(1400, Math.abs(distance) * 2.1));
       const began = performance.now();
       const tick = (now: number) => {
         const progress = Math.min(1, (now - began) / duration);
         const eased = progress * progress * (3 - 2 * progress);
-        window.scrollTo({ top: start + distance * eased, behavior: 'instant' });
+        if (scroller) scroller.scrollTop = start + distance * eased; else window.scrollTo({ top: start + distance * eased, behavior: 'instant' });
         if (progress < 1) scrollAnimation = window.requestAnimationFrame(tick);
       };
       scrollAnimation = window.requestAnimationFrame(tick);

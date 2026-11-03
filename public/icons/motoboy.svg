@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fa2038"/><stop offset="1" stop-color="#bd061c"/></linearGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#ff7180" stop-opacity=".3"/><stop offset="1" stop-color="#e3182d" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#red)"/>
+  <circle cx="255" cy="208" r="190" fill="url(#glow)"/>
+  <g fill="none" stroke="#fff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="142" cy="242" r="47"/><circle cx="359" cy="242" r="47"/>
+    <path d="M142 242l65-91h62l66 91H232l-37-57m12-34-28-29h-28"/>
+    <path d="M267 151l-20 61h-39"/>
+    <path d="M282 107h50q12 0 12 12v32h-62z"/>
+    <path d="M267 125l-27 26 25 31 30-23"/>
+  </g>
+  <circle cx="278" cy="91" r="22" fill="#fff"/>
+  <path d="M104 315h304" stroke="#fff" stroke-opacity=".28" stroke-width="2"/>
+  <text x="256" y="379" text-anchor="middle" fill="#fff" font-family="Brush Script MT, Segoe Script, cursive" font-size="67" font-style="italic">Tia Val</text>
+  <text x="256" y="423" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="22" font-weight="700" letter-spacing="8">MOTOBOY</text>
+</svg>

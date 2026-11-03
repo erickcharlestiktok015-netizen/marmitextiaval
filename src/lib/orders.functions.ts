@@ -17,6 +17,7 @@ const schema = z.object({
   address: z.object({
     cep: z.string().max(12), street: z.string().max(160), number: z.string().max(20),
     complement: z.string().max(120), bairro: z.string().max(100),
+    latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional(),
   }).optional(),
   distanceKm: z.number().positive().max(30).nullable(),
   payment: z.enum(['online', 'entrega-pix', 'entrega-cartao', 'entrega-dinheiro']),
@@ -25,6 +26,8 @@ const schema = z.object({
 });
 
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(5)), (byte) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[byte % 32]).join('');
+const newTrackingToken = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+const newConfirmationCode = () => String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, '0');
 
 function findMeal(name: string, sizeLabel: string) {
   const all = [
@@ -71,11 +74,16 @@ export const createOrder = createServerFn({ method: 'POST' })
       const deliveryFee = data.fulfillment === 'entrega' && data.distanceKm != null ? deliveryFeeForKm(data.distanceKm) : 0;
       const total = subtotal + deliveryFee;
       code = newCode();
+      const trackingToken = newTrackingToken();
+      const confirmationCode = newConfirmationCode();
       const itemsForPayment = verifiedItems.map(({ name, sizeLabel, quantity }) => ({ name, sizeLabel, quantity }));
 
       stage = 'saving order in Supabase';
       const orderId = await insertOrderRecord({
         code,
+        tracking_token: trackingToken,
+        confirmation_code: confirmationCode,
+        courier_status: 'nao_atribuido',
         order_for: data.when,
         customer_name: data.customer.name,
         customer_phone: data.customer.phone,
@@ -97,7 +105,17 @@ export const createOrder = createServerFn({ method: 'POST' })
         notes: item.notes ?? null,
       })));
 
-      if (data.payment !== 'online') return { code, paymentUrl: null as string | null };
+      stage = 'sending InitiateCheckout to Meta';
+      try {
+        const { sendFacebookServerEvent, currentRequestInfo } = await import('@/lib/facebook-capi.server');
+        await sendFacebookServerEvent({
+          eventName: 'InitiateCheckout', eventId: code,
+          order: { code, total, customer_name: data.customer.name, customer_phone: data.customer.phone, customer_email: data.customer.email ?? null },
+          req: await currentRequestInfo(),
+        });
+      } catch (capiError) { console.error('[facebook-capi] InitiateCheckout ignorado', capiError); }
+
+      if (data.payment !== 'online') return { code, trackingToken, paymentUrl: null as string | null };
 
       if (data.onlineMethod === 'pix') {
         stage = 'creating Mercado Pago Pix payment';
@@ -113,7 +131,7 @@ export const createOrder = createServerFn({ method: 'POST' })
           headers: { Prefer: 'return=minimal' },
           body: JSON.stringify({ mp_payment_id: pixPayment.paymentId }),
         });
-        return { code, paymentUrl: null as string | null, pixPayment };
+        return { code, trackingToken, paymentUrl: null as string | null, pixPayment };
       }
 
       stage = 'creating Mercado Pago preference';
@@ -130,7 +148,7 @@ export const createOrder = createServerFn({ method: 'POST' })
         headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({ mp_preference_id: checkout.preferenceId }),
       });
-      return { code, paymentUrl: checkout.url };
+      return { code, trackingToken, paymentUrl: checkout.url };
     } catch (error) {
       console.error('Order submission failed', { stage, orderCode: code, error });
       throw new Error('Não foi possível concluir o pedido. A equipe técnica pode localizar o erro pelos logs do servidor.');
@@ -161,6 +179,12 @@ export const checkPixPayment = createServerFn({ method: 'GET' })
         method: 'PATCH', headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({ payment_status: status, mp_payment_id: String(payment.id) }),
       });
+    }
+    if (status === 'approved') {
+      try {
+        const { sendPurchaseOnce, currentRequestInfo } = await import('@/lib/facebook-capi.server');
+        await sendPurchaseOnce(order.id, { email: (payment as { payer?: { email?: string } }).payer?.email ?? null, req: await currentRequestInfo() });
+      } catch (capiError) { console.error('[facebook-capi] Purchase ignorado', capiError); }
     }
     return { status };
   });

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowUpRight, Check, Minus, Phone, Plus, ShoppingBag, Trash2, Utensils } from 'lucide-react';
 import { CheckoutForm } from '@/components/restaurant/checkout-form';
 import { Button } from '@/components/ui/button';
+import { ConfettiBurst } from '@/components/restaurant/confetti-burst';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { contacts, formatPrice, meals, type Meal, type MealSize } from '@/lib/restaurant-data';
 
@@ -29,6 +30,22 @@ export function DailyMenu() {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
   const [checkout, setCheckout] = useState(false);
+  useEffect(() => {
+    if (!checkout) return;
+    // Alguns navegadores móveis ignoram user-scalable=no; bloqueia pinça apenas durante o checkout.
+    const preventPinch = (event: TouchEvent) => {
+      if (event.touches.length > 1) event.preventDefault();
+    };
+    const preventGesture = (event: Event) => event.preventDefault();
+    document.addEventListener('touchmove', preventPinch, { passive: false });
+    document.addEventListener('gesturestart', preventGesture, { passive: false });
+    document.addEventListener('gesturechange', preventGesture, { passive: false });
+    return () => {
+      document.removeEventListener('touchmove', preventPinch);
+      document.removeEventListener('gesturestart', preventGesture);
+      document.removeEventListener('gesturechange', preventGesture);
+    };
+  }, [checkout]);
   const openMeal = (meal: Meal) => { setDetail(meal); setSize(meal.sizes[0]!); setQuantity(1); setNotes(''); };
   const addToCart = (meal: Meal) => {
     const key = `${meal.id}-${size.id}-${notes.trim()}`;
@@ -60,7 +77,7 @@ export function DailyMenu() {
     <Dialog open={Boolean(detail)} onOpenChange={open => { if (!open) setDetail(null); }}><DialogContent className="meal-dialog">
       {detail && <><MealMedia meal={detail} className="detail-photo" /><div className="detail-content"><p className="meal-tag">PRATO DO DIA{detail.badge ? ` · ${detail.badge.toUpperCase()}` : ''}</p><DialogTitle>{detail.name}</DialogTitle><DialogDescription>{detail.description}</DialogDescription><div className="size-picker" role="radiogroup" aria-label="Tamanho">{detail.sizes.map(option => <button key={option.id} type="button" role="radio" aria-checked={size.id === option.id} className={`size-option${size.id === option.id ? ' selected' : ''}`} onClick={() => setSize(option)}><span>{option.label}</span><strong>{formatPrice(option.price)}</strong></button>)}</div><label className="notes-label" htmlFor="meal-notes">Alguma observação?</label><textarea id="meal-notes" value={notes} onChange={event => setNotes(event.target.value)} maxLength={240} placeholder="Ex.: sem cebola" rows={2} /><div className="detail-controls"><div className="quantity-stepper"><Button variant="ghost" size="icon" aria-label="Diminuir quantidade" disabled={quantity === 1} onClick={() => setQuantity(value => Math.max(1, value - 1))}><Minus /></Button><output aria-label="Quantidade">{quantity}</output><Button variant="ghost" size="icon" aria-label="Aumentar quantidade" disabled={quantity === 10} onClick={() => setQuantity(value => Math.min(10, value + 1))}><Plus /></Button></div><Button onClick={() => addToCart(detail)}><ShoppingBag /> Adicionar · {formatPrice(size.price * quantity)} <ArrowUpRight /></Button></div><p className="demo-note">Finalize no carrinho: entrega R$1 por km, pague agora ou na entrega.</p></div></>}
     </DialogContent></Dialog>
-    <Dialog open={checkout} onOpenChange={setCheckout}><DialogContent className="meal-dialog"><div className="detail-content">
+    <Dialog open={checkout} onOpenChange={setCheckout}><DialogContent className="meal-dialog checkout-dialog">{checkout && <ConfettiBurst trigger={checkout} />}<div className="detail-content">
       <p className="meal-tag">FINALIZAR PEDIDO</p><DialogTitle>Seu pedido de hoje</DialogTitle><DialogDescription>Confira, diga onde entregar e como prefere pagar.</DialogDescription>
       <CheckoutForm when="hoje" items={cart.map(i => ({ name: i.meal.name, sizeLabel: i.size.label, unitPrice: i.size.price, quantity: i.quantity, notes: i.notes }))} onDone={() => { setCheckout(false); setCart([]); }} />
     </div></DialogContent></Dialog>

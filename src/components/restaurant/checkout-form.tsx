@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Bike, Check, CheckCircle2, Copy, CreditCard, LoaderCircle, QrCode, ReceiptText, Store, Wallet, Landmark } from 'lucide-react';
+import { Bike, Check, CheckCircle2, Copy, CreditCard, LoaderCircle, QrCode, ReceiptText, Store, Wallet, Landmark } from 'lucide-react';
 import { DeliveryFee, type FeeResult } from '@/components/restaurant/delivery-fee';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { calculateTotals, checkOrderPaymentStatus, submitOrder, type Order, type OrderItem, type PaymentMethod, type SubmitResult, type OnlinePaymentMethod } from '@/lib/orders';
 import { contacts, formatPrice } from '@/lib/restaurant-data';
+import { ConfettiBurst } from '@/components/restaurant/confetti-burst';
+import { trackPurchase, trackInitiateCheckout } from '@/components/facebook-pixel';
 
 const paymentOptions: { id: PaymentMethod; label: string; hint: string }[] = [
   { id: 'online', label: 'Pagar agora online', hint: 'Pix, crédito, débito, boleto ou saldo Mercado Pago' },
@@ -68,17 +70,31 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
     if (payment === 'online' && onlineMethod === 'pix' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Informe um e-mail válido para gerar o Pix.');
     if (fulfillment === 'entrega' && !fee) return setError('Coloque seu endereço e clique em Calcular entrega.');
     if (payment === 'online' && !onlineMethod) return setError('Escolha uma forma de pagamento online.');
+    // Dispara evento de início do checkout
+    trackInitiateCheckout(totals.total);
     const order: Order = {
       when, items, totals, payment, fulfillment,
       onlineMethod: payment === 'online' ? onlineMethod : undefined,
       customer: { name: name.trim(), phone: phone.replace(/\D/g, ''), email: payment === 'online' && onlineMethod === 'pix' ? email.trim() : undefined },
-      address: fulfillment === 'entrega' && fee ? { cep: fee.cep, street: fee.rua, number: fee.numero, complement: fee.complemento, bairro: fee.bairro } : undefined,
+      address: fulfillment === 'entrega' && fee ? { cep: fee.cep, street: fee.rua, number: fee.numero, complement: fee.complemento, bairro: fee.bairro, latitude: fee.latitude, longitude: fee.longitude } : undefined,
       distanceKm: fulfillment === 'entrega' ? fee?.km ?? null : null,
       changeFor: payment === 'entrega-dinheiro' && changeFor ? Number(changeFor.replace(',', '.')) || null : null,
     };
     setSending(true);
     try {
       const res = await submitOrder(order);
+      if (res.trackingToken) {
+        try {
+          const key = 'tia-val-meus-pedidos';
+          const previous = JSON.parse(localStorage.getItem(key) || '[]') as Array<{ code: string; token: string; savedAt: string }>;
+          const next = [{ code: res.code, token: res.trackingToken, savedAt: new Date().toISOString() }, ...previous.filter(item => item.token !== res.trackingToken)].slice(0, 20);
+          localStorage.setItem(key, JSON.stringify(next));
+        } catch { /* O link individual continua disponível mesmo se o armazenamento estiver bloqueado. */ }
+      }
+      // Dispara evento de compra no Facebook Pixel
+      if (res.paymentUrl || res.pixPayment) {
+        trackPurchase(totals.total);
+      }
       if (res.paymentUrl) { window.location.href = res.paymentUrl; return; }
       setResult(res);
       if (res.pixPayment) { setPixStatus(res.pixPayment.status); setCopiedPix(false); setPaymentDialog(true); }
@@ -88,16 +104,18 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
   };
 
   if (result && !result.pixPayment) return <div className="checkout-done" role="status">
+    <ConfettiBurst trigger={result.code} />
     <span className="checkout-done-icon"><Check /></span>
     <h3>{when === 'amanha' ? 'Reserva feita!' : 'Pedido feito!'}</h3>
     <p>Código <strong>#{result.code}</strong> · Total {formatPrice(totals.total)}</p>
     <p>{fulfillment === 'retirada' ? 'É só pagar quando vier buscar.' : 'É só pagar quando a marmita chegar.'}</p>
+    <a href={`/acompanhar?token=${encodeURIComponent(result.trackingToken)}`} className="inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2 font-semibold">Acompanhar meu pedido</a>
+    <p className="text-sm text-muted-foreground">Guarde este link para acompanhar as atualizações da Tia Val.</p>
     {onDone && <Button onClick={onDone}>Fechar</Button>}
   </div>;
 
   return <>
     <form className="checkout" onSubmit={e => { e.preventDefault(); void submit(); }}>
-      {onBack && <button type="button" className="checkout-back" onClick={onBack}><ArrowLeft size={14} /> Voltar</button>}
       <ul className="checkout-items">{items.map((i, idx) => <li key={idx}><span>{i.quantity}× {i.name}<small>{i.sizeLabel}{i.notes ? ` · ${i.notes}` : ''}</small></span><strong>{formatPrice(i.unitPrice * i.quantity)}</strong></li>)}</ul>
 
       <fieldset><legend>Seus dados</legend>
@@ -131,10 +149,12 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
 
     <Dialog open={paymentDialog} onOpenChange={setPaymentDialog}>
       <DialogContent className="payment-method-dialog">
+        {result?.pixPayment && <ConfettiBurst trigger={result.code} />}
         {result?.pixPayment ? <div className="detail-content pix-payment-content">
           <p className="meal-tag">PIX · MERCADO PAGO</p>
           <DialogTitle>{pixStatus === 'approved' ? 'Pix confirmado!' : 'Pague com Pix'}</DialogTitle>
           <DialogDescription>{pixStatus === 'approved' ? 'Recebemos a confirmação do pagamento.' : `Pedido #${result.code} · Total ${formatPrice(totals.total)}. Escaneie o QR Code ou copie o código abaixo.`}</DialogDescription>
+          <a href={`/acompanhar?token=${encodeURIComponent(result.trackingToken)}`} className="inline-flex min-h-10 items-center justify-center rounded-lg border px-3 py-2 text-sm font-semibold">Acompanhar meu pedido</a>
           {pixStatus === 'approved' ? <div className="pix-approved-message"><CheckCircle2 size={38} /><strong>Pagamento aprovado</strong><span>Seu pedido foi registrado. A cozinha já pode confirmar o recebimento.</span></div> : <>
             <img className="pix-qr-image" src={`data:image/png;base64,${result.pixPayment.qrCodeBase64}`} alt="QR Code Pix para pagamento do pedido" />
             <label className="pix-copy-label" htmlFor="pix-copy-code">Pix copia e cola</label>
