@@ -113,19 +113,19 @@ export const frangoSalpicaoMeal: Meal = {
   ],
 };
 
-// Pratos do dia de hoje: arroz, feijão, salpicão e frango assado.
+// Prato do dia de hoje: só o tropeiro.
 export const meals: Meal[] = [
-  frangoSalpicaoMeal,
+  tropeiroMeal,
 ];
 export const feijoadaPhotoUrl = assetUrl(photoFeijoada.url);
-// Pratos de segunda-feira: só o caseirinho.
+// Pratos de amanhã (sexta-feira): só a feijoada.
 export type TomorrowDish = { id: string; name: string; description: string; badge: string; image?: string | undefined; video?: string | undefined; poster?: string | undefined };
 export const tomorrowDishes: TomorrowDish[] = [
-  { id: 'caseirinho-segunda', name: caseirinhoMeal.name, description: caseirinhoMeal.description, badge: 'Segunda', video: caseirinhoMeal.video, poster: caseirinhoMeal.poster },
+  { id: 'feijoada-amanha', name: feijoadaMeal.name, description: feijoadaMeal.description, badge: 'Amanhã', video: feijoadaMeal.video, poster: feijoadaMeal.poster },
 ];
-// Opções para reservar segunda-feira.
+// Opções para reservar amanhã.
 export const tomorrowMenu: { id: string; name: string; sizes: MealSize[] }[] = [
-  { id: 'caseirinho', name: caseirinhoMeal.name, sizes: caseirinhoMeal.sizes },
+  { id: 'feijoada', name: feijoadaMeal.name, sizes: feijoadaMeal.sizes },
 ];
 // Coordenadas da cozinha (Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, HH).
 export const restaurantLocation = { lat: -19.862767, lng: -43.929967 };

@@ -8,11 +8,11 @@ export function BrandValues() {
 }
 export function Promotions() {
   return <section id="promocoes" className="section promotions-section"><div className="page-width reveal">
-    <div className="tomorrow-head"><p className="eyebrow">NOVIDADES · SEGUNDA-FEIRA</p><h2>Pratos de<br /><em>segunda-feira.</em></h2><p>Domingo a gente não abre. Já vai se programando e reserve a sua para segunda!</p></div>
+    <div className="tomorrow-head"><p className="eyebrow">NOVIDADES · AMANHÃ</p><h2>Pratos de<br /><em>amanhã.</em></h2><p>Amanhã tem feijoada! Já reserve a sua.</p></div>
     <div className="tomorrow-grid">{tomorrowDishes.map((dish, index) => <article key={dish.id} className={`tomorrow-card${index === 0 ? ' is-next' : ''}`}>
       <span className="tomorrow-badge">{dish.badge}</span>
       {dish.video
-        ? <video className="tomorrow-media" src={dish.video} poster={dish.poster} autoPlay muted loop playsInline preload="metadata" aria-label={dish.name + ' — vídeo ilustrativo'} onCanPlay={event => { event.currentTarget.play().catch(() => {}); }} />
+        ? <video className="tomorrow-media" src={dish.video} poster={dish.poster} autoPlay muted loop playsInline preload="auto" aria-label={dish.name + ' — vídeo ilustrativo'} onCanPlay={event => { event.currentTarget.play().catch(() => {}); }} />
         : <img className="tomorrow-media" src={dish.image} alt={dish.name} loading="lazy" />}
       <div className="tomorrow-dish"><span className="tomorrow-num">0{index + 1}</span><div><h3>{dish.name}</h3><p>{dish.description}</p></div></div>
     </article>)}</div>
