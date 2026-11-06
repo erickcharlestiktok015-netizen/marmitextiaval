@@ -8,7 +8,7 @@ import { contacts, deliveryFeePerKm, feijoadaMeal, formatPrice, isRestaurantOpen
 import { readPlanMeta, readSavedOrders, savedAtLabel, trackingHref, type SavedOrder } from '@/lib/my-orders';
 import { BannerCarousel } from '@/components/delivery/banner-carousel';
 import { PlanSheet } from '@/components/delivery/plan-sheet';
-import { PLAN_DAYS, planDateLabel, planDeliveredCount, spDateKey } from '@/lib/weekly-plan';
+import { PLAN_DAYS, planSizes, planDateLabel, planDeliveredCount, spDateKey } from '@/lib/weekly-plan';
 import logoBannerAsset from '@/assets/marmitex-logo-banner.png';
 
 type BagItem = { key: string; mealId: string; sizeId: string; quantity: number; notes: string };
@@ -152,9 +152,9 @@ export function DeliveryHome() {
         <div className="da-trust-marquee mt-3" aria-label="Pagamento seguro, entrega acompanhada e opções para pagar na entrega">
           <div className="da-trust-track">
             {[0, 1].map(copy => <div key={copy} className="da-trust-group" aria-hidden={copy === 1 ? true : undefined}>
-              <span className="da-trust-chip"><ShieldCheck className="size-4" /> Pix e cartão seguros</span>
-              <span className="da-trust-chip"><Bike className="size-4" /> Acompanhe a entrega ao vivo</span>
-              <span className="da-trust-chip"><span aria-hidden>💵</span> Dinheiro ou maquininha na entrega</span>
+              <span className="da-trust-chip !border-2 !border-primary !bg-card !font-extrabold !text-foreground [&>svg]:!text-primary"><ShieldCheck className="size-4" /> Pix e cartão seguros</span>
+              <span className="da-trust-chip !border-2 !border-primary !bg-card !font-extrabold !text-foreground [&>svg]:!text-primary"><Bike className="size-4" /> Acompanhe a entrega ao vivo</span>
+              <span className="da-trust-chip !border-2 !border-primary !bg-card !font-extrabold !text-foreground [&>svg]:!text-primary"><span aria-hidden>💵</span> Dinheiro ou maquininha na entrega</span>
             </div>)}
           </div>
         </div>
@@ -163,6 +163,20 @@ export function DeliveryHome() {
 
       {/* Banners em destaque */}
       <BannerCarousel onOpenPlan={() => setPlanOpen(true)} />
+
+      {/* Plano 7 Dias em destaque */}
+      <section className="px-4 pt-4">
+        <button type="button" onClick={() => setPlanOpen(true)} className="relative w-full overflow-hidden rounded-2xl border-2 border-primary bg-gradient-to-br from-primary to-primary/80 p-4 text-left text-primary-foreground shadow-card transition active:scale-[.99]" aria-label="Conhecer o Plano 7 Dias">
+          <span className="pointer-events-none absolute -right-6 -top-6 size-24 rounded-full bg-white/15 blur-xl" aria-hidden />
+          <span className="flex items-center gap-2"><CalendarCheck className="size-5" /><span className="text-[11px] font-extrabold uppercase tracking-[0.14em]">Plano 7 Dias · mais vendido</span></span>
+          <span className="mt-1.5 block text-xl font-black leading-tight">7 marmitas + 7 Coca-Colas</span>
+          <span className="mt-0.5 block text-sm font-semibold opacity-90">Você agenda os dias (seg a sáb) e recebe quentinha em casa.</span>
+          <span className="mt-3 flex items-end justify-between gap-3">
+            <span><small className="block text-[11px] font-bold opacity-85">a partir de</small><strong className="text-2xl font-black">{formatPrice(Math.min(...planSizes.map(s => s.priceWithCoke)))}</strong></span>
+            <span className="rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-primary">Quero o plano →</span>
+          </span>
+        </button>
+      </section>
 
       {/* Abas fixas */}
       <nav className="sticky top-0 z-20 mt-4 border-b border-border bg-background/95 px-4 backdrop-blur" aria-label="Cardápio">
