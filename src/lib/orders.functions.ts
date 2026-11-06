@@ -325,3 +325,89 @@ export const checkPixPayment = createServerFn({ method: 'GET' })
     }
     return { status };
   });
+
+
+// Consulta os pedidos exatos do cliente pelo telefone para o login sem senha
+export const getCustomerOrdersByPhone = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    z.object({
+      phone: z.string().min(8).max(25),
+    }).parse(input)
+  )
+  .handler(async ({ data }) => {
+    const raw = data.phone.replace(/\D/g, '');
+    const cleanPhone = raw.startsWith('55') && raw.length >= 12 ? raw.slice(2) : raw;
+    if (cleanPhone.length < 10) {
+      throw new Error('Informe um telefone com DDD válido (pelo menos 10 números).');
+    }
+
+    const { supabaseRequest } = await import('@/lib/supabase.server');
+    const rows = await supabaseRequest<Array<{
+      id: string;
+      code: string;
+      tracking_token: string | null;
+      order_for: string;
+      customer_name: string;
+      customer_phone: string;
+      order_status: string;
+      payment_status: string;
+      payment_method: string;
+      fulfillment: string;
+      total: number;
+      subtotal: number;
+      delivery_fee: number;
+      created_at: string;
+      notes: string | null;
+    }>>(
+      `orders?select=id,code,tracking_token,order_for,customer_name,customer_phone,order_status,payment_status,payment_method,fulfillment,total,subtotal,delivery_fee,created_at,notes&or=(customer_phone.eq.${cleanPhone},customer_phone.eq.55${cleanPhone})&order=created_at.desc&limit=30`
+    );
+
+    const orderIds = rows.map((r) => r.id);
+    const itemsMap: Record<string, Array<{ mealName: string; sizeLabel: string; quantity: number }>> = {};
+
+    if (orderIds.length > 0) {
+      try {
+        const itemRows = await supabaseRequest<Array<{
+          order_id: string;
+          meal_name: string;
+          size_label: string;
+          quantity: number;
+        }>>(
+          `order_items?select=order_id,meal_name,size_label,quantity&order_id=in.(${orderIds.map((id) => encodeURIComponent(id)).join(',')})&order=created_at.asc`
+        );
+        for (const it of itemRows) {
+          if (!itemsMap[it.order_id]) itemsMap[it.order_id] = [];
+          itemsMap[it.order_id].push({
+            mealName: it.meal_name,
+            sizeLabel: it.size_label,
+            quantity: it.quantity,
+          });
+        }
+      } catch (err) {
+        console.warn('[customer-orders] Erro ao buscar itens do pedido:', err);
+      }
+    }
+
+    return {
+      phone: cleanPhone,
+      customerName: rows[0]?.customer_name ?? null,
+      orders: rows.map((r) => ({
+        id: r.id,
+        code: r.code,
+        trackingToken: r.tracking_token,
+        orderFor: r.order_for,
+        customerName: r.customer_name,
+        customerPhone: r.customer_phone,
+        orderStatus: r.order_status,
+        paymentStatus: r.payment_status,
+        paymentMethod: r.payment_method,
+        fulfillment: r.fulfillment,
+        total: Number(r.total),
+        subtotal: Number(r.subtotal),
+        deliveryFee: Number(r.delivery_fee),
+        createdAt: r.created_at,
+        isPlan: Boolean(r.notes?.includes('PLANO_7_DIAS')),
+        items: itemsMap[r.id] ?? [],
+      })),
+    };
+  });

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bike, CalendarCheck, ChevronRight, Clock, Heart, MapPin, MessageCircle, Minus, Pause, Play, Plus, ReceiptText, ShieldCheck, ShoppingBag, Store, Trash2 } from 'lucide-react';
+import { AlertCircle, Bike, CalendarCheck, ChevronRight, Clock, Heart, Instagram, LoaderCircle, LogIn, LogOut, MapPin, MessageCircle, Minus, Pause, Phone, Play, Plus, ReceiptText, RefreshCw, ShieldCheck, ShoppingBag, Store, Trash2, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { CheckoutForm } from '@/components/restaurant/checkout-form';
 import { trackAddToCart } from '@/components/facebook-pixel';
 import { allMeals, contacts, deliveryFeePerKm, formatPrice, getTodayMeal, getTomorrowMeal, isRestaurantOpen, mapsUrl, meals, openingHours, type Meal, type MealSize } from '@/lib/restaurant-data';
-import { readPlanMeta, readSavedOrders, savedAtLabel, trackingHref, type SavedOrder } from '@/lib/my-orders';
+import { clearCustomer, formatPhone, maskPhoneInput, orderStatusBadgeClass, orderStatusLabel, readCustomer, readPlanMeta, readSavedOrders, saveCustomer, saveOrder, savedAtLabel, trackingHref, type SavedCustomer, type SavedOrder } from '@/lib/my-orders';
+import { lookupCustomerOrders, type CustomerOrder } from '@/lib/orders';
 import { ContactDock } from '@/components/restaurant/contact-dock';
 import { BannerCarousel } from '@/components/delivery/banner-carousel';
 import { PlanSheet } from '@/components/delivery/plan-sheet';
@@ -61,6 +62,59 @@ export function DeliveryHome() {
   const [saved, setSaved] = useState<SavedOrder[]>([]);
   const [tab, setTab] = useState<'hoje' | 'amanha'>('hoje');
   const [planOpen, setPlanOpen] = useState(false);
+  const [customer, setCustomer] = useState<SavedCustomer | null>(() => readCustomer());
+  const [phoneInput, setPhoneInput] = useState(() => (customer ? formatPhone(customer.phone) : ''));
+  const [nameInput, setNameInput] = useState(() => customer?.name ?? '');
+  const [customerOrders, setCustomerOrders] = useState<CustomerOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  const fetchOrdersByPhone = async (phoneToQuery: string, customerNameToSave?: string) => {
+    const digits = phoneToQuery.replace(/\D/g, '');
+    if (digits.length < 10) {
+      setLoginError('Digite o DDD e o número do seu telefone (pelo menos 10 dígitos).');
+      return;
+    }
+    setOrdersLoading(true);
+    setLoginError('');
+    try {
+      const res = await lookupCustomerOrders(digits);
+      const updatedCustomer: SavedCustomer = {
+        name: customerNameToSave?.trim() || res.customerName || customer?.name || '',
+        phone: res.phone,
+      };
+      saveCustomer(updatedCustomer);
+      setCustomer(updatedCustomer);
+      setPhoneInput(formatPhone(res.phone));
+      if (updatedCustomer.name) setNameInput(updatedCustomer.name);
+      setCustomerOrders(res.orders);
+
+      for (const o of res.orders) {
+        if (o.trackingToken) {
+          saveOrder(o.code, o.trackingToken);
+        }
+      }
+      setSaved(readSavedOrders());
+    const initialCustomer = readCustomer();
+    if (initialCustomer?.phone) {
+      fetchOrdersByPhone(initialCustomer.phone);
+    }
+    } catch (err) {
+      console.error('Falha ao buscar pedidos por telefone:', err);
+      setLoginError(err instanceof Error ? err.message : 'Não foi possível carregar os pedidos do banco agora.');
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const handleLogoutCustomer = () => {
+    clearCustomer();
+    setCustomer(null);
+    setPhoneInput('');
+    setNameInput('');
+    setCustomerOrders([]);
+    setLoginError('');
+  };
 
   useEffect(() => {
     const updateDishesAndHours = () => {
@@ -148,7 +202,26 @@ export function DeliveryHome() {
           <div className="da-cover-fade absolute inset-0" />
         </div>
         <div className="absolute right-3 top-3 flex gap-2">
-          <Button variant="soft" size="sm" className="h-9 gap-1.5 px-3 text-sm font-bold" onClick={() => { setSaved(readSavedOrders()); setOrdersOpen(true); }}><ReceiptText /> Meus pedidos</Button>
+          <Button variant="soft" size="sm" className="h-9 gap-1.5 px-3 text-sm font-bold shadow-sm" onClick={() => {
+            setSaved(readSavedOrders());
+            setOrdersOpen(true);
+            const currentCustomer = readCustomer();
+            if (currentCustomer?.phone) {
+              fetchOrdersByPhone(currentCustomer.phone);
+            }
+          }}>
+            {customer?.phone ? (
+              <>
+                <UserCheck className="size-4 text-success" />
+                <span>{customer.name ? customer.name.split(' ')[0] : formatPhone(customer.phone)}</span>
+              </>
+            ) : (
+              <>
+                <ReceiptText className="size-4" />
+                <span>Entrar / Pedidos</span>
+              </>
+            )}
+          </Button>
         </div>
       </header>
 
@@ -270,6 +343,8 @@ export function DeliveryHome() {
         </ol>
         <a href={mapsUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm"><MapPin className="size-5 shrink-0 text-primary" /><span className="flex-1">Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, BH<small className="block text-muted-foreground">{openingHours.weekdays} · {openingHours.sunday}</small></span><ChevronRight className="size-4 text-muted-foreground" /></a>
         <a href={whatsappHelp('Olá, Tia Val! Quero fazer um pedido.')} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm"><MessageCircle className="size-5 shrink-0 text-success" /><span className="flex-1">Dúvidas? Fale no WhatsApp<small className="block text-muted-foreground">{contacts.phoneLabel}</small></span><ChevronRight className="size-4 text-muted-foreground" /></a>
+        <a href={contacts.phone} className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm"><Phone className="size-5 shrink-0 text-primary" /><span className="flex-1">Ligar no telefone fixo<small className="block text-muted-foreground">{contacts.phoneLabel} · Mesmo número do WhatsApp</small></span><ChevronRight className="size-4 text-muted-foreground" /></a>
+        <a href={contacts.instagram || 'https://www.instagram.com/marmitexdatiaval/'} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm"><Instagram className="size-5 shrink-0 text-[#d62976]" /><span className="flex-1">Instagram da Tia Val<small className="block text-muted-foreground">@marmitexdatiaval</small></span><ChevronRight className="size-4 text-muted-foreground" /></a>
       </section>
     </div>
 
@@ -340,7 +415,7 @@ export function DeliveryHome() {
               <ChevronRight className="size-4 text-primary" />
             </button>
             {open === false && <p className="mt-2 rounded-xl bg-accent px-3 py-2 text-sm text-accent-foreground">A cozinha está fechada agora. O pedido fica registrado e a Tia Val confirma no próximo horário.</p>}
-          </>) : <CheckoutForm when="hoje" items={lines.map(l => ({ name: l.meal.name, sizeLabel: l.size.label, unitPrice: l.size.price, quantity: l.quantity, notes: l.notes }))} onDone={() => { setBagOpen(false); setBag([]); setSaved(readSavedOrders()); }} />}
+          </>) : <CheckoutForm when="hoje" items={lines.map(l => ({ name: l.meal.name, sizeLabel: l.size.label, unitPrice: l.size.price, quantity: l.quantity, notes: l.notes }))} onDone={() => { setBagOpen(false); setBag([]); setSaved(readSavedOrders()); const c = readCustomer(); setCustomer(c); if (c?.phone) fetchOrdersByPhone(c.phone); }} />}
         </div>
         {bagStep === 'bag' && lines.length > 0 && <div className="space-y-2 border-t border-border bg-background p-3">
           <div className="flex justify-between px-1 text-sm"><span className="text-muted-foreground">Subtotal</span><strong>{formatPrice(subtotal)}</strong></div>
@@ -358,7 +433,7 @@ export function DeliveryHome() {
           <SheetDescription className="text-xs text-muted-foreground">A Tia Val separa a sua marmita.</SheetDescription>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
-          {reserve && <CheckoutForm when="amanha" items={[{ name: reserve.meal.name, sizeLabel: reserve.size.label, unitPrice: reserve.size.price, quantity: reserve.quantity, notes: reserve.notes }]} onDone={() => { setReserve(null); setSaved(readSavedOrders()); }} />}
+          {reserve && <CheckoutForm when="amanha" items={[{ name: reserve.meal.name, sizeLabel: reserve.size.label, unitPrice: reserve.size.price, quantity: reserve.quantity, notes: reserve.notes }]} onDone={() => { setReserve(null); setSaved(readSavedOrders()); const c = readCustomer(); setCustomer(c); if (c?.phone) fetchOrdersByPhone(c.phone); }} />}
         </div>
       </SheetContent>
     </Sheet>
@@ -371,40 +446,269 @@ export function DeliveryHome() {
           <SheetDescription className="text-xs text-muted-foreground">7 marmitas + 7 bebidas, entrega grátis no Primeiro de Maio</SheetDescription>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
-          {planOpen && <PlanSheet onDone={() => { setPlanOpen(false); setSaved(readSavedOrders()); }} />}
+          {planOpen && <PlanSheet onDone={() => { setPlanOpen(false); setSaved(readSavedOrders()); const c = readCustomer(); setCustomer(c); if (c?.phone) fetchOrdersByPhone(c.phone); }} />}
         </div>
       </SheetContent>
     </Sheet>
 
-    {/* Meus pedidos */}
+    {/* Meus pedidos e Login sem senha por telefone */}
     <Sheet open={ordersOpen} onOpenChange={setOrdersOpen}>
       <SheetContent side="bottom" className={sheetClass}>
         <div className="border-b border-border px-4 py-4 pr-12">
-          <SheetTitle className="text-lg font-extrabold text-foreground">Meus pedidos</SheetTitle>
-          <SheetDescription className="text-xs text-muted-foreground">Pedidos feitos neste celular</SheetDescription>
+          <SheetTitle className="text-lg font-extrabold text-foreground">
+            {customer?.phone ? 'Meus pedidos da Tia Val' : 'Entrar e ver pedidos'}
+          </SheetTitle>
+          <SheetDescription className="text-xs text-muted-foreground">
+            {customer?.phone
+              ? `Conta vinculada ao telefone ${formatPhone(customer.phone)}`
+              : 'Login simples sem senha: basta colocar seu WhatsApp ou telefone'}
+          </SheetDescription>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          {saved.length ? <ul className="space-y-2">{saved.map(o => {
-            const plan = readPlanMeta(o.token);
-            if (plan) {
-              const delivered = planDeliveredCount(plan);
-              const upcoming = plan.dates.filter(d => d > spDateKey(new Date())).slice(0, 3);
-              return <li key={o.token}><a href={trackingHref(o.token)} className="block rounded-2xl border-2 border-primary/40 bg-accent p-3">
-                <span className="flex items-center gap-3">
-                  <span className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground"><CalendarCheck className="size-5" /></span>
-                  <span className="flex-1"><strong className="block">Plano 7 Dias · #{o.code}</strong><small className="text-muted-foreground">{delivered} de {PLAN_DAYS} marmitas entregues</small></span>
-                  <ChevronRight className="size-4 text-primary" />
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Card de identificação / formulário de telefone */}
+          {customer?.phone ? (
+            <div className="rounded-2xl border border-border bg-accent/60 p-3.5 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid size-9 place-items-center rounded-full bg-success text-success-foreground">
+                    <UserCheck className="size-5" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Login ativo (sem senha)</p>
+                    <p className="text-sm font-extrabold text-foreground">
+                      {customer.name ? `${customer.name} · ` : ''}{formatPhone(customer.phone)}
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-success-surface px-2 py-0.5 text-[11px] font-extrabold text-success">
+                  Conectado
                 </span>
-                <span className="mt-2 block h-2 overflow-hidden rounded-full bg-background"><span className="block h-full rounded-full bg-primary" style={{ width: `${(delivered / PLAN_DAYS) * 100}%` }} /></span>
-                {upcoming.length > 0 && <small className="mt-2 block text-xs text-muted-foreground">Próximas: {upcoming.map(planDateLabel).join(' · ')} · {plan.window}</small>}
-              </a></li>;
-            }
-            return <li key={o.token}><a href={trackingHref(o.token)} className="flex items-center gap-3 rounded-2xl border border-border p-3">
-              <span className="grid size-10 place-items-center rounded-full bg-accent text-primary"><ReceiptText className="size-5" /></span>
-              <span className="flex-1"><strong className="block">Pedido #{o.code}</strong><small className="text-muted-foreground">{savedAtLabel(o.savedAt)}</small></span>
-              <span className="text-sm font-bold text-primary">Acompanhar</span><ChevronRight className="size-4 text-primary" />
-            </a></li>;
-          })}</ul> : <div className="py-10 text-center"><ReceiptText className="mx-auto size-10 text-muted-foreground" /><p className="mt-3 font-bold">Nenhum pedido ainda</p><p className="mt-1 text-sm text-muted-foreground">Depois de pedir, ele aparece aqui para acompanhar.</p></div>}
+              </div>
+
+              <div className="flex gap-2 pt-1 border-t border-border/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-8 text-xs font-bold gap-1"
+                  disabled={ordersLoading}
+                  onClick={() => fetchOrdersByPhone(customer.phone)}
+                >
+                  <RefreshCw className={`size-3.5 ${ordersLoading ? 'animate-spin' : ''}`} />
+                  {ordersLoading ? 'Atualizando...' : 'Atualizar pedidos'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs font-bold text-muted-foreground hover:text-destructive"
+                  onClick={handleLogoutCustomer}
+                >
+                  <LogOut className="size-3.5 mr-1" /> Trocar telefone
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                fetchOrdersByPhone(phoneInput, nameInput);
+              }}
+              className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3"
+            >
+              <div className="space-y-1">
+                <label htmlFor="customer-phone" className="block text-xs font-extrabold uppercase tracking-wide text-primary">
+                  Acesse com seu telefone (sem senha)
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Digite seu telefone ou WhatsApp para carregar todos os seus pedidos e salvar seus dados:
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <input
+                  id="customer-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(maskPhoneInput(e.target.value))}
+                  placeholder="(31) 99999-9999"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  type="text"
+                  autoComplete="name"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="Seu nome (opcional)"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs outline-none focus:border-primary"
+                />
+              </div>
+
+              {loginError && (
+                <p className="text-xs font-bold text-destructive flex items-center gap-1.5">
+                  <AlertCircle className="size-3.5 shrink-0" /> {loginError}
+                </p>
+              )}
+
+              <Button type="submit" variant="cta" size="lg" className="w-full font-bold" disabled={ordersLoading}>
+                {ordersLoading ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin mr-1.5" /> Buscando pedidos no banco...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="size-4 mr-1.5" /> Acessar meus pedidos
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
+
+          {/* Lista de Pedidos */}
+          {ordersLoading && customerOrders.length === 0 ? (
+            <div className="py-8 text-center space-y-2">
+              <LoaderCircle className="mx-auto size-8 animate-spin text-primary" />
+              <p className="text-sm font-bold text-muted-foreground">Consultando seus pedidos no banco de dados...</p>
+            </div>
+          ) : customerOrders.length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Pedidos encontrados ({customerOrders.length})
+                </span>
+              </div>
+
+              <ul className="space-y-2.5">
+                {customerOrders.map((o) => (
+                  <li key={o.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="flex items-center gap-2">
+                          <strong className="text-base font-extrabold text-foreground">Pedido #{o.code}</strong>
+                          {o.isPlan && (
+                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                              Plano 7 Dias
+                            </span>
+                          )}
+                        </span>
+                        <small className="block text-xs text-muted-foreground">{savedAtLabel(o.createdAt)}</small>
+                      </div>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${orderStatusBadgeClass(
+                          o.orderStatus,
+                        )}`}
+                      >
+                        {orderStatusLabel(o.orderStatus)}
+                      </span>
+                    </div>
+
+                    {o.items.length > 0 && (
+                      <div className="rounded-xl bg-accent/40 p-2.5 text-xs text-muted-foreground">
+                        <p className="font-semibold text-foreground mb-0.5">Itens do pedido:</p>
+                        <p>
+                          {o.items.map((it) => `${it.quantity}x ${it.mealName} (${it.sizeLabel})`).join(' · ')}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground border-t border-border/50">
+                      <span>
+                        Total: <strong className="text-sm font-bold text-foreground">{formatPrice(o.total)}</strong>
+                      </span>
+                      {o.trackingToken ? (
+                        <Button asChild size="sm" variant="outline" className="h-8 gap-1 font-bold text-primary">
+                          <a href={trackingHref(o.trackingToken)}>
+                            Acompanhar <ChevronRight className="size-3.5" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground capitalize">{o.fulfillment}</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : customer?.phone && !ordersLoading ? (
+            <div className="py-8 text-center space-y-2 rounded-2xl border border-dashed border-border p-4">
+              <ReceiptText className="mx-auto size-9 text-muted-foreground" />
+              <p className="font-bold text-foreground">Nenhum pedido encontrado para este telefone</p>
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                Assim que você concluir um pedido pelo site com o número {formatPhone(customer.phone)}, ele aparecerá aqui
+                para acompanhar.
+              </p>
+            </div>
+          ) : saved.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
+                Pedidos recentes neste aparelho
+              </p>
+              <ul className="space-y-2">
+                {saved.map((o) => {
+                  const plan = readPlanMeta(o.token);
+                  if (plan) {
+                    const delivered = planDeliveredCount(plan);
+                    const upcoming = plan.dates.filter((d) => d > spDateKey(new Date())).slice(0, 3);
+                    return (
+                      <li key={o.token}>
+                        <a href={trackingHref(o.token)} className="block rounded-2xl border-2 border-primary/40 bg-accent p-3">
+                          <span className="flex items-center gap-3">
+                            <span className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground">
+                              <CalendarCheck className="size-5" />
+                            </span>
+                            <span className="flex-1">
+                              <strong className="block">Plano 7 Dias · #{o.code}</strong>
+                              <small className="text-muted-foreground">
+                                {delivered} de {PLAN_DAYS} marmitas entregues
+                              </small>
+                            </span>
+                            <ChevronRight className="size-4 text-primary" />
+                          </span>
+                          <span className="mt-2 block h-2 overflow-hidden rounded-full bg-background">
+                            <span
+                              className="block h-full rounded-full bg-primary"
+                              style={{ width: `${(delivered / PLAN_DAYS) * 100}%` }}
+                            />
+                          </span>
+                          {upcoming.length > 0 && (
+                            <small className="mt-2 block text-xs text-muted-foreground">
+                              Próximas: {upcoming.map(planDateLabel).join(' · ')} · {plan.window}
+                            </small>
+                          )}
+                        </a>
+                      </li>
+                    );
+                  }
+                  return (
+                    <li key={o.token}>
+                      <a href={trackingHref(o.token)} className="flex items-center gap-3 rounded-2xl border border-border p-3">
+                        <span className="grid size-10 place-items-center rounded-full bg-accent text-primary">
+                          <ReceiptText className="size-5" />
+                        </span>
+                        <span className="flex-1">
+                          <strong className="block">Pedido #{o.code}</strong>
+                          <small className="text-muted-foreground">{savedAtLabel(o.savedAt)}</small>
+                        </span>
+                        <span className="text-sm font-bold text-primary">Acompanhar</span>
+                        <ChevronRight className="size-4 text-primary" />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : (
+            <div className="py-10 text-center">
+              <ReceiptText className="mx-auto size-10 text-muted-foreground" />
+              <p className="mt-3 font-bold">Nenhum pedido ainda</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Conecte seu telefone acima ou escolha um prato do dia para pedir.
+              </p>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

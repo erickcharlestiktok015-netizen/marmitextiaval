@@ -52,3 +52,31 @@ export async function checkOrderPaymentStatus(code: string): Promise<{ status: s
   const { checkPixPayment } = await import('@/lib/orders.functions');
   return checkPixPayment({ data: { code } });
 }
+
+export type CustomerOrder = {
+  id: string;
+  code: string;
+  trackingToken: string | null;
+  orderFor: string;
+  customerName: string;
+  customerPhone: string;
+  orderStatus: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  fulfillment: string;
+  total: number;
+  subtotal: number;
+  deliveryFee: number;
+  createdAt: string;
+  isPlan: boolean;
+  items: Array<{ mealName: string; sizeLabel: string; quantity: number }>;
+};
+
+export async function lookupCustomerOrders(phone: string): Promise<{
+  phone: string;
+  customerName: string | null;
+  orders: CustomerOrder[];
+}> {
+  const { getCustomerOrdersByPhone } = await import('@/lib/orders.functions');
+  return getCustomerOrdersByPhone({ data: { phone } });
+}
