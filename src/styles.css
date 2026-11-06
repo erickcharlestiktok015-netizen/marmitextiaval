@@ -1255,3 +1255,48 @@ html, body, .restaurant-page {
 @media (prefers-reduced-motion: reduce) { .da-bag-enter, .da-pop, .da-ride, .da-pulse-ring { animation: none; } }
 .da-no-scrollbar { scrollbar-width: none; } .da-no-scrollbar::-webkit-scrollbar { display: none; }
 .da-cover-fade { background: linear-gradient(to bottom, transparent 40%, color-mix(in oklch, var(--foreground) 55%, transparent)); }
+
+/* Faixa animada de confiança no cardápio, com repetição contínua e movimento acessível. */
+.delivery-app .da-trust-marquee {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--success) 16%, transparent);
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in oklch, var(--success-surface) 78%, white), color-mix(in oklch, var(--success-surface) 46%, white));
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+.delivery-app .da-trust-track {
+  display: flex;
+  width: max-content;
+  animation: da-trust-marquee 26s linear infinite;
+}
+.delivery-app .da-trust-group {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+.delivery-app .da-trust-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid color-mix(in oklch, var(--success) 12%, transparent);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 85%);
+  padding: 6px 10px;
+  color: color-mix(in oklch, var(--success) 72%, var(--foreground));
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.delivery-app .da-trust-chip svg { color: var(--success); }
+.delivery-app .da-trust-marquee:hover .da-trust-track,
+.delivery-app .da-trust-marquee:focus-within .da-trust-track { animation-play-state: paused; }
+@keyframes da-trust-marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .delivery-app .da-trust-track { animation: none; }
+  .delivery-app .da-trust-marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
+}

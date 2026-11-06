@@ -12,35 +12,41 @@ const SLIDE_COUNT = 3;
 const AUTO_MS = 5000;
 
 function GoogleReviewBanner() {
-  return <a href={mapsUrl} target="_blank" rel="noreferrer" className="relative block size-full overflow-hidden bg-[radial-gradient(circle_at_12%_18%,#f9e7bd_0_2px,transparent_3px),radial-gradient(circle_at_86%_76%,#f9e7bd_0_2px,transparent_3px),linear-gradient(135deg,#fffaf0,#f7edda_55%,#fffdf8)] p-4" aria-label="Ver avaliações no Google">
+  return <a href={mapsUrl} target="_blank" rel="noreferrer" className="relative block size-full overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-green-100 p-4" aria-label="Ver avaliações no Google">
+    <span className="pointer-events-none absolute -right-8 -top-10 size-32 rounded-full bg-emerald-200/40 blur-2xl" aria-hidden />
+    <span className="pointer-events-none absolute -bottom-12 -left-8 size-32 rounded-full bg-green-300/30 blur-2xl" aria-hidden />
     <div className="relative z-10 flex h-full flex-col justify-between">
       <div className="flex items-center gap-3">
-        <span className="grid size-11 shrink-0 place-items-center rounded-full border border-border bg-background text-xl font-black" aria-hidden>
+        <span className="grid size-11 shrink-0 place-items-center rounded-full border border-emerald-100 bg-white shadow-sm text-xl font-black" aria-hidden>
           <span className="bg-gradient-to-br from-[#4285F4] via-[#EA4335] to-[#FBBC05] bg-clip-text text-transparent">G</span>
         </span>
-        <div>
-          <p className="text-sm font-bold text-foreground">Marmitex da Tia Val</p>
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            <strong className="text-sm text-foreground">4,9</strong>
-            <span className="flex text-[#FBBC05]" aria-label="Nota 4,9 de 5">
-              {[0, 1, 2, 3, 4].map(i => <Star key={i} className={`size-3.5 ${i < 4 ? 'fill-[#FBBC05]' : 'fill-[#FBBC05]/40 text-[#FBBC05]/40'}`} />)}
-            </span>
-            · 50 avaliações no Google
-          </p>
+        <div className="min-w-0">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-800">Avaliações no Google</p>
+          <p className="truncate text-sm font-bold text-foreground">Marmitex da Tia Val</p>
+        </div>
+        <span className="ml-auto shrink-0 rounded-full border border-emerald-200 bg-white/80 px-2 py-1 text-[10px] font-bold text-emerald-800">Clientes recomendam</span>
+      </div>
+      <div className="flex items-end gap-3">
+        <p className="text-3xl font-black leading-none tracking-tight text-emerald-950">4,9</p>
+        <div className="pb-0.5">
+          <span className="flex text-[#FBBC05]" aria-label="Nota 4,9 de 5">
+            {[0, 1, 2, 3, 4].map(i => <Star key={i} className={`size-3.5 ${i < 4 ? 'fill-[#FBBC05]' : 'fill-[#FBBC05]/40 text-[#FBBC05]/40'}`} />)}
+          </span>
+          <p className="mt-1 text-[11px] font-medium text-emerald-900/70">50 avaliações no Google</p>
         </div>
       </div>
-      <figure className="rounded-2xl bg-muted p-3">
-        <blockquote className="text-sm font-semibold text-foreground">“Melhor comida da região”</blockquote>
-        <figcaption className="mt-1 text-xs text-muted-foreground">Avaliação de cliente no Google</figcaption>
+      <figure className="rounded-xl border border-emerald-100 bg-white/80 px-3 py-2 shadow-sm backdrop-blur-sm">
+        <blockquote className="text-sm font-semibold text-emerald-950">“Melhor comida da região”</blockquote>
+        <figcaption className="mt-0.5 text-[11px] text-emerald-900/65">Avaliação de cliente no Google</figcaption>
       </figure>
-      <p className="text-xs font-bold text-primary">Ver perfil no Google →</p>
+      <p className="text-xs font-extrabold text-emerald-800">Ver perfil e avaliações no Google <span aria-hidden>→</span></p>
     </div>
   </a>;
 }
 
 function GuaranteeBanner({ onOpen }: { onOpen: () => void }) {
-  return <button type="button" onClick={onOpen} className="block size-full cursor-zoom-in overflow-hidden bg-[#fff4e7]" aria-label="Ampliar informações sobre as formas de pagamento">
-    <img src={paymentBannerAsset} alt="Pagamento seguro: Pix, cartões de crédito e débito, boleto, saldo Mercado Pago e pagamento na entrega" className="size-full object-cover" loading="lazy" />
+  return <button type="button" onClick={onOpen} className="block size-full cursor-zoom-in overflow-hidden bg-gradient-to-br from-[#fff4e7] to-white" aria-label="Ampliar informações sobre as formas de pagamento">
+    <img src={paymentBannerAsset} alt="Pagamento seguro: Pix, cartões de crédito e débito, boleto, saldo Mercado Pago e pagamento na entrega" className="size-full object-contain p-2" loading="lazy" />
   </button>;
 }
 

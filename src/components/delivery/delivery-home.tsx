@@ -149,10 +149,14 @@ export function DeliveryHome() {
           <div className="px-2 py-3"><Store className="mx-auto size-5 text-primary" /><p className="mt-1 text-sm font-bold">Grátis</p><p className="text-xs text-muted-foreground">retirada</p></div>
         </div>
 
-        <div className="mt-3 flex gap-2 overflow-x-auto da-no-scrollbar text-xs font-semibold">
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 py-1.5"><ShieldCheck className="size-4 text-success" /> Pix e cartão seguros (Mercado Pago)</span>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 py-1.5"><Bike className="size-4 text-primary" /> Acompanhe a entrega ao vivo</span>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 py-1.5">💵 Dinheiro ou maquininha na entrega</span>
+        <div className="da-trust-marquee mt-3" aria-label="Pagamento seguro, entrega acompanhada e opções para pagar na entrega">
+          <div className="da-trust-track">
+            {[0, 1].map(copy => <div key={copy} className="da-trust-group" aria-hidden={copy === 1 ? true : undefined}>
+              <span className="da-trust-chip"><ShieldCheck className="size-4" /> Pix e cartão seguros</span>
+              <span className="da-trust-chip"><Bike className="size-4" /> Acompanhe a entrega ao vivo</span>
+              <span className="da-trust-chip"><span aria-hidden>💵</span> Dinheiro ou maquininha na entrega</span>
+            </div>)}
+          </div>
         </div>
         {open === false && <p className="mt-3 rounded-xl bg-accent px-3 py-2 text-sm text-accent-foreground">Agora a cozinha está fechada ({openingHours.weekdays.toLowerCase()}). Você já pode <button type="button" className="font-bold underline" onClick={() => goTo('amanha')}>reservar a marmita de amanhã</button>.</p>}
       </section>
