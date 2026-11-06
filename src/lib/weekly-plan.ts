@@ -31,9 +31,9 @@ export const weeklyMenu: Record<number, { name: string; description: string }> =
   1: { name: 'Arroz, feijão, macarronada e linguiça', description: 'O clássico completo, do jeitinho de casa.' },
   2: { name: 'Frango com quiabo', description: 'Frango caipira ensopado com quiabo, do jeitinho mineiro.' },
   3: { name: 'Strogonoff', description: 'Strogonoff cremoso, com arroz soltinho e batata palha.' },
-  4: { name: 'Arroz, feijão, salpicão e frango assado', description: 'Frango assado douradinho com salpicão cremoso.' },
+  4: { name: 'Feijão Tropeiro', description: 'Tropeiro caprichado com torresmo, couve e ovo.' },
   5: { name: 'Feijoada', description: 'Feijoada completa, com couve, laranja e torresmo.' },
-  6: { name: 'Feijão Tropeiro', description: 'Tropeiro caprichado com torresmo, couve e ovo.' },
+  6: { name: 'Arroz, feijão, salpicão e frango assado', description: 'Frango assado douradinho com salpicão cremoso.' },
 };
 
 export const planPrice = (sizeId: PlanSizeId, withCoke: boolean): number => {

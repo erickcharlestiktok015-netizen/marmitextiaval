@@ -11,7 +11,7 @@ const trackingBannerImage = 'https://id-preview--2fff413a-7193-4dd0-902d-b541fb3
 const planBannerImage = 'https://id-preview--c979a7b3-94a4-4a46-923b-53b0de957941.lovable.app/__l5e/assets-v1/6012beb9-1303-4f47-a554-bbad46f8de18/feijoada-coca-plano.jpg';
 
 const SLIDE_COUNT = 4;
-const AUTO_MS = 5000;
+const AUTO_MS = 8500;
 
 function GoogleReviewBanner() {
   return <a href={mapsUrl} target="_blank" rel="noreferrer" className="relative block size-full overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-green-100 p-4" aria-label="Ver avaliações no Google">

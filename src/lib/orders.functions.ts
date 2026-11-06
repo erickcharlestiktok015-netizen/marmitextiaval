@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { meals, tomorrowMenu } from '@/lib/restaurant-data';
+import { allMeals, meals, tomorrowMenu } from '@/lib/restaurant-data';
 import { deliveryFeeForKm } from '@/lib/orders';
 import { PLAN_DAYS, buildPlanPreferenceItems, encodePlanNotes, planDeliveryTotal, planItemName, planPrice, planSizeLabel, planWindows, spDateKey, type PlanMeta } from '@/lib/weekly-plan';
 
@@ -32,7 +32,7 @@ const newConfirmationCode = () => String(crypto.getRandomValues(new Uint32Array(
 
 function findMeal(name: string, sizeLabel: string) {
   const all = [
-    ...meals.map((meal) => ({ name: meal.name, sizes: meal.sizes })),
+    ...allMeals.map((meal) => ({ name: meal.name, sizes: meal.sizes })),
     ...tomorrowMenu.map((meal) => ({ name: meal.name, sizes: meal.sizes })),
   ];
   return all.find((meal) => meal.name === name && meal.sizes.some((size) => size.label === sizeLabel));

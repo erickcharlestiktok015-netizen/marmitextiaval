@@ -1,5 +1,5 @@
 // Integração Mercado Pago (Checkout Pro). Só roda no servidor: usa MP_ACCESS_TOKEN.
-import { meals, tomorrowMenu } from '@/lib/restaurant-data';
+import { allMeals, meals, tomorrowMenu } from '@/lib/restaurant-data';
 import { deliveryFeeForKm } from '@/lib/orders';
 
 const MP_API = 'https://api.mercadopago.com';
@@ -10,7 +10,7 @@ export type OnlinePaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'ticket
 
 // Preço sempre vem do cardápio, nunca do navegador.
 export function priceForSizeLabel(label: string): number | null {
-  for (const m of [...meals, ...tomorrowMenu]) {
+  for (const m of [...allMeals, ...tomorrowMenu]) {
     const s = m.sizes.find(x => x.label === label);
     if (s) return s.price;
   }

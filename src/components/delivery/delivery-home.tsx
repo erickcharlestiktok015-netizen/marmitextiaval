@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { CheckoutForm } from '@/components/restaurant/checkout-form';
 import { trackAddToCart } from '@/components/facebook-pixel';
-import { contacts, deliveryFeePerKm, feijoadaMeal, formatPrice, isRestaurantOpen, mapsUrl, meals, openingHours, type Meal, type MealSize } from '@/lib/restaurant-data';
+import { allMeals, contacts, deliveryFeePerKm, formatPrice, getTodayMeal, getTomorrowMeal, isRestaurantOpen, mapsUrl, meals, openingHours, type Meal, type MealSize } from '@/lib/restaurant-data';
 import { readPlanMeta, readSavedOrders, savedAtLabel, trackingHref, type SavedOrder } from '@/lib/my-orders';
 import { ContactDock } from '@/components/restaurant/contact-dock';
 import { BannerCarousel } from '@/components/delivery/banner-carousel';
@@ -14,8 +14,6 @@ import logoBannerAsset from '@/assets/marmitex-logo-banner.png';
 
 type BagItem = { key: string; mealId: string; sizeId: string; quantity: number; notes: string };
 const BAG_KEY = 'tia-val-sacola';
-const todayMeal = meals[0]!;
-const allMeals: Meal[] = [...meals, feijoadaMeal];
 const findMeal = (id: string) => allMeals.find(m => m.id === id);
 const sizeName = (size: MealSize) => size.label.split(' · ')[0] ?? size.label;
 const sizeVolume = (size: MealSize) => size.label.split(' · ')[1] ?? '';
@@ -47,6 +45,8 @@ function Stepper({ value, onMinus, onPlus, min = 0, max = 20, small = false }: {
 
 export function DeliveryHome() {
   const [open, setOpen] = useState<boolean | null>(null);
+  const [todayMeal, setTodayMeal] = useState<Meal>(() => getTodayMeal());
+  const [tomorrowMeal, setTomorrowMeal] = useState<Meal>(() => getTomorrowMeal());
   const [bag, setBag] = useState<BagItem[]>([]);
   const [bagLoaded, setBagLoaded] = useState(false);
   const [bump, setBump] = useState(0);
@@ -63,12 +63,17 @@ export function DeliveryHome() {
   const [planOpen, setPlanOpen] = useState(false);
 
   useEffect(() => {
-    setOpen(isRestaurantOpen());
-    const t = window.setInterval(() => setOpen(isRestaurantOpen()), 60_000);
+    const updateDishesAndHours = () => {
+      setOpen(isRestaurantOpen());
+      setTodayMeal(getTodayMeal());
+      setTomorrowMeal(getTomorrowMeal());
+    };
+    updateDishesAndHours();
+    const t = window.setInterval(updateDishesAndHours, 30_000);
     setSaved(readSavedOrders());
     try {
       const raw = JSON.parse(localStorage.getItem(BAG_KEY) || '[]') as BagItem[];
-      if (Array.isArray(raw)) setBag(raw.filter(i => i && findMeal(i.mealId)?.sizes.some(s => s.id === i.sizeId) && i.quantity > 0 && meals.some(m => m.id === i.mealId)).slice(0, 20));
+      if (Array.isArray(raw)) setBag(raw.filter(i => i && findMeal(i.mealId)?.sizes.some(s => s.id === i.sizeId) && i.quantity > 0).slice(0, 20));
     } catch { /* sacola vazia */ }
     setBagLoaded(true);
     return () => window.clearInterval(t);
@@ -93,6 +98,21 @@ export function DeliveryHome() {
     trackAddToCart(size.price * quantity);
   };
   const changeQty = (key: string, delta: number) => setBag(items => items.flatMap(i => i.key !== key ? [i] : i.quantity + delta <= 0 ? [] : [{ ...i, quantity: Math.min(20, i.quantity + delta) }]));
+  const removeFromBag = (mealId: string, sizeId: string) => {
+    setBag(items => {
+      let removed = false;
+      const reversed = [...items].reverse();
+      const updated = reversed.flatMap(i => {
+        if (!removed && i.mealId === mealId && i.sizeId === sizeId) {
+          removed = true;
+          return i.quantity <= 1 ? [] : [{ ...i, quantity: i.quantity - 1 }];
+        }
+        return [i];
+      });
+      return updated.reverse();
+    });
+    setBump(b => b + 1);
+  };
 
   const openItem = (meal: Meal, when: 'hoje' | 'amanha', preselect?: MealSize) => {
     setItemSheet({ meal, when });
@@ -202,18 +222,25 @@ export function DeliveryHome() {
         </button>
 
         <h3 className="mt-6 text-base font-extrabold">Escolha o tamanho</h3>
-        <p className="text-xs text-muted-foreground">Toque no + para colocar direto na sacola</p>
+        <p className="text-xs text-muted-foreground">Toque no + ou - para colocar ou retirar da sacola</p>
         <ul className="mt-2 divide-y divide-border">
           {todayMeal.sizes.map(size => {
             const inBag = qtyOf(todayMeal.id, size.id);
+            const isOnlyDish = size.id.startsWith('so-');
+            const subtitle = isOnlyDish
+              ? ` · só ${todayMeal.name.toLowerCase()}, sem acompanhamentos`
+              : ' · com arroz, feijão e acompanhamentos';
             return <li key={size.id} className="flex items-center gap-3 py-3">
               <button type="button" className="flex flex-1 flex-col items-start text-left" onClick={() => openItem(todayMeal, 'hoje', size)}>
                 <span className="font-semibold">{todayMeal.name} · {sizeName(size).toLowerCase()}</span>
-                <span className="text-xs text-muted-foreground">{sizeVolume(size)}{size.id.startsWith('so-') ? ' · só o tropeiro, sem acompanhamentos' : ' · com arroz, feijão e acompanhamentos'}</span>
+                <span className="text-xs text-muted-foreground">{sizeVolume(size)}{subtitle}</span>
                 <span className="mt-1 font-bold">{formatPrice(size.price)}</span>
               </button>
-              {inBag > 0 && <span className="grid size-7 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{inBag}</span>}
-              <button type="button" aria-label={`Adicionar ${sizeName(size)}`} onClick={() => addToBag(todayMeal, size, 1)} className="grid size-10 place-items-center rounded-full border-2 border-primary text-primary transition active:scale-90"><Plus className="size-5" /></button>
+              {inBag > 0 ? (
+                <Stepper small value={inBag} onMinus={() => removeFromBag(todayMeal.id, size.id)} onPlus={() => addToBag(todayMeal, size, 1)} />
+              ) : (
+                <button type="button" aria-label={`Adicionar ${sizeName(size)}`} onClick={() => addToBag(todayMeal, size, 1)} className="grid size-10 place-items-center rounded-full border-2 border-primary text-primary transition active:scale-90"><Plus className="size-5" /></button>
+              )}
             </li>;
           })}
         </ul>
@@ -223,15 +250,15 @@ export function DeliveryHome() {
       <section id="secao-amanha" className="scroll-mt-14 px-4 pt-6">
         <h2 className="text-lg font-extrabold">Reservar para amanhã</h2>
         <p className="text-xs text-muted-foreground">Garanta a sua antes de acabar — a Tia Val separa a sua marmita.</p>
-        <button type="button" onClick={() => openItem(feijoadaMeal, 'amanha')} className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-border p-3 text-left shadow-card transition active:scale-[.99]">
+        <button type="button" onClick={() => openItem(tomorrowMeal, 'amanha')} className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-border p-3 text-left shadow-card transition active:scale-[.99]">
           <div className="flex-1">
             <span className="text-xs font-bold uppercase tracking-wide text-primary">Amanhã</span>
-            <h3 className="text-base font-bold">{feijoadaMeal.name}</h3>
-            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{feijoadaMeal.description}</p>
-            <p className="mt-1 text-sm"><span className="text-muted-foreground">A partir de </span><strong className="text-success">{formatPrice(minPrice(feijoadaMeal))}</strong></p>
+            <h3 className="text-base font-bold">{tomorrowMeal.name}</h3>
+            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{tomorrowMeal.description}</p>
+            <p className="mt-1 text-sm"><span className="text-muted-foreground">A partir de </span><strong className="text-success">{formatPrice(minPrice(tomorrowMeal))}</strong></p>
             <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-bold text-primary"><CalendarCheck className="size-4" /> Reservar</span>
           </div>
-          <DishVideo meal={feijoadaMeal} className="size-28 shrink-0 rounded-xl" />
+          <DishVideo meal={tomorrowMeal} className="size-28 shrink-0 rounded-xl" />
         </button>
       </section>
 
