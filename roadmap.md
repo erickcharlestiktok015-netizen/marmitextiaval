@@ -1,9 +1,9 @@
-- [ ] Reserva/pedido pelo site com entrega R$1/km e pagamento agora ou na entrega (API depois)
-- [ ] Endereço completo (rua, número, complemento) no cálculo da entrega
-- [ ] Capa: tirar faixa preta, vídeo em quadros ocupando tudo
-- [ ] Trazer o site do GitHub (ramo cardapio-hoje) para este projeto
-- [ ] Nova tela inicial o mais parecida possível com o iFood (capa + logo, lista de pratos, escolha de tamanho na hora, sacola fixa, checkout rápido e garantido, Meus Pedidos) — a foto enviada era só uma ideia
+- [x] Trazer o site do GitHub (ramo cardapio-hoje) para este projeto
+- [x] Nova tela inicial o mais parecida possível com o iFood (capa + logo, lista de pratos, escolha de tamanho na hora, sacola fixa, checkout rápido e garantido, Meus Pedidos) — a foto enviada era só uma ideia
+- [x] Usar só os 2 vídeos que já existem (tropeiro hoje, feijoada amanhã), sem fotos novas
+- [x] Enviar alterações ao GitHub (commit no ramo cardapio-hoje, pedir permissão no chat)
 - [ ] Nova tela /acompanhar estilo iFood (5 etapas, código, resumo, WhatsApp, histórico)
 - [ ] Banco de pedidos funcionando neste projeto
-- [ ] Enviar alterações ao GitHub (commit no ramo cardapio-hoje, pedir permissão no chat)
-- [ ] Usar só os 2 vídeos que já existem (tropeiro hoje, feijoada amanhã), sem fotos novas
+- [ ] Reserva/pedido pelo site com entrega R$1,50/km e pagamento agora ou na entrega (API depois)
+- [ ] Endereço completo (rua, número, complemento) no cálculo da entrega
+- [ ] Capa: tirar faixa preta, vídeo em quadros ocupando tudo
