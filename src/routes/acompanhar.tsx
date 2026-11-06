@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
-import { Bell, Bike, CheckCircle2, Clock3, CookingPot, MapPin, MessageCircle, PackageCheck, RefreshCw } from 'lucide-react';
+import { Bell, Bike, CalendarCheck, Check, CheckCircle2, ChevronRight, Clock3, CookingPot, MapPin, MessageCircle, PackageCheck, ReceiptText } from 'lucide-react';
+import { PLAN_DAYS, planDateLabel, planDeliveredCount, type PlanMeta } from '@/lib/weekly-plan';
 
 const searchSchema = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/).catch('') });
 type SavedOrder = { code: string; token: string; savedAt: string };
@@ -9,14 +10,15 @@ type TrackingOrder = {
   code: string; order_status: string; payment_status: string; payment_method: string;
   fulfillment: string; estimated_delivery_at: string | null; courier_status: string;
   confirmation_code: string | null; created_at: string; updated_at: string; courier_latitude: number | null; courier_longitude: number | null; courier_location_updated_at: string | null;
+  plan: PlanMeta | null;
   items: Array<{ meal_name: string; size_label: string; quantity: number }>;
 };
 const steps = [
   { value: 'novo', title: 'Pedido recebido', description: 'Recebemos seu pedido.' },
   { value: 'confirmado', title: 'Pedido confirmado', description: 'A Tia Val confirmou seu pedido.' },
-  { value: 'preparando', title: 'Preparando com carinho', description: 'Sua comida está sendo preparada.' },
-  { value: 'saiu_entrega', title: 'Saiu para entrega', description: 'O motoboy está a caminho.' },
-  { value: 'concluido', title: 'Pedido entregue', description: 'Bom apetite! Obrigado por pedir com a Tia Val.' },
+  { value: 'preparando', title: 'Na cozinha', description: 'Sua comida está sendo preparada com carinho.' },
+  { value: 'saiu_entrega', title: 'Saiu com o motoboy', description: 'O motoboy está a caminho.' },
+  { value: 'concluido', title: 'Entregue', description: 'Bom apetite! Obrigado por pedir com a Tia Val.' },
 ];
 const orderIndex = (status: string) => steps.findIndex((step) => step.value === status);
 const brasiliaTime = (value: string | number | Date = new Date()) =>
@@ -109,84 +111,124 @@ function TrackingPage() {
     return () => { active = false; window.clearInterval(timer); };
   }, [token, alertsEnabled]);
 
-  if (!token) return <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fffaf0_0%,_#f7f4ed_52%,_#efe9dc_100%)] px-4 py-8 text-[#25251f] sm:py-12">
-    <section className="mx-auto max-w-2xl rounded-3xl border border-[#e5dfd2] bg-white p-6 shadow-xl sm:p-8">
-      <p className="text-xs font-bold uppercase tracking-[.22em] text-[#9a742a]">Marmitex da Tia Val</p>
-      <h1 className="mt-3 text-3xl font-extrabold">Meus pedidos</h1>
-      <p className="mt-2 text-sm leading-6 text-[#777266]">Você pode sair desta tela e voltar depois. Os pedidos salvos neste celular aparecem aqui para acompanhar o preparo e a entrega.</p>
-      {savedOrders.length ? <div className="mt-6 space-y-3">{savedOrders.map(item => <a key={item.token} href={`/acompanhar?token=${encodeURIComponent(item.token)}`} className="flex min-h-16 items-center justify-between gap-3 rounded-2xl border border-[#e5dfd2] p-4 transition hover:bg-[#fffaf0]"><span><strong className="block">Pedido #{item.code}</strong><small className="mt-1 block text-[#777266]">Abrir acompanhamento</small></span><span className="rounded-xl bg-[#25251f] px-4 py-2 text-sm font-bold text-white">Ver pedido</span></a>)}</div> : <div className="mt-6 rounded-2xl border border-dashed border-[#d9d2c4] p-6 text-center"><p className="font-bold">Nenhum pedido salvo neste celular ainda</p><p className="mt-2 text-sm text-[#777266]">Depois de finalizar um pedido, ele ficará disponível aqui.</p></div>}
-      <a href="/" className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#25251f] px-4 font-bold text-white">Voltar à loja</a>
+  if (!token) return <main className="delivery-app min-h-screen bg-secondary px-4 py-8">
+    <section className="mx-auto max-w-lg rounded-3xl bg-card p-6 shadow-card">
+      <p className="text-xs font-bold uppercase tracking-widest text-primary">Marmitex da Tia Val</p>
+      <h1 className="mt-2 text-2xl font-extrabold">Meus pedidos</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Os pedidos salvos neste celular aparecem aqui para acompanhar o preparo e a entrega.</p>
+      {savedOrders.length ? <div className="mt-5 space-y-2">{savedOrders.map(item => <a key={item.token} href={`/acompanhar?token=${encodeURIComponent(item.token)}`} className="flex min-h-16 items-center gap-3 rounded-2xl border border-border p-4 transition active:scale-[.99]">
+        <span className="grid size-10 place-items-center rounded-full bg-accent text-primary"><ReceiptText className="size-5" /></span>
+        <span className="flex-1"><strong className="block">Pedido #{item.code}</strong><small className="text-muted-foreground">Abrir acompanhamento</small></span>
+        <ChevronRight className="size-4 text-primary" />
+      </a>)}</div> : <div className="mt-5 rounded-2xl border border-dashed border-border p-6 text-center"><p className="font-bold">Nenhum pedido salvo neste celular ainda</p><p className="mt-2 text-sm text-muted-foreground">Depois de finalizar um pedido, ele ficará disponível aqui.</p></div>}
+      <a href="/" className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 font-bold text-primary-foreground">Voltar à loja</a>
     </section>
   </main>;
 
   const currentStep = order ? orderIndex(order.order_status) : -1;
   const finished = order ? ['concluido', 'cancelado'].includes(order.order_status) : false;
+  const plan = order?.plan ?? null;
+  const planDelivered = plan ? planDeliveredCount(plan) : 0;
 
-  return <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fffaf0_0%,_#f7f4ed_52%,_#efe9dc_100%)] px-4 py-6 text-[#25251f] sm:py-10">
-    <div className="mx-auto max-w-2xl space-y-5">
-      <header className="relative overflow-hidden rounded-3xl bg-[#25251f] p-6 text-[#fffaf0] shadow-xl sm:p-8">
-        <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full border-[24px] border-white/5" />
-        <div className="relative flex items-start justify-between gap-4">
+  return <main className="delivery-app min-h-screen bg-secondary pb-8">
+    <div className="mx-auto max-w-lg space-y-3 px-4 py-5">
+      <header className="rounded-3xl bg-primary p-5 text-primary-foreground shadow-card">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[.22em] text-[#e9c878]">Marmitex da Tia Val</p>
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Seu pedido, passo a passo</h1>
-            <p className="mt-3 max-w-md text-sm leading-6 text-[#e0d9c9]">Acompanhe cada etapa por aqui. As informações são consultadas automaticamente.</p>
+            <p className="text-xs font-bold uppercase tracking-widest opacity-80">Marmitex da Tia Val</p>
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight">{plan ? 'Seu Plano 7 Dias' : 'Seu pedido, passo a passo'}</h1>
+            <p className="mt-1 text-sm opacity-90">Atualizado automaticamente a cada 10 segundos.</p>
           </div>
-          <div className="hidden h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/10 text-[#e9c878] sm:grid"><Bike size={30}/></div>
+          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary-foreground/15"><Bike className="size-6" /></span>
         </div>
-        <div className="relative mt-6 flex flex-wrap items-center gap-3">
-          {order && <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm font-bold">Pedido #{order.code}</span>}
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-200"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300"/> Atualização a cada 10 s</span>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {order && <span className="rounded-full bg-primary-foreground/15 px-3 py-1.5 text-sm font-bold">Pedido #{order.code}</span>}
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/15 px-3 py-1.5 text-xs font-semibold"><span className="size-2 animate-pulse rounded-full bg-success" /> Ao vivo · {clock}</span>
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-[#e5dfd2] bg-white/90 p-4 shadow-sm sm:p-5">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#777266]"><Clock3 size={15}/> Horário de Brasília</p>
-          <p className="mt-2 text-3xl font-extrabold tabular-nums tracking-tight">{clock}</p>
-          <p className="mt-1 text-xs text-[#777266]">Relógio atualizado em tempo real (UTC−3).</p>
-        </div>
-        <div className="rounded-2xl border border-[#e5dfd2] bg-white/90 p-4 shadow-sm sm:p-5">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#777266]"><RefreshCw size={15}/> Sincronização do pedido</p>
-          <p className="mt-2 text-xl font-bold">{lastUpdated ? `Atualizado às ${lastUpdated}` : 'Consultando pedido…'}</p>
-          <p className="mt-1 text-xs text-[#777266]">Localização e status atualizados a cada 10 segundos enquanto esta tela estiver aberta.</p>
-        </div>
-      </section>
+      {error && !order && <div role="alert" className="rounded-2xl bg-card p-5 text-sm font-medium text-destructive shadow-card">{error}</div>}
 
-      {error && !order && <div role="alert" className="rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-800 shadow-sm">{error}</div>}
       {order && <>
-        {order.order_status === 'saiu_entrega' && typeof order.courier_latitude === 'number' && typeof order.courier_longitude === 'number' && <section className="overflow-hidden rounded-3xl border border-[#e5dfd2] bg-white shadow-sm">
-          <div className="p-5 sm:p-6"><p className="text-xs font-bold uppercase tracking-wider text-[#9a742a]">Acompanhamento da entrega</p><h2 className="mt-2 text-xl font-extrabold">Seu motoboy está a caminho 🛵</h2><p className="mt-1 text-sm text-[#777266]">O mapa e o status são atualizados a cada 10 segundos enquanto esta tela estiver aberta. O ícone do mapa marca a última posição recebida; o GPS precisa continuar autorizado no celular do motoboy.</p>{order.courier_location_updated_at && <p className="mt-2 text-xs text-[#777266]">Última localização recebida às {brasiliaTime(order.courier_location_updated_at)}.</p>}<div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800"><span className="h-2 w-2 animate-ping rounded-full bg-emerald-500"/><span className="h-2 w-2 -ml-4 rounded-full bg-emerald-600"/> Motoboy localizado</div></div>
+        {/* Situação atual */}
+        <section className="rounded-3xl bg-card p-5 shadow-card">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Situação atual</p>
+              <h2 className="mt-1 text-xl font-extrabold tracking-tight">{order.courier_status === 'cheguei' ? 'O motoboy chegou ao endereço!' : steps.find(s => s.value === order.order_status)?.title ?? order.order_status}</h2>
+              {lastUpdated && <p className="mt-1 text-xs text-muted-foreground">Sincronizado às {lastUpdated}</p>}
+            </div>
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent text-primary">{order.courier_status === 'cheguei' ? <MapPin className="size-6" /> : order.order_status === 'concluido' ? <CheckCircle2 className="size-6 text-success" /> : <Bike className="size-6" />}</span>
+          </div>
+          {order.estimated_delivery_at && !finished && <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-accent p-4">
+            <div><p className="text-sm font-bold text-primary">Previsão de chegada</p><p className="text-xs text-muted-foreground">Horário de Brasília</p></div>
+            <p className="text-3xl font-extrabold tabular-nums text-primary">{estimatedTime(order.estimated_delivery_at)}</p>
+          </div>}
+          {order.payment_method === 'online' && <p className="mt-3 rounded-xl bg-muted px-4 py-3 text-sm font-medium">{order.payment_status === 'approved' ? '✓ Pagamento online confirmado' : 'Pagamento online aguardando confirmação'}</p>}
+          {order.courier_status === 'cheguei' && <div className="mt-4 rounded-2xl border-2 border-primary/40 bg-accent p-4">
+            <p className="font-bold">O motoboy avisou que chegou.</p>
+            {order.confirmation_code && <><p className="mt-2 text-sm text-muted-foreground">Mostre este código ao entregador para confirmar o recebimento:</p><p className="mt-2 text-center text-3xl font-extrabold tracking-[.25em] text-primary">{order.confirmation_code}</p></>}
+          </div>}
+          <button type="button" onClick={() => { setAlertsEnabled(true); try { const C = window.AudioContext; const a = new C(); void a.resume().then(() => a.close()); } catch { /* optional */ } if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission(); }} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition active:scale-[.98]"><Bell className="size-4" /> {alertsEnabled ? (typeof Notification !== 'undefined' && Notification.permission === 'granted' ? 'Notificações e som ativados' : 'Avisos sonoros ativados') : 'Ativar notificações e som'}</button>
+        </section>
+
+        {/* Plano 7 Dias */}
+        {plan && <section className="rounded-3xl bg-card p-5 shadow-card">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground"><CalendarCheck className="size-5" /></span>
+            <div className="flex-1">
+              <h2 className="font-extrabold">Plano 7 Dias {plan.withCoke ? '· com Coca-Cola' : '· sem bebida'}</h2>
+              <p className="text-sm text-muted-foreground">{planDelivered} de {PLAN_DAYS} marmitas entregues · janela {plan.window}</p>
+            </div>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(planDelivered / PLAN_DAYS) * 100}%` }} /></div>
+          <ol className="mt-4 space-y-2">
+            {plan.dates.map((d, i) => {
+              const done = i < planDelivered;
+              return <li key={d} className="flex items-center gap-3 text-sm">
+                <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${done ? 'bg-success-surface text-success' : 'bg-muted text-muted-foreground'}`}>{done ? <Check className="size-3.5" /> : i + 1}</span>
+                <span className={`capitalize ${done ? 'text-muted-foreground line-through' : 'font-semibold'}`}>{planDateLabel(d)}</span>
+              </li>;
+            })}
+          </ol>
+        </section>}
+
+        {/* Mapa do motoboy */}
+        {order.order_status === 'saiu_entrega' && typeof order.courier_latitude === 'number' && typeof order.courier_longitude === 'number' && <section className="overflow-hidden rounded-3xl bg-card shadow-card">
+          <div className="p-5">
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">Acompanhamento da entrega</p>
+            <h2 className="mt-1 text-lg font-extrabold">Seu motoboy está a caminho 🛵</h2>
+            <p className="mt-1 text-sm text-muted-foreground">O mapa é atualizado a cada 10 segundos. O ícone marca a última posição recebida.</p>
+            {order.courier_location_updated_at && <p className="mt-2 text-xs text-muted-foreground">Última localização às {brasiliaTime(order.courier_location_updated_at)}.</p>}
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-success-surface px-3 py-2 text-xs font-bold text-success"><span className="size-2 animate-ping rounded-full bg-success" /><span className="-ml-4 size-2 rounded-full bg-success" /> Motoboy localizado</div>
+          </div>
           <iframe title="Localização aproximada do motoboy" className="h-64 w-full border-0 sm:h-80" loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://www.openstreetmap.org/export/embed.html?bbox=${order.courier_longitude-0.012}%2C${order.courier_latitude-0.009}%2C${order.courier_longitude+0.012}%2C${order.courier_latitude+0.009}&layer=mapnik&marker=${order.courier_latitude}%2C${order.courier_longitude}`}/>
         </section>}
 
-        <section className="rounded-3xl border border-[#e5dfd2] bg-white p-5 shadow-sm sm:p-7">
-          <div className="flex items-start justify-between gap-3">
-            <div><p className="text-xs font-bold uppercase tracking-wider text-[#9a742a]">Situação atual</p><h2 className="mt-2 text-2xl font-extrabold tracking-tight">{order.courier_status === 'cheguei' ? 'O motoboy chegou ao endereço!' : steps.find(s => s.value === order.order_status)?.title ?? order.order_status}</h2></div>
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#f8f1df] text-[#9a742a]">{order.courier_status === 'cheguei' ? <MapPin size={25}/> : order.order_status === 'concluido' ? <CheckCircle2 size={25} className="text-emerald-700"/> : <Bike size={25}/>}</span>
+        {/* Timeline */}
+        <section className="rounded-3xl bg-card p-5 shadow-card">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-extrabold">Andamento do pedido</h2>
+            <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">{currentStep >= 0 ? `Etapa ${currentStep + 1} de ${steps.length}` : 'Em atualização'}</span>
           </div>
-          {order.estimated_delivery_at && !finished && <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-[#ead9a8] bg-[#fff9e8] p-4"><div><p className="text-sm font-medium text-[#78612c]">Previsão de chegada</p><p className="mt-1 text-xs text-[#8b7950]">Horário de Brasília</p></div><p className="text-3xl font-extrabold tabular-nums">{estimatedTime(order.estimated_delivery_at)}</p></div>}
-          {order.payment_method === 'online' && <p className="mt-4 rounded-xl bg-[#f7f4ed] px-4 py-3 text-sm font-medium">{order.payment_status === 'approved' ? '✓ Pagamento online confirmado' : 'Pagamento online aguardando confirmação'}</p>}
-          {order.courier_status === 'cheguei' && <div className="mt-4 rounded-2xl border border-[#e9c878] bg-[#fff9e8] p-4"><p className="font-bold">O motoboy avisou que chegou.</p>{order.confirmation_code && <><p className="mt-2 text-sm">Mostre este código ao entregador para confirmar o recebimento:</p><p className="mt-2 text-3xl font-extrabold tracking-[.25em]">{order.confirmation_code}</p></>}</div>}
-          <button type="button" onClick={() => { setAlertsEnabled(true); try { const C = window.AudioContext; const a = new C(); void a.resume().then(() => a.close()); } catch { /* optional */ } if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission(); }} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#ddd5c4] px-4 py-2 text-sm font-semibold transition hover:bg-[#f7f4ed]"><Bell size={16}/> {alertsEnabled ? (typeof Notification !== 'undefined' && Notification.permission === 'granted' ? 'Notificações e som ativados' : 'Avisos sonoros ativados') : 'Ativar notificações e som'}</button>
-        </section>
-
-        <section className="rounded-3xl border border-[#e5dfd2] bg-white p-5 shadow-sm sm:p-7">
-          <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-extrabold">Andamento do pedido</h2><span className="rounded-full bg-[#f7f4ed] px-3 py-1 text-xs font-bold text-[#777266]">{currentStep >= 0 ? `Etapa ${currentStep + 1} de ${steps.length}` : 'Em atualização'}</span></div>
-          <ol className="mt-6 space-y-0">{steps.map((step, index) => {
+          <ol className="mt-5">{steps.map((step, index) => {
             const done = currentStep >= 0 && index <= currentStep;
             const current = index === currentStep;
             return <li key={step.value} className="relative flex gap-4 pb-6 last:pb-0">
-              {index < steps.length - 1 && <span className={`absolute left-[17px] top-9 h-[calc(100%-20px)] w-0.5 ${index < currentStep ? 'bg-[#d8b95e]' : 'bg-[#eee9df]'}`}/>}
-              <span className={`relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full ring-4 ring-white ${done ? 'bg-[#e9c878] text-[#25251f]' : 'bg-[#f0ede6] text-[#938d7f]'} ${current ? 'shadow-[0_0_0_4px_#fff4d5]' : ''}`}>{done ? <CheckCircle2 size={19}/> : index === 2 ? <CookingPot size={19}/> : index === 3 ? <Bike size={19}/> : index === 4 ? <PackageCheck size={19}/> : <Clock3 size={19}/>}</span>
-              <span className="pt-1"><strong className={current ? 'text-[#9a742a]' : ''}>{step.title}</strong><span className="mt-1 block text-sm leading-5 text-[#777266]">{step.description}</span></span>
+              {index < steps.length - 1 && <span className={`absolute left-[17px] top-9 h-[calc(100%-20px)] w-0.5 ${index < currentStep ? 'bg-primary' : 'bg-border'}`} />}
+              <span className={`relative z-10 grid size-9 shrink-0 place-items-center rounded-full ring-4 ring-card ${done ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{done ? <Check className="size-4" /> : index === 2 ? <CookingPot className="size-4" /> : index === 3 ? <Bike className="size-4" /> : index === 4 ? <PackageCheck className="size-4" /> : <Clock3 className="size-4" />}</span>
+              <span className="pt-1"><strong className={current ? 'text-primary' : ''}>{step.title}</strong><span className="mt-0.5 block text-sm text-muted-foreground">{step.description}</span></span>
             </li>;
           })}</ol>
-          <div className="mt-2 rounded-2xl bg-[#f7f4ed] p-4 sm:p-5"><p className="text-sm font-bold">Itens do pedido</p>{order.items.map((item, i) => <div key={i} className="mt-3 flex items-start justify-between gap-3 border-b border-[#e8e1d4] pb-3 last:border-0 last:pb-0"><span className="text-sm text-[#5f5a50]">{item.meal_name} · {item.size_label}</span><span className="shrink-0 rounded-lg bg-white px-2 py-1 text-sm font-bold">{item.quantity}×</span></div>)}</div>
+          <div className="mt-2 rounded-2xl bg-muted p-4">
+            <p className="text-sm font-bold">Itens do pedido</p>
+            {order.items.map((item, i) => <div key={i} className="mt-3 flex items-start justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0"><span className="text-sm text-muted-foreground">{item.meal_name} · {item.size_label}</span><span className="shrink-0 rounded-lg bg-card px-2 py-1 text-sm font-bold">{item.quantity}×</span></div>)}
+          </div>
         </section>
       </>}
-      <a href={`https://api.whatsapp.com/send/?phone=553134454042&text=${encodeURIComponent(order ? `Olá, Tia Val! Estou falando sobre o pedido #${order.code}.` : 'Olá, Tia Val! Preciso de ajuda com meu pedido.')}&type=phone_number&app_absent=0`} target="_blank" rel="noreferrer" className="flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#168344] px-5 py-4 text-center font-bold text-white shadow-lg transition hover:bg-[#116c36]"><MessageCircle size={21}/> Falar com a Tia Val pelo WhatsApp</a>
-      <footer className="pb-2 text-center text-xs text-[#777266]">Feito com carinho pela Marmitex da Tia Val · Horários exibidos no fuso de Brasília.</footer>
+
+      <a href={`https://api.whatsapp.com/send/?phone=553134454042&text=${encodeURIComponent(order ? `Olá, Tia Val! Estou falando sobre o pedido #${order.code}.` : 'Olá, Tia Val! Preciso de ajuda com meu pedido.')}&type=phone_number&app_absent=0`} target="_blank" rel="noreferrer" className="flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-success px-5 py-4 text-center font-bold text-success-foreground shadow-card transition active:scale-[.99]"><MessageCircle className="size-5" /> Falar com a Tia Val pelo WhatsApp</a>
+      <footer className="pb-2 text-center text-xs text-muted-foreground">Feito com carinho pela Marmitex da Tia Val · Horários no fuso de Brasília.</footer>
     </div>
   </main>;
 }

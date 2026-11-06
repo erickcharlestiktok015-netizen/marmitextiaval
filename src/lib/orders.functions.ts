@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { meals, tomorrowMenu } from '@/lib/restaurant-data';
 import { deliveryFeeForKm } from '@/lib/orders';
+import { PLAN_DAYS, encodePlanNotes, planDeliveryTotal, planItemName, planPrice, planSizeLabel, planWindows, spDateKey, type PlanMeta } from '@/lib/weekly-plan';
 
 const schema = z.object({
   when: z.enum(['hoje', 'amanha']),
@@ -155,6 +156,122 @@ export const createOrder = createServerFn({ method: 'POST' })
     }
   });
 
+
+// Plano 7 Dias: preços e frete são recalculados no servidor; o navegador nunca define valores.
+const planSchema = z.object({
+  sizeId: z.enum(['pequena', 'grande']),
+  withCoke: z.boolean(),
+  dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).length(PLAN_DAYS),
+  window: z.enum(planWindows),
+  customer: z.object({ name: z.string().trim().min(2).max(80), phone: z.string().regex(/^\d{10,11}$/), email: z.string().trim().email().max(254).optional() }),
+  address: z.object({
+    cep: z.string().max(12), street: z.string().max(160), number: z.string().max(20),
+    complement: z.string().max(120), bairro: z.string().max(100),
+    latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional(),
+  }),
+  distanceKm: z.number().positive().max(30),
+  payment: z.enum(['online-pix', 'entrega-dinheiro', 'entrega-cartao']),
+  changeFor: z.number().positive().nullable().optional(),
+});
+
+export const createPlanOrder = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => {
+    try {
+      return planSchema.parse(input);
+    } catch (error) {
+      console.error('Plan request validation failed', error);
+      throw error;
+    }
+  })
+  .handler(async ({ data }) => {
+    let stage = 'loading payment and database modules';
+    let code = 'not-created';
+    try {
+      const { createPixPayment } = await import('@/lib/mercadopago.server');
+      const { insertOrderRecord, supabaseRequest } = await import('@/lib/supabase.server');
+
+      stage = 'validating plan schedule';
+      const uniqueDates = [...new Set(data.dates)].sort();
+      const todayKey = spDateKey(new Date());
+      if (uniqueDates.length !== PLAN_DAYS) throw new Error('Escolha 7 dias diferentes para o plano.');
+      for (const key of uniqueDates) {
+        const day = new Date(`${key}T12:00:00-03:00`);
+        if (Number.isNaN(day.getTime()) || day.getDay() === 0 || key < todayKey) {
+          throw new Error('Os dias do plano devem ser de segunda a sábado, a partir de hoje.');
+        }
+      }
+      if (data.payment === 'online-pix' && !data.customer.email) {
+        throw new Error('Informe um e-mail válido para gerar o Pix.');
+      }
+
+      stage = 'calculating plan totals';
+      const price = planPrice(data.sizeId, data.withCoke);
+      const deliveryFee = planDeliveryTotal(data.distanceKm);
+      const total = price + deliveryFee;
+      const meta: PlanMeta = { sizeId: data.sizeId, withCoke: data.withCoke, dates: uniqueDates, window: data.window, perDayFee: Math.round((deliveryFee / PLAN_DAYS) * 100) / 100 };
+      code = newCode();
+      const trackingToken = newTrackingToken();
+      const confirmationCode = newConfirmationCode();
+
+      stage = 'saving plan order in Supabase';
+      const orderId = await insertOrderRecord({
+        code,
+        tracking_token: trackingToken,
+        confirmation_code: confirmationCode,
+        courier_status: 'nao_atribuido',
+        order_for: 'hoje',
+        customer_name: data.customer.name,
+        customer_phone: data.customer.phone,
+        fulfillment: 'entrega',
+        address: data.address,
+        distance_km: data.distanceKm,
+        payment_method: data.payment === 'online-pix' ? 'online' : data.payment,
+        payment_status: data.payment === 'online-pix' ? 'pending' : 'not_required',
+        order_status: 'novo',
+        subtotal: price,
+        delivery_fee: deliveryFee,
+        total,
+        change_for: data.payment === 'entrega-dinheiro' ? data.changeFor ?? null : null,
+        notes: encodePlanNotes(meta),
+      }, [{
+        meal_name: planItemName,
+        size_label: planSizeLabel(meta),
+        quantity: 1,
+        unit_price: price,
+        notes: `Entregas: ${uniqueDates.join(', ')} · Janela ${data.window}`,
+      }]);
+
+      stage = 'sending InitiateCheckout to Meta';
+      try {
+        const { sendFacebookServerEvent, currentRequestInfo } = await import('@/lib/facebook-capi.server');
+        await sendFacebookServerEvent({
+          eventName: 'InitiateCheckout', eventId: code,
+          order: { code, total, customer_name: data.customer.name, customer_phone: data.customer.phone, customer_email: data.customer.email ?? null },
+          req: await currentRequestInfo(),
+        });
+      } catch (capiError) { console.error('[facebook-capi] InitiateCheckout ignorado', capiError); }
+
+      if (data.payment !== 'online-pix') return { code, trackingToken, paymentUrl: null as string | null };
+
+      stage = 'creating Mercado Pago Pix payment';
+      const pixPayment = await createPixPayment({
+        code,
+        amount: total,
+        description: `Plano 7 Dias Marmitex da Tia Val #${code}`,
+        payer: { name: data.customer.name, phone: data.customer.phone, email: data.customer.email! },
+      });
+      stage = 'saving Mercado Pago Pix payment ID';
+      await supabaseRequest(`orders?id=eq.${encodeURIComponent(orderId)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ mp_payment_id: pixPayment.paymentId }),
+      });
+      return { code, trackingToken, paymentUrl: null as string | null, pixPayment };
+    } catch (error) {
+      console.error('Plan submission failed', { stage, orderCode: code, error });
+      throw new Error('Não foi possível concluir o plano. A equipe técnica pode localizar o erro pelos logs do servidor.');
+    }
+  });
 
 // Consulta o status do Pix sem expor o Access Token ao navegador.
 export const checkPixPayment = createServerFn({ method: 'GET' })

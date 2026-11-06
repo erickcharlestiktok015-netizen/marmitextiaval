@@ -5,7 +5,10 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { CheckoutForm } from '@/components/restaurant/checkout-form';
 import { trackAddToCart } from '@/components/facebook-pixel';
 import { contacts, deliveryFeePerKm, feijoadaMeal, formatPrice, isRestaurantOpen, mapsUrl, meals, openingHours, type Meal, type MealSize } from '@/lib/restaurant-data';
-import { readSavedOrders, savedAtLabel, trackingHref, type SavedOrder } from '@/lib/my-orders';
+import { readPlanMeta, readSavedOrders, savedAtLabel, trackingHref, type SavedOrder } from '@/lib/my-orders';
+import { BannerCarousel } from '@/components/delivery/banner-carousel';
+import { PlanSheet } from '@/components/delivery/plan-sheet';
+import { PLAN_DAYS, planDateLabel, planDeliveredCount, spDateKey } from '@/lib/weekly-plan';
 
 type BagItem = { key: string; mealId: string; sizeId: string; quantity: number; notes: string };
 const BAG_KEY = 'tia-val-sacola';
@@ -55,6 +58,7 @@ export function DeliveryHome() {
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [saved, setSaved] = useState<SavedOrder[]>([]);
   const [tab, setTab] = useState<'hoje' | 'amanha'>('hoje');
+  const [planOpen, setPlanOpen] = useState(false);
 
   useEffect(() => {
     setOpen(isRestaurantOpen());
@@ -151,6 +155,9 @@ export function DeliveryHome() {
         </div>
         {open === false && <p className="mt-3 rounded-xl bg-accent px-3 py-2 text-sm text-accent-foreground">Agora a cozinha está fechada ({openingHours.weekdays.toLowerCase()}). Você já pode <button type="button" className="font-bold underline" onClick={() => goTo('amanha')}>reservar a marmita de amanhã</button>.</p>}
       </section>
+
+      {/* Banners em destaque */}
+      <BannerCarousel onOpenPlan={() => setPlanOpen(true)} />
 
       {/* Abas fixas */}
       <nav className="sticky top-0 z-20 mt-4 border-b border-border bg-background/95 px-4 backdrop-blur" aria-label="Cardápio">
@@ -280,6 +287,11 @@ export function DeliveryHome() {
               </li>)}
             </ul>
             <button type="button" onClick={() => setBagOpen(false)} className="mt-2 w-full py-3 text-center text-sm font-bold text-primary">+ Adicionar mais itens</button>
+            <button type="button" onClick={() => { setBagOpen(false); setPlanOpen(true); }} className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-border bg-accent p-3 text-left transition active:scale-[.99]">
+              <CalendarCheck className="size-5 shrink-0 text-primary" />
+              <span className="flex-1 text-sm"><strong className="block text-primary">Prefere o Plano de 7 dias?</strong><span className="text-xs text-muted-foreground">7 marmitas + refrigerante, com entrega grátis no Primeiro de Maio</span></span>
+              <ChevronRight className="size-4 text-primary" />
+            </button>
             {open === false && <p className="mt-2 rounded-xl bg-accent px-3 py-2 text-sm text-accent-foreground">A cozinha está fechada agora. O pedido fica registrado e a Tia Val confirma no próximo horário.</p>}
           </>) : <CheckoutForm when="hoje" items={lines.map(l => ({ name: l.meal.name, sizeLabel: l.size.label, unitPrice: l.size.price, quantity: l.quantity, notes: l.notes }))} onDone={() => { setBagOpen(false); setBag([]); setSaved(readSavedOrders()); }} />}
         </div>
@@ -304,6 +316,19 @@ export function DeliveryHome() {
       </SheetContent>
     </Sheet>
 
+    {/* Plano 7 Dias */}
+    <Sheet open={planOpen} onOpenChange={setPlanOpen}>
+      <SheetContent side="bottom" className={sheetClass}>
+        <div className="border-b border-border px-4 py-4 pr-12">
+          <SheetTitle className="text-lg font-extrabold text-foreground">Plano 7 Dias</SheetTitle>
+          <SheetDescription className="text-xs text-muted-foreground">7 marmitas + 7 bebidas, entrega grátis no Primeiro de Maio</SheetDescription>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {planOpen && <PlanSheet onDone={() => { setPlanOpen(false); setSaved(readSavedOrders()); }} />}
+        </div>
+      </SheetContent>
+    </Sheet>
+
     {/* Meus pedidos */}
     <Sheet open={ordersOpen} onOpenChange={setOrdersOpen}>
       <SheetContent side="bottom" className={sheetClass}>
@@ -312,11 +337,27 @@ export function DeliveryHome() {
           <SheetDescription className="text-xs text-muted-foreground">Pedidos feitos neste celular</SheetDescription>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
-          {saved.length ? <ul className="space-y-2">{saved.map(o => <li key={o.token}><a href={trackingHref(o.token)} className="flex items-center gap-3 rounded-2xl border border-border p-3">
-            <span className="grid size-10 place-items-center rounded-full bg-accent text-primary"><ReceiptText className="size-5" /></span>
-            <span className="flex-1"><strong className="block">Pedido #{o.code}</strong><small className="text-muted-foreground">{savedAtLabel(o.savedAt)}</small></span>
-            <span className="text-sm font-bold text-primary">Acompanhar</span><ChevronRight className="size-4 text-primary" />
-          </a></li>)}</ul> : <div className="py-10 text-center"><ReceiptText className="mx-auto size-10 text-muted-foreground" /><p className="mt-3 font-bold">Nenhum pedido ainda</p><p className="mt-1 text-sm text-muted-foreground">Depois de pedir, ele aparece aqui para acompanhar.</p></div>}
+          {saved.length ? <ul className="space-y-2">{saved.map(o => {
+            const plan = readPlanMeta(o.token);
+            if (plan) {
+              const delivered = planDeliveredCount(plan);
+              const upcoming = plan.dates.filter(d => d > spDateKey(new Date())).slice(0, 3);
+              return <li key={o.token}><a href={trackingHref(o.token)} className="block rounded-2xl border-2 border-primary/40 bg-accent p-3">
+                <span className="flex items-center gap-3">
+                  <span className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground"><CalendarCheck className="size-5" /></span>
+                  <span className="flex-1"><strong className="block">Plano 7 Dias · #{o.code}</strong><small className="text-muted-foreground">{delivered} de {PLAN_DAYS} marmitas entregues</small></span>
+                  <ChevronRight className="size-4 text-primary" />
+                </span>
+                <span className="mt-2 block h-2 overflow-hidden rounded-full bg-background"><span className="block h-full rounded-full bg-primary" style={{ width: `${(delivered / PLAN_DAYS) * 100}%` }} /></span>
+                {upcoming.length > 0 && <small className="mt-2 block text-xs text-muted-foreground">Próximas: {upcoming.map(planDateLabel).join(' · ')} · {plan.window}</small>}
+              </a></li>;
+            }
+            return <li key={o.token}><a href={trackingHref(o.token)} className="flex items-center gap-3 rounded-2xl border border-border p-3">
+              <span className="grid size-10 place-items-center rounded-full bg-accent text-primary"><ReceiptText className="size-5" /></span>
+              <span className="flex-1"><strong className="block">Pedido #{o.code}</strong><small className="text-muted-foreground">{savedAtLabel(o.savedAt)}</small></span>
+              <span className="text-sm font-bold text-primary">Acompanhar</span><ChevronRight className="size-4 text-primary" />
+            </a></li>;
+          })}</ul> : <div className="py-10 text-center"><ReceiptText className="mx-auto size-10 text-muted-foreground" /><p className="mt-3 font-bold">Nenhum pedido ainda</p><p className="mt-1 text-sm text-muted-foreground">Depois de pedir, ele aparece aqui para acompanhar.</p></div>}
         </div>
       </SheetContent>
     </Sheet>

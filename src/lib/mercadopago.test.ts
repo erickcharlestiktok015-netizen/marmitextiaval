@@ -8,8 +8,9 @@ describe('Mercado Pago', () => {
     expect(items[0]!.unit_price).toBe(25);
   });
   it('cobra R$1,50 por km na entrega', () => {
-    const items = buildPreferenceItems([{ name: 'X', sizeLabel: 'Pequena · 500ml', quantity: 1 }], 'entrega', 3.2);
-    expect(items[1]!.unit_price).toBe(4.8);
+    const items = buildPreferenceItems([{ name: 'X', sizeLabel: 'Completa pequena · 500ml', quantity: 1 }], 'entrega', 3.2);
+    // 3,2 km de rota: 1 km dentro do Primeiro de Maio é grátis; 2,2 km × R$ 1,50 = R$ 3,30
+    expect(items[1]!.unit_price).toBe(3.3);
   });
   it('recusa item que não existe no cardápio', () => {
     expect(() => buildPreferenceItems([{ name: 'X', sizeLabel: 'Gigante', quantity: 1 }], 'retirada', null)).toThrow();

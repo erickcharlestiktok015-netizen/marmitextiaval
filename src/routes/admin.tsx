@@ -5,6 +5,7 @@ import {
   LayoutDashboard, LineChart, LogOut, MapPin, Menu, MessageCircle, MoreVertical, Phone, QrCode,
   ReceiptText, RefreshCw, ShieldCheck, ShoppingBag, Store, User, UtensilsCrossed, Wallet, X, BookOpen, CalendarDays, Hourglass,
 } from 'lucide-react';
+import { parsePlanNotes, planDeliveredCount, planDateLabel, PLAN_DAYS } from '@/lib/weekly-plan';
 
 type OrderItem = { meal_name: string; size_label: string; quantity: number; unit_price: number; notes?: string | null };
 type Order = {
@@ -12,6 +13,7 @@ type Order = {
   fulfillment: 'entrega' | 'retirada'; address: { cep?: string; street?: string; number?: string; complement?: string; bairro?: string } | null;
   payment_method: string; payment_status: string; order_status: string; subtotal: number; delivery_fee: number;
   total: number; change_for: number | null; created_at: string; estimated_delivery_at?: string | null; items: OrderItem[];
+  notes?: string | null;
 };
 const statuses = [
   { value: 'novo', label: 'Novo pedido' },
@@ -464,6 +466,7 @@ function AdminPage() {
               {visibleOrders.map((order) => {
                 const tone = toneFor(order);
                 const pay = paymentInfo(order);
+                const plan = parsePlanNotes(order.notes);
                 const action = primaryAction(order);
                 const open = expanded === order.id;
                 const busy = busyUpdate === order.id;
@@ -479,6 +482,7 @@ function AdminPage() {
                         <Clock3 className="h-4 w-4" /> {timeLabel(order.created_at)}
                       </span>
                       {order.order_for === 'amanha' && <span className="rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-violet-300">Amanhã</span>}
+                      {plan && <span className="rounded-md bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-fuchsia-300">Plano 7 Dias · Entrega {planDeliveredCount(plan)} de {PLAN_DAYS}</span>}
                       <span className={`ml-auto shrink-0 rounded-md border px-2 py-1 text-[10px] sm:text-xs font-bold uppercase ${tone.badge}`}>{tone.label}</span>
                     </div>
 
@@ -510,7 +514,7 @@ function AdminPage() {
                         <span className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-2.5 py-1">
                           <pay.icon className="h-4 w-4 text-teal-300" /> {pay.label}
                         </span>
-                        <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${pay.ok ? 'bg-emerald-500/15 text-emerald-300' : order.payment_method === 'online' ? 'bg-amber-500/15 text-amber-300' : 'bg-slate-700/60 text-slate-300'}`}>{pay.status}</span>
+                        <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${pay.ok ? 'bg-emerald-500/15 text-emerald-300' : order.payment_method === 'online' ? 'bg-amber-500/15 text-amber-300' : 'bg-slate-700/60 text-slate-300'}`}>{plan ? (pay.ok ? 'Já Pago' : `Cobrar ${money(Number(order.total))} na 1ª Entrega`) : pay.status}</span>
                         {order.change_for ? <span className="text-xs text-slate-300">Troco p/ {money(Number(order.change_for))}</span> : null}
                       </div>
                     </div>
@@ -542,6 +546,19 @@ function AdminPage() {
                           <p>Marmitas: <b>{money(Number(order.subtotal))}</b></p>
                           <p>Entrega: <b>{money(Number(order.delivery_fee))}</b></p>
                         </div>
+                        {plan && (
+                          <div className="rounded-lg border border-fuchsia-500/40 bg-fuchsia-500/5 p-3">
+                            <p className="flex items-center gap-1.5 text-xs font-bold uppercase text-fuchsia-300"><CalendarDays className="h-4 w-4" /> Plano 7 Dias · {plan.withCoke ? 'com Coca-Cola' : 'sem bebida'} · Janela {plan.window}</p>
+                            <ol className="mt-2 space-y-1 text-xs text-slate-300">
+                              {plan.dates.map((d, i) => (
+                                <li key={d} className="flex items-center gap-2">
+                                  <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${i < planDeliveredCount(plan) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700/60 text-slate-300'}`}>{i + 1}</span>
+                                  <span className="capitalize">{planDateLabel(d)}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
                         <div className="flex flex-wrap gap-2">
                           <a href={`tel:+55${phoneDigits(order.customer_phone)}`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 hover:bg-slate-800"><Phone className="h-4 w-4" /> {order.customer_phone}</a>
                           {order.fulfillment === 'entrega' && order.address && (

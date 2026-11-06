@@ -1,5 +1,7 @@
 // Histórico local de pedidos ("Meus pedidos") e dados do cliente salvos no celular.
 // Só guarda código + token de rastreio; os dados do pedido continuam no servidor.
+import type { PlanMeta } from '@/lib/weekly-plan';
+
 export type SavedOrder = { code: string; token: string; savedAt: string };
 
 export const MY_ORDERS_KEY = 'tia-val-meus-pedidos';
@@ -42,6 +44,33 @@ export function readCustomer(): SavedCustomer | null {
 
 export function saveCustomer(customer: SavedCustomer) {
   try { localStorage.setItem(CUSTOMER_KEY, JSON.stringify(customer)); } catch { /* opcional */ }
+}
+
+// Metadados do Plano 7 Dias salvos no celular, para o card "Plano Ativo" em Meus Pedidos.
+const PLANS_KEY = 'tia-val-planos';
+
+type PlanMap = Record<string, PlanMeta>;
+
+function readPlanMap(): PlanMap {
+  try {
+    const data = JSON.parse(localStorage.getItem(PLANS_KEY) || '{}') as PlanMap;
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+export function savePlanMeta(token: string, meta: PlanMeta) {
+  try {
+    const map = readPlanMap();
+    map[token] = meta;
+    localStorage.setItem(PLANS_KEY, JSON.stringify(map));
+  } catch { /* opcional */ }
+}
+
+export function readPlanMeta(token: string): PlanMeta | null {
+  const meta = readPlanMap()[token];
+  return meta && Array.isArray(meta.dates) && meta.dates.length === 7 ? meta : null;
 }
 
 export const trackingHref = (token: string) => `/acompanhar?token=${encodeURIComponent(token)}`;

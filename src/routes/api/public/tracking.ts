@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { supabaseRequest } from '@/lib/supabase.server';
+import { parsePlanNotes } from '@/lib/weekly-plan';
 
 export const Route = createFileRoute('/api/public/tracking')({
   server: {
@@ -14,8 +15,9 @@ export const Route = createFileRoute('/api/public/tracking')({
             id: string; code: string; order_status: string; payment_status: string; payment_method: string;
             fulfillment: string; estimated_delivery_at: string | null; courier_status: string;
             confirmation_code: string | null; created_at: string; updated_at: string; courier_latitude: number | null; courier_longitude: number | null; courier_location_updated_at: string | null;
+            notes: string | null;
           }>>(
-            `orders?select=id,code,order_status,payment_status,payment_method,fulfillment,estimated_delivery_at,courier_status,confirmation_code,created_at,updated_at,courier_latitude,courier_longitude,courier_location_updated_at&tracking_token=eq.${encodeURIComponent(token)}&limit=1`,
+            `orders?select=id,code,order_status,payment_status,payment_method,fulfillment,estimated_delivery_at,courier_status,confirmation_code,created_at,updated_at,courier_latitude,courier_longitude,courier_location_updated_at,notes&tracking_token=eq.${encodeURIComponent(token)}&limit=1`,
           );
           const order = rows[0];
           if (!order) return Response.json({ error: 'Pedido não encontrado.' }, { status: 404 });
@@ -38,6 +40,8 @@ export const Route = createFileRoute('/api/public/tracking')({
               deliveries_ahead: deliveriesAhead,
               id: undefined,
               confirmation_code: order.courier_status === 'cheguei' ? order.confirmation_code : null,
+              plan: parsePlanNotes(order.notes),
+              notes: undefined,
               items,
             },
           }, { headers: { 'Cache-Control': 'no-store, max-age=0', 'X-Content-Type-Options': 'nosniff' } });
