@@ -82,21 +82,21 @@ export function DeliveryFee({ onResult, compact }: { onResult?: (result: FeeResu
     }
   };
 
-  return <div className={compact ? "delivery-fee" : "delivery-fee reveal"}>
-    <h3><Bike /> Taxa de entrega · {formatPrice(deliveryFeePerKm)} por km</h3>
-    <p>Coloque seu endereço que a taxa do motoboy sai na hora, pela distância exata até a nossa cozinha.</p>
-    <div className="delivery-form delivery-address">
-      <input className="da-cep" value={cep} onChange={event => { const v = maskCep(event.target.value); setCep(v); clear(); void lookupCep(v); }} inputMode="numeric" autoComplete="postal-code" placeholder="CEP 00000-000" aria-label="CEP" />
-      <input className="da-rua" value={rua} onChange={event => { setRua(event.target.value); clear(); }} autoComplete="address-line1" placeholder="Rua" aria-label="Rua" maxLength={120} />
-      <input className="da-num" value={numero} onChange={event => { setNumero(event.target.value); clear(); }} placeholder="Nº" aria-label="Número" maxLength={10} />
-      <input className="da-comp" value={complemento} onChange={event => { setComplemento(event.target.value); onResult && result && onResult({ ...result, complemento: event.target.value.trim() }); }} autoComplete="address-line2" placeholder="Complemento (apto, bloco...)" aria-label="Complemento" maxLength={80} />
-      <Button className="da-btn" type="button" onClick={() => void calculate()} disabled={loading}>{loading ? <LoaderCircle className="animate-spin" aria-hidden /> : null} Calcular entrega</Button>
+  return <div className={compact ? 'space-y-3' : 'space-y-3 rounded-3xl bg-card p-5 shadow-card'}>
+    {!compact && <h3 className="flex items-center gap-2 text-lg font-bold"><Bike className="size-5 text-primary" /> Taxa de entrega · {formatPrice(deliveryFeePerKm)} por km</h3>}
+    <p className="text-sm text-muted-foreground">Digite o CEP e o número: a taxa do motoboy sai na hora, pela distância até a cozinha ({formatPrice(deliveryFeePerKm)} por km).</p>
+    <div className="grid grid-cols-6 gap-2">
+      <input className="da-field col-span-6 sm:col-span-2" value={cep} onChange={event => { const v = maskCep(event.target.value); setCep(v); clear(); void lookupCep(v); }} inputMode="numeric" autoComplete="postal-code" placeholder="CEP 00000-000" aria-label="CEP" />
+      <input className="da-field col-span-4 sm:col-span-3" value={rua} onChange={event => { setRua(event.target.value); clear(); }} autoComplete="address-line1" placeholder="Rua" aria-label="Rua" maxLength={120} />
+      <input className="da-field col-span-2 sm:col-span-1" value={numero} onChange={event => { setNumero(event.target.value); clear(); }} placeholder="Nº" aria-label="Número" maxLength={10} />
+      <input className="da-field col-span-6" value={complemento} onChange={event => { setComplemento(event.target.value); onResult && result && onResult({ ...result, complemento: event.target.value.trim() }); }} autoComplete="address-line2" placeholder="Complemento (apto, bloco...)" aria-label="Complemento" maxLength={80} />
     </div>
-    {info && !result && <p className="delivery-hint"><MapPin size={13} /> {info.bairro}, {info.cidade}</p>}
-    {error && <p className="delivery-error" role="alert">{error}</p>}
-    {result && <div className="delivery-result" role="status">
-      <p><MapPin size={13} /> {result.rua}, {result.numero} · {result.bairro} · ~{result.km < 1 ? 'menos de 1' : (Math.round(result.km * 10) / 10).toLocaleString('pt-BR')} km da cozinha</p>
-      <p className="delivery-value"><strong>{formatPrice(result.taxa)}</strong> de taxa de entrega <small>({formatPrice(deliveryFeePerKm)} por km)</small></p>
+    {info && !result && <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin size={14} /> {info.bairro}, {info.cidade}</p>}
+    <Button variant="ctaOutline" size="xl" className="w-full" type="button" onClick={() => void calculate()} disabled={loading}>{loading ? <LoaderCircle className="animate-spin" aria-hidden /> : <Bike />} {result ? 'Recalcular entrega' : 'Calcular entrega'}</Button>
+    {error && <p className="rounded-xl bg-accent px-3 py-2 text-sm font-medium text-primary" role="alert">{error}</p>}
+    {result && <div className="flex items-start gap-3 rounded-2xl bg-success-surface p-3" role="status">
+      <MapPin className="mt-0.5 size-5 shrink-0 text-success" />
+      <div className="text-sm"><p className="font-semibold">{result.rua}, {result.numero} · {result.bairro}</p><p className="text-muted-foreground">~{result.km < 1 ? 'menos de 1' : (Math.round(result.km * 10) / 10).toLocaleString('pt-BR')} km da cozinha · entrega <strong className="text-foreground">{formatPrice(result.taxa)}</strong></p></div>
     </div>}
   </div>;
 }

@@ -59,6 +59,13 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-surface: var(--success-surface);
+  --color-star: var(--star);
+  --font-display: var(--font-dish);
+  --shadow-bag: var(--shadow-floating);
+  --shadow-card: var(--shadow-soft);
 }
 
 :root {
@@ -1199,3 +1206,52 @@ html, body, .restaurant-page {
   .swipe-hint-label { font-size:9px; font-weight:600; letter-spacing:.14em; color:var(--hero-foreground); text-shadow:0 1px 6px oklch(.1 .01 80 / .8); }
 }
 @keyframes swipe-hint-bounce { 0%,100% { transform:translateY(0); opacity:.75; } 50% { transform:translateY(9px); opacity:1; } }
+
+/* ===== Delivery app (cardápio estilo app de delivery + acompanhamento) =====
+ * Tokens locais: o painel da cozinha e o app do motoboy continuam com o tema original.
+ * Coloque a classe .delivery-app em cada raiz (página e conteúdos em portal: sheets/dialogs). */
+.delivery-app {
+  --background: oklch(1 0 0);
+  --foreground: oklch(.33 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: var(--card); --popover-foreground: var(--foreground);
+  --primary: oklch(.59 .225 27);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(.96 0 0);
+  --secondary-foreground: oklch(.33 0 0);
+  --muted: oklch(.965 0 0);
+  --muted-foreground: oklch(.55 0 0);
+  --accent: oklch(.965 .02 20);
+  --accent-foreground: oklch(.59 .225 27);
+  --destructive: oklch(.59 .225 27); --destructive-foreground: oklch(1 0 0);
+  --border: oklch(.92 0 0); --input: oklch(.88 0 0); --ring: oklch(.59 .225 27);
+  --success: oklch(.62 .13 152); --success-foreground: oklch(1 0 0); --success-surface: oklch(.95 .045 152);
+  --star: oklch(.8 .16 80);
+  --font-dish: 'DM Sans', system-ui, sans-serif;
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / .05), 0 4px 16px oklch(0 0 0 / .07);
+  --shadow-floating: 0 -4px 24px oklch(0 0 0 / .12);
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+.delivery-app h1, .delivery-app h2, .delivery-app h3 { font-family: var(--font-dish); line-height: 1.15; letter-spacing: -.01em; }
+.delivery-app h2 em { color: inherit; font-style: normal; }
+.delivery-app ::selection { background: var(--primary); color: var(--primary-foreground); }
+.delivery-app input, .delivery-app textarea { font-size: 16px; }
+.da-field { width: 100%; min-height: 48px; border-radius: 10px; border: 1px solid var(--input); background: var(--card); padding: 12px 14px; color: var(--foreground); outline: none; transition: border-color .15s, box-shadow .15s; }
+.da-field::placeholder { color: var(--muted-foreground); }
+.da-field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 18%, transparent); }
+.da-scribble { display:block; width: 64px; height: 6px; margin-top: 6px; border-radius: 99px; background: color-mix(in oklch, var(--primary) 25%, transparent); }
+.da-bag-enter { animation: da-bag-in .35s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes da-bag-in { from { transform: translateY(110%); } to { transform: translateY(0); } }
+.da-pop { animation: da-pop .4s ease both; }
+@keyframes da-pop { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.da-ride { animation: da-ride 1.2s ease-in-out infinite alternate; }
+@keyframes da-ride { from { transform: translateX(-3px) rotate(-2deg); } to { transform: translateX(3px) rotate(2deg); } }
+.da-pulse-ring { animation: da-ring 1.8s ease-out infinite; }
+@keyframes da-ring { 0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 45%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+@media (prefers-reduced-motion: reduce) { .da-bag-enter, .da-pop, .da-ride, .da-pulse-ring { animation: none; } }
+.da-no-scrollbar { scrollbar-width: none; } .da-no-scrollbar::-webkit-scrollbar { display: none; }
+.da-cover-fade { background: linear-gradient(to bottom, transparent 40%, color-mix(in oklch, var(--foreground) 55%, transparent)); }

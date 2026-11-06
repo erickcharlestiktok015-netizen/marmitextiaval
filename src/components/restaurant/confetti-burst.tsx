@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const COLORS = ['#f59e0b', '#ef4444', '#22c55e', '#3b82f6', '#ec4899', '#facc15', '#f97316'];
+const COLORS = ['#f59e0b', '#ef4444', '#22c55e', '#3b82f6', '#ec4899', '#facc15', '#f97316'] as const;
 
 type Piece = { x: number; y: number; vx: number; vy: number; size: number; color: string; rot: number; vr: number; shape: 0 | 1 };
 
@@ -27,11 +27,11 @@ export function ConfettiBurst({ trigger = 0 }: { trigger?: unknown }) {
         for (let i = 0; i < 70; i++) {
           const angle = side === 0 ? -Math.PI / 3 - Math.random() * 0.6 : -Math.PI * 2 / 3 + Math.random() * 0.6;
           const speed = 7 + Math.random() * 9;
-          pieces.push({ x: side === 0 ? 0 : w, y: h * 0.75, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: 5 + Math.random() * 6, color: COLORS[(Math.random() * COLORS.length) | 0], rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, shape: Math.random() > 0.5 ? 1 : 0 });
+          pieces.push({ x: side === 0 ? 0 : w, y: h * 0.75, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: 5 + Math.random() * 6, color: COLORS[(Math.random() * COLORS.length) | 0] ?? COLORS[0], rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, shape: Math.random() > 0.5 ? 1 : 0 });
         }
       }
       for (let i = 0; i < 50; i++) {
-        pieces.push({ x: w / 2, y: h * 0.35, vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 10 - 2, size: 5 + Math.random() * 6, color: COLORS[(Math.random() * COLORS.length) | 0], rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, shape: Math.random() > 0.5 ? 1 : 0 });
+        pieces.push({ x: w / 2, y: h * 0.35, vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 10 - 2, size: 5 + Math.random() * 6, color: COLORS[(Math.random() * COLORS.length) | 0] ?? COLORS[0], rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, shape: Math.random() > 0.5 ? 1 : 0 });
       }
       const tick = () => {
         frame++;
