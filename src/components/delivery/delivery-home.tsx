@@ -6,6 +6,7 @@ import { CheckoutForm } from '@/components/restaurant/checkout-form';
 import { trackAddToCart } from '@/components/facebook-pixel';
 import { contacts, deliveryFeePerKm, feijoadaMeal, formatPrice, isRestaurantOpen, mapsUrl, meals, openingHours, type Meal, type MealSize } from '@/lib/restaurant-data';
 import { readPlanMeta, readSavedOrders, savedAtLabel, trackingHref, type SavedOrder } from '@/lib/my-orders';
+import { ContactDock } from '@/components/restaurant/contact-dock';
 import { BannerCarousel } from '@/components/delivery/banner-carousel';
 import { PlanSheet } from '@/components/delivery/plan-sheet';
 import { PLAN_DAYS, planSizes, planDateLabel, planDeliveredCount, spDateKey } from '@/lib/weekly-plan';
@@ -380,5 +381,6 @@ export function DeliveryHome() {
         </div>
       </SheetContent>
     </Sheet>
+    <ContactDock />
   </div>;
 }
