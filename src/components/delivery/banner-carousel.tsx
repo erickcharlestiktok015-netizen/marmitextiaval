@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { Bike, Clock, Star, Wallet } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { mapsUrl } from '@/lib/restaurant-data';
-import paymentBannerAsset from '@/assets/payment-methods-banner.png';
+// Imagens hospedadas no CDN do Lovable.
+const paymentBannerAsset = 'https://id-preview--2fff413a-7193-4dd0-902d-b541fb31df57.lovable.app/__l5e/assets-v1/88fe4c02-5c97-4cba-b41f-4a971235e0d6/formas-pagamento.webp';
+const trackingBannerImage = 'https://id-preview--2fff413a-7193-4dd0-902d-b541fb31df57.lovable.app/__l5e/assets-v1/e43fadb3-61f4-4a03-bb79-8fb255d9176b/entrega-tempo-real.webp';
 
 // Imagem oficial do Plano 7 Dias (feijoada + Coca-Cola gelada), hospedada no CDN.
 const planBannerImage = 'https://id-preview--c979a7b3-94a4-4a46-923b-53b0de957941.lovable.app/__l5e/assets-v1/6012beb9-1303-4f47-a554-bbad46f8de18/feijoada-coca-plano.jpg';
 
-const SLIDE_COUNT = 3;
+const SLIDE_COUNT = 4;
 const AUTO_MS = 5000;
 
 function GoogleReviewBanner() {
@@ -45,8 +47,8 @@ function GoogleReviewBanner() {
 }
 
 function GuaranteeBanner({ onOpen }: { onOpen: () => void }) {
-  return <button type="button" onClick={onOpen} className="block size-full cursor-zoom-in overflow-hidden bg-gradient-to-br from-[#fff4e7] to-white" aria-label="Ampliar informações sobre as formas de pagamento">
-    <img src={paymentBannerAsset} alt="Pagamento seguro: Pix, cartões de crédito e débito, boleto, saldo Mercado Pago e pagamento na entrega" className="size-full object-contain p-2" loading="lazy" />
+  return <button type="button" onClick={onOpen} className="block size-full cursor-zoom-in overflow-hidden bg-[#fff4e7]" aria-label="Ampliar informações sobre as formas de pagamento">
+    <img src={paymentBannerAsset} alt="Pagamento seguro: Pix, cartões de crédito e débito, boleto, saldo Mercado Pago e pagamento na entrega" className="size-full object-cover" loading="lazy" />
   </button>;
 }
 
@@ -99,6 +101,17 @@ export function BannerCarousel({ onOpenPlan }: { onOpenPlan: () => void }) {
         </button>
       </div>
       <div className="w-full shrink-0 snap-center px-4">
+        <div className="relative aspect-video w-full overflow-hidden rounded-2xl shadow-card">
+          <img src={trackingBannerImage} alt="Motoboy da Tia Val mostrando o pedido sendo acompanhado no celular" className="size-full object-cover" loading="lazy" />
+          <span className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" aria-hidden />
+          <span className="absolute inset-y-0 left-0 flex w-[62%] flex-col justify-center gap-1.5 p-4 text-white">
+            <span className="w-fit rounded-md bg-primary px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-primary-foreground">Entrega acompanhada</span>
+            <span className="text-base font-extrabold leading-tight sm:text-xl">Peça em poucos toques e veja sua marmita chegando em tempo real</span>
+            <span className="text-[11px] font-semibold leading-snug text-white/90 sm:text-sm">🔒 Código de entrega: o motoboy só finaliza quando você confirma o código</span>
+          </span>
+        </div>
+      </div>
+      <div className="w-full shrink-0 snap-center px-4">
         <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border shadow-card"><GoogleReviewBanner /></div>
       </div>
       <div className="w-full shrink-0 snap-center px-4">
@@ -113,7 +126,7 @@ export function BannerCarousel({ onOpenPlan }: { onOpenPlan: () => void }) {
       </DialogContent>
     </Dialog>
     <div className="mt-2.5 flex justify-center gap-1.5" role="tablist" aria-label="Escolher destaque">
-      {[0, 1, 2].map(i => <button key={i} type="button" role="tab" aria-selected={index === i} aria-label={`Destaque ${i + 1}`} onClick={() => goTo(i)} className={`h-1.5 rounded-full transition-all ${index === i ? 'w-5 bg-primary' : 'w-1.5 bg-border'}`} />)}
+      {Array.from({ length: SLIDE_COUNT }, (_, i) => i).map(i => <button key={i} type="button" role="tab" aria-selected={index === i} aria-label={`Destaque ${i + 1}`} onClick={() => goTo(i)} className={`h-1.5 rounded-full transition-all ${index === i ? 'w-5 bg-primary' : 'w-1.5 bg-border'}`} />)}
     </div>
   </section>;
 }
