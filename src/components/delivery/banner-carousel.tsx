@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Bike, Clock, Star, Wallet } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { mapsUrl } from '@/lib/restaurant-data';
+import paymentBannerAsset from '@/assets/payment-methods-banner.png';
 
 // Imagem oficial do Plano 7 Dias (feijoada + Coca-Cola gelada), hospedada no CDN.
 const planBannerImage = 'https://id-preview--c979a7b3-94a4-4a46-923b-53b0de957941.lovable.app/__l5e/assets-v1/6012beb9-1303-4f47-a554-bbad46f8de18/feijoada-coca-plano.jpg';
@@ -9,8 +12,8 @@ const SLIDE_COUNT = 3;
 const AUTO_MS = 5000;
 
 function GoogleReviewBanner() {
-  return <a href={mapsUrl} target="_blank" rel="noreferrer" className="block size-full bg-card p-4" aria-label="Ver avaliações no Google">
-    <div className="flex h-full flex-col justify-between">
+  return <a href={mapsUrl} target="_blank" rel="noreferrer" className="relative block size-full overflow-hidden bg-[radial-gradient(circle_at_12%_18%,#f9e7bd_0_2px,transparent_3px),radial-gradient(circle_at_86%_76%,#f9e7bd_0_2px,transparent_3px),linear-gradient(135deg,#fffaf0,#f7edda_55%,#fffdf8)] p-4" aria-label="Ver avaliações no Google">
+    <div className="relative z-10 flex h-full flex-col justify-between">
       <div className="flex items-center gap-3">
         <span className="grid size-11 shrink-0 place-items-center rounded-full border border-border bg-background text-xl font-black" aria-hidden>
           <span className="bg-gradient-to-br from-[#4285F4] via-[#EA4335] to-[#FBBC05] bg-clip-text text-transparent">G</span>
@@ -35,23 +38,15 @@ function GoogleReviewBanner() {
   </a>;
 }
 
-function GuaranteeBanner() {
-  const items = [
-    { icon: Clock, title: 'Entrega pontual', text: 'das 11h às 14h' },
-    { icon: Bike, title: 'Sem taxa', text: 'dentro do Primeiro de Maio' },
-    { icon: Wallet, title: 'Pague no Pix', text: 'ou na entrega (cartão/dinheiro)' },
-  ];
-  return <div className="flex size-full flex-col justify-center gap-2.5 bg-primary p-4 text-primary-foreground">
-    <p className="text-xs font-bold uppercase tracking-widest opacity-80">Garantia Tia Val</p>
-    {items.map(({ icon: Icon, title, text }) => <p key={title} className="flex items-center gap-2.5 text-sm font-bold">
-      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-foreground/15"><Icon className="size-4" /></span>
-      {title} <span className="font-normal opacity-90">{text}</span>
-    </p>)}
-  </div>;
+function GuaranteeBanner({ onOpen }: { onOpen: () => void }) {
+  return <button type="button" onClick={onOpen} className="block size-full cursor-zoom-in overflow-hidden bg-[#fff4e7]" aria-label="Ampliar informações sobre as formas de pagamento">
+    <img src={paymentBannerAsset} alt="Pagamento seguro: Pix, cartões de crédito e débito, boleto, saldo Mercado Pago e pagamento na entrega" className="size-full object-cover" loading="lazy" />
+  </button>;
 }
 
 export function BannerCarousel({ onOpenPlan }: { onOpenPlan: () => void }) {
   const [index, setIndex] = useState(0);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const touchX = useRef<number | null>(null);
 
@@ -101,9 +96,16 @@ export function BannerCarousel({ onOpenPlan }: { onOpenPlan: () => void }) {
         <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border shadow-card"><GoogleReviewBanner /></div>
       </div>
       <div className="w-full shrink-0 snap-center px-4">
-        <div className="aspect-video w-full overflow-hidden rounded-2xl shadow-card"><GuaranteeBanner /></div>
+        <div className="aspect-video w-full overflow-hidden rounded-2xl shadow-card"><GuaranteeBanner onOpen={() => setPaymentOpen(true)} /></div>
       </div>
     </div>
+    <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+      <DialogContent className="delivery-app max-h-[94dvh] w-[calc(100%-20px)] max-w-3xl overflow-y-auto rounded-3xl border-0 bg-[#fff4e7] p-3 sm:p-5">
+        <DialogTitle className="pr-8 text-lg font-extrabold">Formas de pagamento</DialogTitle>
+        <DialogDescription>Toque para conferir as opções disponíveis online e na entrega.</DialogDescription>
+        <img src={paymentBannerAsset} alt="Pix, cartões de crédito e débito, boleto, saldo Mercado Pago e pagamento na entrega" className="mx-auto max-h-[75dvh] w-auto max-w-full rounded-2xl object-contain" />
+      </DialogContent>
+    </Dialog>
     <div className="mt-2.5 flex justify-center gap-1.5" role="tablist" aria-label="Escolher destaque">
       {[0, 1, 2].map(i => <button key={i} type="button" role="tab" aria-selected={index === i} aria-label={`Destaque ${i + 1}`} onClick={() => goTo(i)} className={`h-1.5 rounded-full transition-all ${index === i ? 'w-5 bg-primary' : 'w-1.5 bg-border'}`} />)}
     </div>

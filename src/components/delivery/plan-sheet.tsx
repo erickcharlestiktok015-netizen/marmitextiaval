@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Banknote, Bike, CalendarCheck, Check, CheckCircle2, Copy, CreditCard, LoaderCircle, MessageCircle, QrCode } from 'lucide-react';
+import { Banknote, Bike, CalendarCheck, Check, CheckCircle2, Copy, CreditCard, LoaderCircle, MessageCircle, QrCode, ReceiptText, Smartphone, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { DeliveryFee, type FeeResult } from '@/components/restaurant/delivery-fee';
 import { ConfettiBurst } from '@/components/restaurant/confetti-burst';
-import { checkOrderPaymentStatus, type SubmitResult } from '@/lib/orders';
+import { checkOrderPaymentStatus, type OnlinePaymentMethod, type SubmitResult } from '@/lib/orders';
 import { contacts, deliveryFeePerKm, formatPrice } from '@/lib/restaurant-data';
 import { readCustomer, saveCustomer, saveOrder, savePlanMeta, trackingHref } from '@/lib/my-orders';
 import { trackInitiateCheckout, trackPurchase } from '@/components/facebook-pixel';
@@ -29,7 +29,14 @@ const maskPhone = (v: string) => {
   return `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
 };
 
-type PlanPayment = 'online-pix' | 'entrega-dinheiro' | 'entrega-cartao';
+type PlanPayment = 'online' | 'entrega-pix' | 'entrega-dinheiro' | 'entrega-cartao';
+const onlinePaymentOptions: { id: OnlinePaymentMethod; label: string; hint: string; icon: typeof QrCode }[] = [
+  { id: 'pix', label: 'Pix', hint: 'QR Code e copia e cola', icon: QrCode },
+  { id: 'credit_card', label: 'Cartão de crédito', hint: 'Pagamento pelo Mercado Pago', icon: CreditCard },
+  { id: 'debit_card', label: 'Cartão de débito', hint: 'Para cartões aceitos', icon: CreditCard },
+  { id: 'ticket', label: 'Boleto bancário', hint: 'Pague pelo seu banco', icon: ReceiptText },
+  { id: 'account_money', label: 'Saldo Mercado Pago', hint: 'Use o saldo da sua conta', icon: Wallet },
+];
 
 export function PlanSheet({ onDone }: { onDone?: () => void }) {
   const [sizeId, setSizeId] = useState<PlanSizeId>('pequena');
@@ -40,7 +47,8 @@ export function PlanSheet({ onDone }: { onDone?: () => void }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [payment, setPayment] = useState<PlanPayment>('online-pix');
+  const [payment, setPayment] = useState<PlanPayment>('online');
+  const [onlineMethod, setOnlineMethod] = useState<OnlinePaymentMethod>('pix');
   const [changeFor, setChangeFor] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -86,16 +94,17 @@ export function PlanSheet({ onDone }: { onDone?: () => void }) {
     if (!fee) return setError('Coloque seu endereço e clique em Calcular entrega.');
     if (dates.length !== PLAN_DAYS) return setError(`Escolha os ${PLAN_DAYS} dias de entrega no calendário.`);
     if (!window_) return setError('Escolha a janela de entrega.');
-    if (payment === 'online-pix' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Informe um e-mail válido para gerar o Pix.');
+    if (payment === 'online' && onlineMethod === 'pix' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Informe um e-mail válido para gerar o Pix.');
     trackInitiateCheckout(total);
     setSending(true);
     try {
       const res = await submitPlanOrder({
         sizeId, withCoke, dates, window: window_,
-        customer: { name: name.trim(), phone: phone.replace(/\D/g, ''), email: payment === 'online-pix' ? email.trim() : undefined },
+        customer: { name: name.trim(), phone: phone.replace(/\D/g, ''), email: payment === 'online' && onlineMethod === 'pix' ? email.trim() : undefined },
         address: { cep: fee.cep, street: fee.rua, number: fee.numero, complement: fee.complemento, bairro: fee.bairro, latitude: fee.latitude, longitude: fee.longitude },
         distanceKm: fee.km,
         payment,
+        ...(payment === 'online' ? { onlineMethod } : {}),
         changeFor: payment === 'entrega-dinheiro' && changeFor ? Number(changeFor.replace(',', '.')) || null : null,
       });
       saveCustomer({ name: name.trim(), phone: phone.replace(/\D/g, '') });
@@ -111,6 +120,7 @@ export function PlanSheet({ onDone }: { onDone?: () => void }) {
         setPixDialog(true);
         return;
       }
+      if (res.paymentUrl) { trackPurchase(total); window.location.href = res.paymentUrl; return; }
       setResult(res);
     } catch {
       setError(`Não conseguimos registrar seu plano. Tente de novo ou ligue ${contacts.phoneLabel}.`);
@@ -184,20 +194,25 @@ export function PlanSheet({ onDone }: { onDone?: () => void }) {
         <input className="da-field" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" autoComplete="name" maxLength={80} aria-label="Nome" />
         <input className="da-field" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} placeholder="(31) 99999-9999" inputMode="tel" autoComplete="tel" aria-label="Telefone" />
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" aria-pressed={payment === 'online-pix'} onClick={() => setPayment('online-pix')} className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-3 text-left transition ${payment === 'online-pix' ? 'border-primary bg-accent' : 'border-border bg-card'}`}>
-            <QrCode className={`size-5 ${payment === 'online-pix' ? 'text-primary' : 'text-muted-foreground'}`} />
-            <strong className="text-sm leading-tight">Pix agora</strong>
-            <small className="text-xs leading-snug text-muted-foreground">QR Code na hora, pelo Mercado Pago</small>
+          <button type="button" aria-pressed={payment === 'online'} onClick={() => setPayment('online')} className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-3 text-left transition ${payment === 'online' ? 'border-primary bg-accent' : 'border-border bg-card'}`}>
+            <Smartphone className={`size-5 ${payment === 'online' ? 'text-primary' : 'text-muted-foreground'}`} />
+            <strong className="text-sm leading-tight">Pagar online</strong>
+            <small className="text-xs leading-snug text-muted-foreground">Pix, crédito, débito, boleto ou saldo MP</small>
           </button>
-          <button type="button" aria-pressed={payment !== 'online-pix'} onClick={() => setPayment('entrega-dinheiro')} className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-3 text-left transition ${payment !== 'online-pix' ? 'border-primary bg-accent' : 'border-border bg-card'}`}>
-            <Banknote className={`size-5 ${payment !== 'online-pix' ? 'text-primary' : 'text-muted-foreground'}`} />
+          <button type="button" aria-pressed={payment !== 'online'} onClick={() => setPayment('entrega-pix')} className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-3 text-left transition ${payment !== 'online' ? 'border-primary bg-accent' : 'border-border bg-card'}`}>
+            <Bike className={`size-5 ${payment !== 'online' ? 'text-primary' : 'text-muted-foreground'}`} />
             <strong className="text-sm leading-tight">Pagar na 1ª entrega</strong>
-            <small className="text-xs leading-snug text-muted-foreground">Dinheiro ou cartão para o motoboy</small>
+            <small className="text-xs leading-snug text-muted-foreground">Pix, cartão na maquininha ou dinheiro</small>
           </button>
         </div>
-        {payment === 'online-pix' && <input className="da-field" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Seu e-mail para o pagamento Pix" autoComplete="email" maxLength={254} aria-label="E-mail para pagamento Pix" />}
-        {payment !== 'online-pix' && <div className="grid grid-cols-2 gap-2 rounded-2xl bg-secondary p-1">
-          {([['entrega-dinheiro', 'Dinheiro', Banknote], ['entrega-cartao', 'Cartão', CreditCard]] as const).map(([id, text, Icon]) => <button key={id} type="button" aria-pressed={payment === id} onClick={() => setPayment(id)} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold transition ${payment === id ? 'bg-primary text-primary-foreground shadow-card' : 'text-secondary-foreground'}`}><Icon size={16} /> {text}</button>)}
+        {payment === 'online' && <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {onlinePaymentOptions.map(option => { const Icon = option.icon; const on = onlineMethod === option.id; return <button key={option.id} type="button" aria-pressed={on} onClick={() => { setOnlineMethod(option.id); setError(null); }} className={`flex min-h-[76px] items-center gap-2 rounded-xl border-2 p-2 text-left transition ${on ? 'border-primary bg-accent' : 'border-border bg-card'}`}><Icon className={`size-5 shrink-0 ${on ? 'text-primary' : 'text-muted-foreground'}`} /><span><strong className="block text-sm leading-tight">{option.label}</strong><small className="text-xs leading-snug text-muted-foreground">{option.hint}</small></span></button>; })}
+          </div>
+          {onlineMethod === 'pix' && <input className="da-field" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Seu e-mail para o pagamento Pix" autoComplete="email" maxLength={254} aria-label="E-mail para pagamento Pix" />}
+        </div>}
+        {payment !== 'online' && <div className="grid grid-cols-3 gap-2 rounded-2xl bg-secondary p-1">
+          {([['entrega-pix', 'Pix', QrCode], ['entrega-cartao', 'Cartão', CreditCard], ['entrega-dinheiro', 'Dinheiro', Banknote]] as const).map(([id, text, Icon]) => <button key={id} type="button" aria-pressed={payment === id} onClick={() => setPayment(id)} className={`flex min-h-11 items-center justify-center gap-1 rounded-xl text-xs font-bold transition ${payment === id ? 'bg-primary text-primary-foreground shadow-card' : 'text-secondary-foreground'}`}><Icon size={15} /> {text}</button>)}
         </div>}
         {payment === 'entrega-dinheiro' && <input className="da-field" value={changeFor} onChange={e => setChangeFor(e.target.value.replace(/[^\d,]/g, ''))} placeholder="Troco para quanto? (opcional)" inputMode="decimal" aria-label="Troco para" />}
       </fieldset>
@@ -208,7 +223,7 @@ export function PlanSheet({ onDone }: { onDone?: () => void }) {
         <div className="flex justify-between border-t border-border pt-2 text-base font-bold"><dt>Total</dt><dd>{formatPrice(total)}</dd></div>
       </dl>
       {error && <p className="rounded-xl bg-accent px-3 py-2 text-sm font-medium text-primary" role="alert">{error}</p>}
-      <Button type="submit" variant="cta" size="xl" className="w-full" disabled={sending || Boolean(result)}>{sending && <LoaderCircle className="animate-spin" />} {payment === 'online-pix' ? 'Pagar com Pix' : 'Confirmar plano'} · {formatPrice(total)}</Button>
+      <Button type="submit" variant="cta" size="xl" className="w-full" disabled={sending || Boolean(result)}>{sending && <LoaderCircle className="animate-spin" />} {payment === 'online' ? `Pagar com ${onlinePaymentOptions.find(option => option.id === onlineMethod)?.label ?? 'Mercado Pago'}` : 'Confirmar plano'} · {formatPrice(total)}</Button>
     </form>
 
     <Dialog open={pixDialog} onOpenChange={setPixDialog}>

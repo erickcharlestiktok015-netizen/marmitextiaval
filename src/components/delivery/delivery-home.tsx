@@ -9,6 +9,7 @@ import { readPlanMeta, readSavedOrders, savedAtLabel, trackingHref, type SavedOr
 import { BannerCarousel } from '@/components/delivery/banner-carousel';
 import { PlanSheet } from '@/components/delivery/plan-sheet';
 import { PLAN_DAYS, planDateLabel, planDeliveredCount, spDateKey } from '@/lib/weekly-plan';
+import logoBannerAsset from '@/assets/marmitex-logo-banner.png';
 
 type BagItem = { key: string; mealId: string; sizeId: string; quantity: number; notes: string };
 const BAG_KEY = 'tia-val-sacola';
@@ -121,8 +122,8 @@ export function DeliveryHome() {
     <div className="mx-auto min-h-screen max-w-lg bg-background pb-32 shadow-card">
       {/* Capa */}
       <header className="relative">
-        <div className="relative h-44 overflow-hidden sm:h-52">
-          <img src={todayMeal.poster} alt="" className="size-full object-cover" width={800} height={400} />
+        <div className="relative aspect-[3/1] overflow-hidden">
+          <img src={logoBannerAsset} alt="Marmitex da Tia Val — comida caseira feita com muito amor" className="size-full object-cover" width={1920} height={640} fetchPriority="high" />
           <div className="da-cover-fade absolute inset-0" />
         </div>
         <div className="absolute right-3 top-3 flex gap-2">

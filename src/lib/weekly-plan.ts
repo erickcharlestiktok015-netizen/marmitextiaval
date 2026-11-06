@@ -46,6 +46,15 @@ export const planPrice = (sizeId: PlanSizeId, withCoke: boolean): number => {
 export const planDeliveryTotal = (km: number): number =>
   Math.round(deliveryFeeForKm(km) * PLAN_DAYS * 100) / 100;
 
+// Mercado Pago recebe o plano e o frete total como itens separados; a soma deve bater com o total do pedido.
+export function buildPlanPreferenceItems(sizeId: PlanSizeId, withCoke: boolean, deliveryFee: number) {
+  const items = [
+    { id: 'plano-7-dias', title: `Plano 7 Dias ${sizeId === 'pequena' ? 'Pequeno' : 'Grande'}${withCoke ? ' + 7 Coca-Cola' : ''}`, quantity: 1, unit_price: planPrice(sizeId, withCoke), currency_id: 'BRL' },
+    ...(deliveryFee > 0 ? [{ id: 'frete-plano-7-dias', title: 'Fretes das 7 entregas', quantity: 1, unit_price: Math.round(deliveryFee * 100) / 100, currency_id: 'BRL' }] : []),
+  ];
+  return items;
+}
+
 const SP_TZ = 'America/Sao_Paulo';
 
 // Data (AAAA-MM-DD) no fuso de Brasília.
@@ -134,7 +143,8 @@ export type PlanOrderInput = {
   customer: { name: string; phone: string; email?: string | undefined };
   address: { cep: string; street: string; number: string; complement: string; bairro: string; latitude?: number | undefined; longitude?: number | undefined };
   distanceKm: number;
-  payment: 'online-pix' | 'entrega-dinheiro' | 'entrega-cartao';
+  payment: 'online' | 'entrega-pix' | 'entrega-dinheiro' | 'entrega-cartao';
+  onlineMethod?: 'pix' | 'credit_card' | 'debit_card' | 'ticket' | 'account_money' | undefined;
   changeFor?: number | null;
 };
 

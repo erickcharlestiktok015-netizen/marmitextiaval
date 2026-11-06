@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { meals, tomorrowMenu } from '@/lib/restaurant-data';
 import { deliveryFeeForKm } from '@/lib/orders';
-import { PLAN_DAYS, encodePlanNotes, planDeliveryTotal, planItemName, planPrice, planSizeLabel, planWindows, spDateKey, type PlanMeta } from '@/lib/weekly-plan';
+import { PLAN_DAYS, buildPlanPreferenceItems, encodePlanNotes, planDeliveryTotal, planItemName, planPrice, planSizeLabel, planWindows, spDateKey, type PlanMeta } from '@/lib/weekly-plan';
 
 const schema = z.object({
   when: z.enum(['hoje', 'amanha']),
@@ -170,7 +170,8 @@ const planSchema = z.object({
     latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional(),
   }),
   distanceKm: z.number().positive().max(30),
-  payment: z.enum(['online-pix', 'entrega-dinheiro', 'entrega-cartao']),
+  payment: z.enum(['online', 'entrega-pix', 'entrega-dinheiro', 'entrega-cartao']),
+  onlineMethod: z.enum(['pix', 'credit_card', 'debit_card', 'ticket', 'account_money']).optional(),
   changeFor: z.number().positive().nullable().optional(),
 });
 
@@ -187,7 +188,7 @@ export const createPlanOrder = createServerFn({ method: 'POST' })
     let stage = 'loading payment and database modules';
     let code = 'not-created';
     try {
-      const { createPixPayment } = await import('@/lib/mercadopago.server');
+      const { createPixPayment, createPreference } = await import('@/lib/mercadopago.server');
       const { insertOrderRecord, supabaseRequest } = await import('@/lib/supabase.server');
 
       stage = 'validating plan schedule';
@@ -200,7 +201,8 @@ export const createPlanOrder = createServerFn({ method: 'POST' })
           throw new Error('Os dias do plano devem ser de segunda a sábado, a partir de hoje.');
         }
       }
-      if (data.payment === 'online-pix' && !data.customer.email) {
+      if (data.payment === 'online' && !data.onlineMethod) throw new Error('Escolha uma forma de pagamento online.');
+      if (data.payment === 'online' && data.onlineMethod === 'pix' && !data.customer.email) {
         throw new Error('Informe um e-mail válido para gerar o Pix.');
       }
 
@@ -225,8 +227,8 @@ export const createPlanOrder = createServerFn({ method: 'POST' })
         fulfillment: 'entrega',
         address: data.address,
         distance_km: data.distanceKm,
-        payment_method: data.payment === 'online-pix' ? 'online' : data.payment,
-        payment_status: data.payment === 'online-pix' ? 'pending' : 'not_required',
+        payment_method: data.payment,
+        payment_status: data.payment === 'online' ? 'pending' : 'not_required',
         order_status: 'novo',
         subtotal: price,
         delivery_fee: deliveryFee,
@@ -251,22 +253,40 @@ export const createPlanOrder = createServerFn({ method: 'POST' })
         });
       } catch (capiError) { console.error('[facebook-capi] InitiateCheckout ignorado', capiError); }
 
-      if (data.payment !== 'online-pix') return { code, trackingToken, paymentUrl: null as string | null };
+      if (data.payment !== 'online') return { code, trackingToken, paymentUrl: null as string | null };
 
-      stage = 'creating Mercado Pago Pix payment';
-      const pixPayment = await createPixPayment({
+      if (data.onlineMethod === 'pix') {
+        stage = 'creating Mercado Pago Pix payment';
+        const pixPayment = await createPixPayment({
+          code,
+          amount: total,
+          description: `Plano 7 Dias Marmitex da Tia Val #${code}`,
+          payer: { name: data.customer.name, phone: data.customer.phone, email: data.customer.email! },
+        });
+        stage = 'saving Mercado Pago Pix payment ID';
+        await supabaseRequest(`orders?id=eq.${encodeURIComponent(orderId)}`, {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ mp_payment_id: pixPayment.paymentId }),
+        });
+        return { code, trackingToken, paymentUrl: null as string | null, pixPayment };
+      }
+
+      stage = 'creating Mercado Pago plan preference';
+      const preferenceItems = buildPlanPreferenceItems(data.sizeId, data.withCoke, deliveryFee);
+      const checkout = await createPreference({
         code,
-        amount: total,
-        description: `Plano 7 Dias Marmitex da Tia Val #${code}`,
-        payer: { name: data.customer.name, phone: data.customer.phone, email: data.customer.email! },
+        items: preferenceItems,
+        payer: { name: data.customer.name, phone: data.customer.phone },
+        onlineMethod: data.onlineMethod!,
       });
-      stage = 'saving Mercado Pago Pix payment ID';
+      stage = 'saving Mercado Pago plan preference ID';
       await supabaseRequest(`orders?id=eq.${encodeURIComponent(orderId)}`, {
         method: 'PATCH',
         headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({ mp_payment_id: pixPayment.paymentId }),
+        body: JSON.stringify({ mp_preference_id: checkout.preferenceId }),
       });
-      return { code, trackingToken, paymentUrl: null as string | null, pixPayment };
+      return { code, trackingToken, paymentUrl: checkout.url };
     } catch (error) {
       console.error('Plan submission failed', { stage, orderCode: code, error });
       throw new Error('Não foi possível concluir o plano. A equipe técnica pode localizar o erro pelos logs do servidor.');

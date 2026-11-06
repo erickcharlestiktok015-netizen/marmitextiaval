@@ -3,6 +3,7 @@ import {
   PLAN_DAYS,
   dishForDateKey,
   encodePlanNotes,
+  buildPlanPreferenceItems,
   nextPlanDays,
   parsePlanNotes,
   planDeliveredCount,
@@ -31,6 +32,18 @@ describe('frete do plano', () => {
   it('fora do bairro cobra R$ 1,50/km excedente por dia, vezes 7', () => {
     // 3 km de rota: 2 km fora do bairro × R$ 1,50 = R$ 3/dia → R$ 21 no plano
     expect(planDeliveryTotal(3)).toBe(21);
+  });
+  it('prepara os itens de preferência com preço do plano e todos os fretes', () => {
+    const items = buildPlanPreferenceItems('grande', true, planDeliveryTotal(3));
+    expect(items).toHaveLength(2);
+    expect(items[0]?.unit_price).toBe(150);
+    expect(items[1]?.unit_price).toBe(21);
+    expect(items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)).toBe(171);
+  });
+  it('não cria item de frete quando as sete entregas são gratuitas', () => {
+    expect(buildPlanPreferenceItems('pequena', false, 0)).toEqual([
+      expect.objectContaining({ id: 'plano-7-dias', unit_price: 95 }),
+    ]);
   });
 });
 
