@@ -1300,3 +1300,7 @@ html, body, .restaurant-page {
   .delivery-app .da-trust-track { animation: none; }
   .delivery-app .da-trust-marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
 }
+
+/* Bolinha de ligação e posição na página de pedidos (acima da barra da sacola) */
+.contact-dock .contact-dock__icon--phone { background:#e11d2a; }
+.delivery-app .contact-dock { bottom:calc(96px + env(safe-area-inset-bottom)); }
