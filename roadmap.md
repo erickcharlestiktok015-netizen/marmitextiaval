@@ -5,5 +5,6 @@
 - [ ] Nova tela /acompanhar estilo iFood (5 etapas, código, resumo, WhatsApp, histórico)
 - [ ] Banco de pedidos funcionando neste projeto
 - [ ] Reserva/pedido pelo site com entrega R$1,50/km e pagamento agora ou na entrega (API depois)
-- [ ] Endereço completo (rua, número, complemento) no cálculo da entrega
+- [x] Taxa: km dentro do Primeiro de Maio grátis, R$1,50/km depois
+- [x] Endereço completo (rua, número, complemento) no cálculo da entrega
 - [ ] Capa: tirar faixa preta, vídeo em quadros ocupando tudo

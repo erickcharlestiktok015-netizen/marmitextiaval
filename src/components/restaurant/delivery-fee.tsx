@@ -84,7 +84,7 @@ export function DeliveryFee({ onResult, compact }: { onResult?: (result: FeeResu
 
   return <div className={compact ? 'space-y-3' : 'space-y-3 rounded-3xl bg-card p-5 shadow-card'}>
     {!compact && <h3 className="flex items-center gap-2 text-lg font-bold"><Bike className="size-5 text-primary" /> Taxa de entrega · {formatPrice(deliveryFeePerKm)} por km</h3>}
-    <p className="text-sm text-muted-foreground">Digite o CEP e o número: a taxa do motoboy sai na hora, pela distância até a cozinha ({formatPrice(deliveryFeePerKm)} por km).</p>
+    <p className="text-sm text-muted-foreground">Digite o CEP e o número: a taxa do motoboy sai na hora, dentro do Primeiro de Maio não cobra km; fora, {formatPrice(deliveryFeePerKm)} por km depois do bairro.</p>
     <div className="grid grid-cols-6 gap-2">
       <input className="da-field col-span-6 sm:col-span-2" value={cep} onChange={event => { const v = maskCep(event.target.value); setCep(v); clear(); void lookupCep(v); }} inputMode="numeric" autoComplete="postal-code" placeholder="CEP 00000-000" aria-label="CEP" />
       <input className="da-field col-span-4 sm:col-span-3" value={rua} onChange={event => { setRua(event.target.value); clear(); }} autoComplete="address-line1" placeholder="Rua" aria-label="Rua" maxLength={120} />

@@ -18,8 +18,11 @@ export type Order = {
 };
 export type OrderTotals = { subtotal: number; deliveryFee: number; total: number };
 
-// Cobrança proporcional à distância real da rota: R$ 1,50 por km, sem arredondar o km para cima.
-export const deliveryFeeForKm = (km: number) => Math.round(Math.max(0, km) * deliveryFeePerKm * 100) / 100;
+// Os km dentro do Primeiro de Maio não são cobrados: só conta o que passar do bairro.
+// Raio aproximado do bairro a partir da cozinha (Rua Padre Cyr Assumpção, 289).
+export const FREE_KM_PRIMEIRO_DE_MAIO = 1;
+// R$ 1,50 por km depois do bairro, sem arredondar o km para cima.
+export const deliveryFeeForKm = (km: number) => Math.round(Math.max(0, km - FREE_KM_PRIMEIRO_DE_MAIO) * deliveryFeePerKm * 100) / 100;
 
 export function calculateTotals(items: OrderItem[], fulfillment: 'entrega' | 'retirada', km: number | null): OrderTotals {
   const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
