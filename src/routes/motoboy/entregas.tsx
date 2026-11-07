@@ -2,17 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Bike, Bell, CheckCircle2, Sun, Moon, ChevronRight, Clock3, Home, ListOrdered, LogOut, MapPin, Map as MapIcon, Navigation, PackageCheck, Phone, MessageCircle, RefreshCw, Route as RouteIcon, Wallet, Wifi, WifiOff, AlertTriangle, X, Hand } from 'lucide-react';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { dishForDateKey, nextPendingPlanDate, parsePlanNotes, spDateKey } from '@/lib/weekly-plan';
 
 type Delivery = {
   id: string; code: string; customer_name: string; customer_phone: string; address: unknown;
-  order_status: string; payment_method: string; payment_status: string; total: number; delivery_fee?: number;
+  order_status: string; payment_method: string; payment_status: string; total: number; delivery_fee?: number; change_for?: number | null; notes?: string | null;
   estimated_delivery_at: string | null; courier_status: string; created_at: string;
   confirmation_code: string | null; items: Array<{ meal_name: string; size_label: string; quantity: number; notes?: string }>;
 };
 type Geo = { latitude: number; longitude: number };
 type Tab = 'inicio' | 'pedidos' | 'mapa' | 'ganhos';
 type Filter = 'todos' | 'preparo' | 'prontos';
-type CompletedDelivery = { id: string; code: string; fee: number; at: string };
+type CompletedDelivery = { id: string; code: string; fee: number; at: string; customer_name?: string; address?: unknown };
 
 const coords = (address: unknown): Geo | null => {
   if (!address || typeof address !== 'object') return null;
@@ -75,6 +76,9 @@ function CourierDeliveries() {
   };
   const [orders, setOrders] = useState<Delivery[]>([]);
   const [dailyEarnings, setDailyEarnings] = useState(0);
+  const [serverCompleted, setServerCompleted] = useState<CompletedDelivery[]>([]);
+  const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [readyAlert, setReadyAlert] = useState('');
   const [location, setLocation] = useState<Geo | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -95,6 +99,7 @@ function CourierDeliveries() {
   const [completed, setCompleted] = useState<CompletedDelivery[]>([]);
   const [loaded, setLoaded] = useState(false);
   const loadingRef = useRef(false);
+  const previousReadyIds = useRef<Set<string> | null>(null);
   const routeDataRef = useRef({ orders, location });
   routeDataRef.current = { orders, location };
 
@@ -103,10 +108,40 @@ function CourierDeliveries() {
     loadingRef.current = true;
     try {
       const response = await fetch('/api/courier/orders', { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' } });
-      const data = await response.json().catch(() => ({})) as { orders?: Delivery[]; dailyEarnings?: number; error?: string };
+      const data = await response.json().catch(() => ({})) as { orders?: Delivery[]; dailyEarnings?: number; completedToday?: Array<{ id: string; code: string; customer_name: string; address: unknown; delivery_fee: number; completed_at: string }>; error?: string };
       if (response.status === 401) { window.location.assign('/motoboy'); return; }
       if (!response.ok) throw new Error((data.error || 'Falha ao carregar entregas.') + ' (HTTP ' + response.status + ')');
-      setOrders(data.orders || []); setDailyEarnings(Number.isFinite(data.dailyEarnings) ? Number(data.dailyEarnings) : 0); setUpdated(new Date().toLocaleTimeString('pt-BR')); setError('');
+      const freshOrders = data.orders || [];
+      const freshReady = new Set(freshOrders.filter(o => o.order_status === 'pronto_entrega').map(o => o.id));
+      if (previousReadyIds.current && alertsEnabled) {
+        const newlyReady = [...freshReady].filter(id => !previousReadyIds.current!.has(id));
+        if (newlyReady.length) {
+          const readyOrder = freshOrders.find(o => o.id === newlyReady[0]);
+          setReadyAlert(readyOrder ? `Pedido #${readyOrder.code} pronto para retirada na cozinha.` : 'Novo pedido pronto para entrega.');
+          try { navigator.vibrate?.([180, 80, 180]); } catch {}
+          try {
+            const AudioContextClass = window.AudioContext;
+            if (AudioContextClass) {
+              const audio = new AudioContextClass();
+              const oscillator = audio.createOscillator();
+              const gain = audio.createGain();
+              oscillator.type = 'sine'; oscillator.frequency.value = 880;
+              gain.gain.setValueAtTime(0.0001, audio.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.18, audio.currentTime + 0.02);
+              gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.28);
+              oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + 0.3);
+              window.setTimeout(() => void audio.close(), 450);
+            }
+          } catch {}
+          if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
+            try { new Notification('Tia Val · novo pedido pronto', { body: readyOrder ? `Pedido #${readyOrder.code} está pronto para sair.` : 'Um pedido está pronto.' }); } catch {}
+          }
+        }
+      }
+      previousReadyIds.current = freshReady;
+      setOrders(freshOrders);
+      setServerCompleted((data.completedToday || []).map(c => ({ id: c.id, code: c.code, fee: Number(c.delivery_fee) || 0, at: c.completed_at, customer_name: c.customer_name, address: c.address })));
+      setDailyEarnings(Number.isFinite(data.dailyEarnings) ? Number(data.dailyEarnings) : 0); setUpdated(new Date().toLocaleTimeString('pt-BR')); setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao consultar entregas. Verifique a conexão e tente novamente.');
     } finally {
@@ -394,7 +429,7 @@ function CourierDeliveries() {
       if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar a entrega.');
       if (next === 'delivered') {
         const fee = Number(order.delivery_fee);
-        const done = { id: order.id, code: order.code, fee: Number.isFinite(fee) && fee > 0 ? fee : 0, at: new Date().toISOString() };
+        const done = { id: order.id, code: order.code, fee: Number.isFinite(fee) && fee > 0 ? fee : 0, at: new Date().toISOString(), customer_name: order.customer_name, address: order.address };
         rememberCompleted(done);
         setSuccess(done);
         setConfirmation(v => ({ ...v, [order.id]: '' }));
@@ -424,11 +459,11 @@ function CourierDeliveries() {
     const destination = point ? `${point.latitude},${point.longitude}` : encodeURIComponent(addressText(order.address));
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`, '_blank', 'noopener,noreferrer');
   };
-  const whatsapp = (order: Delivery) => {
+  const whatsapp = (order: Delivery, customText?: string) => {
     const phone = order.customer_phone.replace(/\D/g, '');
     if (!phone) return;
     const normalized = phone.startsWith('55') ? phone : '55' + phone;
-    const message = 'Olá, ' + order.customer_name + '! Aqui é o motoboy da Tia Val sobre o pedido #' + order.code + '.';
+    const message = customText || ('Olá, ' + order.customer_name + '! Aqui é o motoboy da Tia Val sobre o pedido #' + order.code + '.');
     window.open('https://wa.me/' + normalized + '?text=' + encodeURIComponent(message), '_blank', 'noopener,noreferrer');
   };
   // "Ajustar ordem": usa o GPS (pedido no toque) para sequenciar da mais perto para a mais longe.
@@ -447,6 +482,44 @@ function CourierDeliveries() {
   const detailsOrder = detailsId ? orders.find(o => o.id === detailsId) || null : null;
   const filtered = ordered.filter(o => filter === 'todos' ? true : filter === 'preparo' ? isPrep(o) : isRouteable(o));
   const kmTo = (o: Delivery) => { const p = coords(o.address); return location && p ? `${distance(location, p).toFixed(1)} km` : null; };
+  const neighborhoodOf = (order: Delivery) => {
+    if (!order.address || typeof order.address !== 'object') return 'Bairro não informado';
+    const address = order.address as Record<string, unknown>;
+    const value = String(address['bairro'] ?? address['neighborhood'] ?? address['district'] ?? '').trim();
+    return value || 'Bairro não informado';
+  };
+  const neighborhoodBatches = Object.entries(routeOrders.reduce<Record<string, Delivery[]>>((groups, order) => {
+    const neighborhood = neighborhoodOf(order);
+    (groups[neighborhood] ||= []).push(order);
+    return groups;
+  }, {})).filter(([, group]) => group.length > 1).sort((a, b) => b[1].length - a[1].length);
+  const enableAlerts = async () => {
+    setAlertsEnabled(true);
+    setReadyAlert('Avisos ativados: som e vibração quando um pedido ficar pronto.');
+    try {
+      if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
+      const AudioContextClass = window.AudioContext;
+      if (AudioContextClass) { const audio = new AudioContextClass(); await audio.resume(); await audio.close(); }
+    } catch { /* som/vibração seguem disponíveis no próximo evento */ }
+    window.setTimeout(() => setReadyAlert(''), 4500);
+  };
+  const planInfo = (order: Delivery) => {
+    const plan = parsePlanNotes(order.notes);
+    if (!plan) return null;
+    const todayKey = spDateKey(new Date());
+    const dish = plan.dates.includes(todayKey) ? dishForDateKey(todayKey)?.name : null;
+    return { nextDate: nextPendingPlanDate(plan), dish, window: plan.window };
+  };
+  const paymentReminder = (order: Delivery) => {
+    if (order.payment_method === 'online') return { label: 'PAGO ONLINE · Só entregar', tone: 'bg-emerald-500/15 text-emerald-300' };
+    if (order.payment_method === 'entrega-cartao') return { label: 'LEVAR MAQUININHA', tone: 'bg-sky-500/15 text-sky-300' };
+    if (order.payment_method === 'entrega-dinheiro') {
+      const change = Number(order.change_for);
+      return { label: Number.isFinite(change) && change > 0 ? `DINHEIRO · Troco para ${currency(change)}` : 'DINHEIRO · Sem troco informado', tone: 'bg-amber-500/15 text-amber-300' };
+    }
+    if (order.payment_method === 'entrega-pix') return { label: 'PIX NA ENTREGA', tone: 'bg-violet-500/15 text-violet-300' };
+    return { label: paymentLabel(order.payment_method), tone: 'bg-slate-500/15 text-slate-300' };
+  };
   const mapCenter = (current && coords(current.address)) || location;
   const mapSrc = mapCenter ? `https://www.openstreetmap.org/export/embed.html?bbox=${mapCenter.longitude-0.02}%2C${mapCenter.latitude-0.014}%2C${mapCenter.longitude+0.02}%2C${mapCenter.latitude+0.014}&layer=mapnik&marker=${mapCenter.latitude}%2C${mapCenter.longitude}` : '';
   const stepOf = (o: Delivery) => o.courier_status === 'cheguei' ? 3 : o.order_status === 'saiu_entrega' ? 2 : 0;
@@ -501,6 +574,10 @@ function CourierDeliveries() {
           <p className="mt-2 text-sm text-slate-400">#{order.code} · {new Date(order.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
           <p className="mt-0.5 truncate font-bold">{order.customer_name}</p>
           <p className="mt-0.5 truncate text-sm text-slate-400">{order.items.map(i => `${i.quantity}× ${i.meal_name}`).join(' · ')}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span className={`rounded-full px-2 py-1 text-[10px] font-black ${paymentReminder(order).tone}`}>{paymentReminder(order).label}</span>
+            {planInfo(order) && <span className="rounded-full bg-violet-500/15 px-2 py-1 text-[10px] font-black text-violet-300">PLANO 7 DIAS · {planInfo(order)?.dish || `Próxima ${planInfo(order)?.nextDate}`} · {planInfo(order)?.window}</span>}
+          </div>
         </div>
         <div className="shrink-0 text-right"><p className="font-black">{currency(Number(order.total))}</p>{km && <p className="mt-1 text-sm text-slate-400">{km}</p>}</div>
       </div>
@@ -597,6 +674,11 @@ function CourierDeliveries() {
             <button type="button" onClick={() => void load()} aria-label="Atualizar" className="rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><RefreshCw size={20}/></button>
           </div>
         </header>
+        <div className={`${card} flex items-center justify-between gap-3 p-3`}>
+          <div><p className="font-bold">Avisos de pedidos prontos</p><p className="text-xs text-slate-400">Som e vibração neste aparelho</p></div>
+          <button type="button" onClick={() => alertsEnabled ? setAlertsEnabled(false) : void enableAlerts()} className={`min-h-10 shrink-0 rounded-xl px-3 text-xs font-black ${alertsEnabled ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>{alertsEnabled ? 'Ativados' : 'Ativar'}</button>
+        </div>
+        {readyAlert && <div role="status" className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-300">🔔 {readyAlert}</div>}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {([['todos', `Todos (${orders.length})`], ['preparo', `Em preparo (${prepCount})`], ['prontos', `Prontos (${readyCount + activeCount})`]] as Array<[Filter, string]>).map(([id, label]) => <button key={id} type="button" onClick={() => setFilter(id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${filter === id ? 'bg-red-500 text-white' : 'border border-white/15 text-slate-300'}`}>{label}</button>)}
         </div>
@@ -605,6 +687,7 @@ function CourierDeliveries() {
           <p className="mt-2 text-xs text-slate-400">{geoMessage}</p>
           {routeCalculation && <p className="mt-1 text-xs text-slate-500">{routeCalculation}{updated && ` · Atualizado às ${updated}`}</p>}
         </div>
+        {neighborhoodBatches.length > 0 && <div className={`${card} p-4`}><p className="flex items-center gap-2 font-bold"><MapPin size={17} className="text-amber-400"/> Sugestão de rota por bairro</p><p className="mt-1 text-xs text-slate-400">Pedidos prontos/em rota na mesma região, para avaliar uma única viagem.</p><div className="mt-3 space-y-2">{neighborhoodBatches.map(([neighborhood, group]) => <button key={neighborhood} type="button" onClick={() => { setFilter('prontos'); setTab('pedidos'); }} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-3 text-left"><span className="font-bold">{neighborhood}</span><span className="rounded-full bg-amber-500/15 px-2 py-1 text-xs font-black text-amber-300">{group.length} pedidos</span></button>)}</div></div>}
         <GeoBox/>
         <ErrorBox/>
         {filtered.length === 0 && <div className={`${card} px-5 py-10 text-center text-sm text-slate-400`}>Nenhum pedido neste filtro.</div>}
@@ -689,9 +772,9 @@ function CourierDeliveries() {
         </div>
         <div>
           <p className="mb-2 font-bold">Entregas concluídas hoje</p>
-          {completed.length === 0 ? <div className={`${card} px-5 py-8 text-center text-sm text-slate-400`}>Nenhuma entrega concluída neste aparelho hoje.</div>
-            : <div className={`${card} divide-y divide-white/10`}>{completed.map(c => <div key={c.id} className="flex items-center justify-between gap-3 p-4"><div className="flex min-w-0 items-center gap-3"><CheckCircle2 size={20} className="shrink-0 text-emerald-400"/><div className="min-w-0"><p className="font-bold">Pedido #{c.code}</p><p className="text-xs text-slate-400">{new Date(c.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p></div></div><p className="shrink-0 font-black">{currency(c.fee)}</p></div>)}</div>}
-          <p className="mt-2 text-xs text-slate-500">A lista mostra as entregas finalizadas neste celular. O total acima vem do sistema.</p>
+          {serverCompleted.length === 0 ? <div className={`${card} px-5 py-8 text-center text-sm text-slate-400`}>Nenhuma entrega concluída hoje.</div>
+            : <div className={`${card} divide-y divide-white/10`}>{serverCompleted.map(c => <div key={c.id} className="flex items-center justify-between gap-3 p-4"><div className="flex min-w-0 items-center gap-3"><CheckCircle2 size={20} className="shrink-0 text-emerald-400"/><div className="min-w-0"><p className="font-bold">Pedido #{c.code} · {c.customer_name}</p><p className="text-xs text-slate-400">{new Date(c.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · {addressText(c.address)}</p></div></div><p className="shrink-0 font-black">{currency(c.fee)}</p></div>)}</div>}
+          <p className="mt-2 text-xs text-slate-500">Histórico oficial de entregas concluídas hoje, atualizado automaticamente pelo sistema.</p>
         </div>
       </div>}
     </div>
@@ -703,6 +786,7 @@ function CourierDeliveries() {
         <div className={`${card} p-4`}><p className="text-lg font-black">Pedido #{detailsOrder.code}</p><p className="text-sm text-slate-300">{detailsOrder.customer_name}</p><p className="mt-1 text-sm text-slate-400">{new Date(detailsOrder.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p><p className="mt-3 flex gap-2 text-sm"><MapPin size={16} className="mt-0.5 shrink-0 text-red-400"/>{addressText(detailsOrder.address)}</p></div>
         <div className={`${card} p-4`}><p className="font-bold">Itens do pedido</p>{detailsOrder.items.map((it, i) => <p key={i} className="mt-2 text-sm text-slate-300">{it.quantity}× {it.meal_name} · {it.size_label}{it.notes ? ` — ${it.notes}` : ''}</p>)}</div>
         <div className={`${card} space-y-2 p-4 text-sm`}>
+          <div className={`rounded-xl p-3 text-center text-sm font-black ${paymentReminder(detailsOrder).tone}`}>{paymentReminder(detailsOrder).label}</div>
           <div className="flex justify-between"><span className="text-slate-400">Pagamento</span><span className="font-bold">{paymentLabel(detailsOrder.payment_method)}</span></div>
           <div className="flex justify-between"><span className="text-slate-400">Taxa de entrega</span><span className="font-bold">{typeof detailsOrder.delivery_fee === 'number' ? currency(detailsOrder.delivery_fee) : 'Não informada'}</span></div>
           <div className="flex justify-between border-t border-white/10 pt-2 text-base"><span className="font-bold">Total do pedido</span><span className="font-black">{currency(Number(detailsOrder.total))}</span></div>

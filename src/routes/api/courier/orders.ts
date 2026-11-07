@@ -27,19 +27,20 @@ export const Route = createFileRoute('/api/courier/orders')({
           'orders?select=*&fulfillment=eq.entrega&order_status=in.(novo,confirmado,preparando,pronto_entrega,saiu_entrega)&order=created_at.desc&limit=200',
         ).then(rows => rows.reverse());
         let dailyEarnings = 0;
+        let completedToday: OrderRow[] = [];
         try {
-          const fortalezaDate = new Intl.DateTimeFormat('sv-SE', {
-            timeZone: 'America/Fortaleza', year: 'numeric', month: '2-digit', day: '2-digit',
+          const saoPauloDate = new Intl.DateTimeFormat('sv-SE', {
+            timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
           }).format(new Date());
-          const dayStart = new Date(`${fortalezaDate}T00:00:00-03:00`).toISOString();
-          const completedToday = await supabaseRequest<OrderRow[]>(
-            `orders?select=*&fulfillment=eq.entrega&order_status=eq.concluido&updated_at=gte.${encodeURIComponent(dayStart)}&limit=1000`,
+          const dayStart = new Date(`${saoPauloDate}T00:00:00-03:00`).toISOString();
+          completedToday = await supabaseRequest<OrderRow[]>(
+            `orders?select=*&fulfillment=eq.entrega&order_status=eq.concluido&updated_at=gte.${encodeURIComponent(dayStart)}&order=updated_at.desc&limit=1000`,
           );
           dailyEarnings = completedToday.reduce((sum, order) => {
             const fee = Number(order.delivery_fee);
             return sum + (Number.isFinite(fee) && fee > 0 ? fee : 0);
           }, 0);
-        } catch { /* ganhos são opcionais; não derrubam a fila */ }
+        } catch { /* histórico é opcional; não derruba a fila */ }
         // Todos os pedidos ativos aparecem, inclusive pagamento na entrega.
         // Só ocultamos pagamento online ainda não aprovado.
         const visibleStatuses = ['novo', 'confirmado', 'preparando', 'pronto_entrega', 'saiu_entrega'];
@@ -58,10 +59,16 @@ export const Route = createFileRoute('/api/courier/orders')({
         }
         return Response.json({
           dailyEarnings,
+          completedToday: completedToday.map(o => ({
+            id: o.id, code: o.code, customer_name: o.customer_name, address: o.address,
+            payment_method: o.payment_method, delivery_fee: o.delivery_fee,
+            completed_at: o.updated_at || o.created_at,
+          })),
           orders: queue.map(o => ({
             id: o.id, code: o.code, customer_name: o.customer_name, customer_phone: o.customer_phone,
             address: o.address, order_status: o.order_status, payment_method: o.payment_method,
             payment_status: o.payment_status, total: o.total, delivery_fee: o.delivery_fee,
+            change_for: o.change_for, notes: o.notes,
             estimated_delivery_at: o.estimated_delivery_at, courier_status: o.courier_status,
             courier_latitude: o.courier_latitude, courier_longitude: o.courier_longitude,
             courier_location_updated_at: o.courier_location_updated_at, created_at: o.created_at,
