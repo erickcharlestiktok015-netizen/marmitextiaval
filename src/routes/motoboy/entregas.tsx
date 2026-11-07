@@ -8,6 +8,7 @@ import {
   Moon,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Clock3,
   Home,
   ListOrdered,
@@ -208,11 +209,12 @@ function CourierDeliveries() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const [orders, setOrders] = useState<Delivery[]>([]);
+  const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null);
   const [dailyEarnings, setDailyEarnings] = useState(0);
   const [serverCompleted, setServerCompleted] = useState<CompletedDelivery[]>([]);
   const [alertsEnabled, setAlertsEnabled] = useState(false);
   const [readyAlert, setReadyAlert] = useState('');
-  const [location, setLocation] = useState<Geo | null>({ latitude: -3.7319, longitude: -38.5267 }); // Fortaleza default
+  const [location, setLocation] = useState<Geo | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [confirmation, setConfirmation] = useState<Record<string, string>>({});
@@ -228,6 +230,7 @@ function CourierDeliveries() {
   const [tab, setTab] = useState<Tab>('mapa'); // Abre direto no Mapa igual à foto
   const [filter, setFilter] = useState<Filter>('todos');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [routeActiveFor, setRouteActiveFor] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [success, setSuccess] = useState<CompletedDelivery | null>(null);
   const [completed, setCompleted] = useState<CompletedDelivery[]>([]);
@@ -395,19 +398,55 @@ function CourierDeliveries() {
     }
   };
 
-  // Pedido ativo atual: se houver no banco, usa ele; senão usa DEMO_DELIVERY para bater com o screenshot!
-  const hasRealOrders = orders.length > 0;
-  const currentReal = (selectedId && orders.find((o) => o.id === selectedId)) || orders.find((o) => isRouteable(o)) || orders[0] || null;
-  const activeDelivery: Delivery = currentReal || DEMO_DELIVERY;
+  // Pedido ativo selecionado ou primeiro disponível
+  const orderedOrders = useMemo(() => {
+    if (!roadOrderIds.length) return orders;
+    const rank = new Map(roadOrderIds.map((id, index) => [id, index]));
+    return [...orders].sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+  }, [orders, roadOrderIds]);
+  const hasRealOrders = orderedOrders.length > 0;
+  const activeDelivery: Delivery | null = useMemo(() => {
+    if (!hasRealOrders) return null;
+    if (selectedId) {
+      const found = orderedOrders.find((o) => o.id === selectedId);
+      if (found) return found;
+    }
+    return orderedOrders.find((o) => isRouteable(o)) || orderedOrders[0] || null;
+  }, [hasRealOrders, orderedOrders, selectedId]);
 
-  // Botão "Ajustar rotas mais perto (com GPS)" que Erick pediu!
+  const currentIndex = activeDelivery ? orderedOrders.findIndex((o) => o.id === activeDelivery.id) : -1;
+  const handleNextDelivery = () => {
+    if (orderedOrders.length <= 1) return;
+    const nextIdx = (currentIndex + 1) % orderedOrders.length;
+    setSelectedId(orderedOrders[nextIdx].id);
+  };
+  const handlePrevDelivery = () => {
+    if (orderedOrders.length <= 1) return;
+    const prevIdx = (currentIndex - 1 + orderedOrders.length) % orderedOrders.length;
+    setSelectedId(orderedOrders[prevIdx].id);
+  };
+
+  const handleViewRoute = (order: Delivery) => {
+    getLocation();
+    setSelectedId(order.id);
+    setRouteActiveFor(order.id);
+    setLiveRouteInfo(null);
+    setTab('inicio');
+  };
+
+  // Botão "Ajustar rotas mais perto (com GPS)" que reordena pedidos pela distância real do motoboy
   const adjustOrder = () => {
     if (!location) {
       setRouteCalculation('Ative o GPS para ordenar pela distância real.');
       getLocation();
       return;
     }
-    const sortable = [...orders];
+    if (orders.length === 0) {
+      setRouteCalculation('Nenhuma entrega na fila para ajustar.');
+      setTimeout(() => setRouteCalculation(''), 2500);
+      return;
+    }
+    const sortable = [...orderedOrders];
     sortable.sort((a, b) => {
       const ca = coords(a.address);
       const cb = coords(b.address);
@@ -417,31 +456,23 @@ function CourierDeliveries() {
       return distance(location, ca) - distance(location, cb);
     });
     setRoadOrderIds(sortable.map((o) => o.id));
+    if (sortable[0]) {
+      setSelectedId(sortable[0].id);
+      if (routeActiveFor) setRouteActiveFor(sortable[0].id);
+    }
     setRouteCalculation('⚡ Rotas reordenadas pela proximidade do seu GPS!');
     setTimeout(() => setRouteCalculation(''), 4500);
   };
 
   const action = async (order: Delivery, next: 'start' | 'arrive' | 'complete') => {
-    if (order.id === DEMO_DELIVERY.id) {
-      if (next === 'start') {
-        DEMO_DELIVERY.order_status = 'saiu_entrega';
-        setOrders([...orders]);
-      } else if (next === 'arrive') {
-        DEMO_DELIVERY.courier_status = 'cheguei';
-        setOrders([...orders]);
-      } else {
-        setSuccess({ id: order.id, code: order.code, fee: 5.0, at: new Date().toISOString() });
-      }
-      return;
-    }
-
     setBusy(order.id);
     try {
       const code = confirmation[order.id] || '';
-      const res = await fetch(`/api/courier/orders/${order.id}/${next}`, {
-        method: 'POST',
+      const apiAction = next === 'start' ? 'start' : next === 'arrive' ? 'arrived' : 'delivered';
+      const res = await fetch('/api/courier/orders', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirmation_code: code }),
+        body: JSON.stringify({ id: order.id, action: apiAction, code }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -615,11 +646,12 @@ function CourierDeliveries() {
             {/* O MAPA OCUPA 100% DA ÁREA CENTRAL (COM TILES ESRI SEM ERRO DE API KEY) */}
             <DeliveryMap
               courierLocation={location}
-              destinationLocation={coords(activeDelivery.address)}
-              destinationNeighborhood={neighborhoodOf(activeDelivery)}
-              destinationTitle={addressText(activeDelivery.address)}
+              destinationLocation={activeDelivery ? coords(activeDelivery.address) : null}
+              destinationNeighborhood={activeDelivery ? neighborhoodOf(activeDelivery) : ''}
+              destinationTitle={activeDelivery ? addressText(activeDelivery.address) : ''}
               className="absolute inset-0 h-full w-full"
-              showWazeButton={true}
+              showRoute={Boolean(activeDelivery && routeActiveFor === activeDelivery.id)}
+              showWazeButton={false}
               showLocationPill={true}
               onRouteCalculated={(info) => setLiveRouteInfo(info)}
               onRequestLocation={getLocation}
@@ -635,191 +667,176 @@ function CourierDeliveries() {
                 {/* Alça de puxar (Drag Handle) */}
                 <button
                   type="button"
-                  onClick={() => setBottomSheetExpanded((v) => !v)}
-                  className="group flex w-full flex-col items-center pt-2 pb-1 cursor-pointer focus:outline-none"
+                  onClick={(event) => {
+                    if ((event.currentTarget as HTMLButtonElement).dataset.swiped === 'true') {
+                      (event.currentTarget as HTMLButtonElement).dataset.swiped = 'false';
+                      return;
+                    }
+                    setBottomSheetExpanded((v) => !v);
+                  }}
+                  onTouchStart={(event) => {
+                    const startY = event.touches[0]?.clientY ?? 0;
+                    (event.currentTarget as HTMLButtonElement).dataset.startY = String(startY);
+                  }}
+                  onTouchEnd={(event) => {
+                    const startY = Number((event.currentTarget as HTMLButtonElement).dataset.startY || 0);
+                    const endY = event.changedTouches[0]?.clientY ?? startY;
+                    const delta = startY - endY;
+                    if (delta > 25) {
+                      setBottomSheetExpanded(true);
+                      (event.currentTarget as HTMLButtonElement).dataset.swiped = 'true';
+                    }
+                    if (delta < -25) {
+                      setBottomSheetExpanded(false);
+                      (event.currentTarget as HTMLButtonElement).dataset.swiped = 'true';
+                    }
+                  }}
+                  className="group flex w-full flex-col items-center pt-2 pb-1 cursor-pointer touch-none focus:outline-none"
                   aria-label={bottomSheetExpanded ? 'Recolher detalhes' : 'Puxar para cima'}
                 >
                   <div className="h-1.5 w-12 rounded-full bg-slate-600 transition group-hover:bg-slate-400" />
                 </button>
 
                 <div className="flex-1 overflow-y-auto px-4 pb-3 pt-1 space-y-3">
-                  {/* Topo do cartão: Badge Nova Entrega + Timer */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-red-950/40">
-                        <RouteIcon size={13} />
-                        <span>{activeDelivery.order_status === 'saiu_entrega' ? 'Em rota' : 'Nova entrega'}</span>
-                      </span>
-                      <span className="text-xs font-bold text-slate-400">#{activeDelivery.code}</span>
-                      {!hasRealOrders && (
-                        <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-black text-sky-300 border border-sky-400/30">
-                          Demo
-                        </span>
-                      )}
+                  {!activeDelivery ? (
+                    <div className="flex min-h-28 flex-col items-center justify-center gap-2 text-center">
+                      <PackageCheck size={26} className="text-slate-500" />
+                      <p className="text-sm font-bold text-slate-300">Não há entregas no momento</p>
+                      <p className="text-xs text-slate-500">Os novos pedidos aparecerão aqui automaticamente.</p>
                     </div>
-                    <div className="flex items-center gap-1 text-xs font-black text-slate-300">
-                      <Clock3 size={14} className="text-red-400" />
-                      <span>{liveRouteInfo ? `~${liveRouteInfo.durationMin} min` : etaText(activeDelivery.estimated_delivery_at)}</span>
-                    </div>
-                  </div>
-
-                  {/* Endereço com Ícone de Casa, Bairro e Distância */}
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-red-500 border border-white/10 shadow">
-                        <Home size={22} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-black text-white leading-tight">
-                          {addressStreetAndNumber(activeDelivery.address)}
-                        </p>
-                        <p className="truncate text-xs font-semibold text-slate-400">
-                          {neighborhoodOf(activeDelivery)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setDetailsId(activeDelivery.id)}
-                        className="flex items-center gap-0.5 text-sm font-black text-white hover:text-red-400 transition"
-                      >
-                        <span>{kmTo(activeDelivery) || (liveRouteInfo ? `${liveRouteInfo.distanceKm} km` : '2,8 km')}</span>
-                        <ChevronRight size={16} className="text-slate-400" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Dois botões de ação rápida: Ver rota & Ligar */}
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        getLocation();
-                        // Força reajuste da rota com zoom
-                        setTab('mapa');
-                      }}
-                      className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#1c2331] px-3 text-xs font-black text-white shadow-sm hover:bg-[#252f42] active:scale-95 transition"
-                    >
-                      <Navigation size={15} className="text-sky-400" />
-                      <span>Ver rota</span>
-                    </button>
-                    <a
-                      href={`tel:${(activeDelivery.customer_phone || '85999990000').replace(/\D/g, '')}`}
-                      className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#13263b] px-3 text-xs font-black text-white shadow-sm hover:bg-[#1a334f] active:scale-95 transition"
-                    >
-                      <Phone size={15} className="text-sky-400" />
-                      <span>Ligar</span>
-                    </a>
-                  </div>
-
-                  {/* Botão Principal Vermelho Grande: Aceitar entrega / Iniciar rota / Cheguei */}
-                  <div>
-                    {activeDelivery.order_status !== 'saiu_entrega' && activeDelivery.courier_status !== 'cheguei' && (
-                      <button
-                        type="button"
-                        disabled={busy === activeDelivery.id}
-                        onClick={() => void action(activeDelivery, 'start')}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#ea1d2c] px-4 text-base font-black text-white shadow-lg shadow-red-950/60 hover:bg-red-700 active:scale-[0.98] transition"
-                      >
-                        <Bike size={20} />
-                        <span>{busy === activeDelivery.id ? 'Iniciando…' : 'Aceitar entrega'}</span>
-                      </button>
-                    )}
-
-                    {activeDelivery.order_status === 'saiu_entrega' && activeDelivery.courier_status !== 'cheguei' && (
-                      <button
-                        type="button"
-                        disabled={busy === activeDelivery.id}
-                        onClick={() => void action(activeDelivery, 'arrive')}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 text-base font-black text-slate-950 shadow-lg shadow-amber-950/60 hover:bg-amber-400 active:scale-[0.98] transition"
-                      >
-                        <MapPin size={20} />
-                        <span>{busy === activeDelivery.id ? 'Avisando cliente…' : 'Cheguei ao endereço'}</span>
-                      </button>
-                    )}
-
-                    {activeDelivery.courier_status === 'cheguei' && (
-                      <div className="space-y-2">
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            maxLength={4}
-                            placeholder="Código 4 dígitos"
-                            value={confirmation[activeDelivery.id] || ''}
-                            onChange={(e) =>
-                              setConfirmation({ ...confirmation, [activeDelivery.id]: e.target.value.replace(/\D/g, '') })
-                            }
-                            className="h-12 flex-1 rounded-xl border border-white/20 bg-slate-900 px-3 text-center text-lg font-black tracking-widest text-white focus:border-red-500 focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            disabled={busy === activeDelivery.id}
-                            onClick={() => void action(activeDelivery, 'complete')}
-                            className="flex h-12 items-center justify-center rounded-xl bg-emerald-500 px-5 text-sm font-black text-slate-950 hover:bg-emerald-400 active:scale-95 transition"
-                          >
-                            Confirmar
-                          </button>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-red-950/40">
+                            <RouteIcon size={13} />
+                            <span>{activeDelivery.order_status === 'saiu_entrega' ? 'Em rota' : 'Nova entrega'}</span>
+                          </span>
+                          <span className="text-xs font-bold text-slate-400">#{activeDelivery.code}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-black text-slate-300">
+                          {orderedOrders.length > 1 && <span>{Math.max(currentIndex + 1, 1)} de {orderedOrders.length}</span>}
+                          <Clock3 size={14} className="text-red-400" />
+                          <span>{routeActiveFor === activeDelivery.id && liveRouteInfo ? `~${liveRouteInfo.durationMin} min` : etaText(activeDelivery.estimated_delivery_at)}</span>
                         </div>
                       </div>
-                    )}
-                  </div>
 
-                  {/* CONTEÚDO EXPANDIDO (APARECE QUANDO PUXA A BARRINHA PRA CIMA) */}
-                  {bottomSheetExpanded && (
-                    <div className="pt-2 border-t border-white/10 space-y-3.5 animate-in fade-in duration-200">
-                      {/* O BOTÃO QUE ERICK PEDIU: AJUSTAR ROTAS MAIS PERTO */}
-                      <button
-                        type="button"
-                        onClick={adjustOrder}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 py-3 px-4 text-xs font-black text-white shadow-lg shadow-sky-950/50 hover:brightness-110 active:scale-[0.98] transition"
-                      >
-                        <SlidersVertical size={16} />
-                        <span>⚡ Ajustar rotas (mais perto primeiro com GPS)</span>
-                      </button>
-
-                      {/* Itens do Pedido */}
-                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-1.5">
-                        <p className="text-xs font-bold text-slate-400">Itens da marmita:</p>
-                        {activeDelivery.items?.map((it, idx) => (
-                          <div key={idx} className="flex justify-between text-xs text-white">
-                            <span>
-                              {it.quantity}× {it.meal_name} ({it.size_label})
-                            </span>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-slate-800 text-red-500 shadow">
+                            <Home size={22} />
                           </div>
-                        ))}
-                        {activeDelivery.notes && (
-                          <p className="text-[11px] text-amber-300 italic pt-1">
-                            Obs: {activeDelivery.notes}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Pagamento e WhatsApp */}
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-300 px-1">
-                        <span>Total: <b className="text-white text-sm">{currency(Number(activeDelivery.total))}</b></span>
-                        <span className="rounded bg-white/10 px-2 py-0.5 text-[11px] text-emerald-300">
-                          {paymentLabel(activeDelivery.payment_method)}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => whatsapp(activeDelivery)}
-                          className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-black text-white hover:bg-emerald-500 transition"
-                        >
-                          <MessageCircle size={15} /> WhatsApp
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => waze(activeDelivery)}
-                          className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-sky-600 text-xs font-black text-white hover:bg-sky-500 transition"
-                        >
-                          <ExternalLink size={15} /> Abrir no Waze
+                          <div className="min-w-0">
+                            <p className="truncate text-base font-black leading-tight text-white">{addressStreetAndNumber(activeDelivery.address)}</p>
+                            <p className="truncate text-xs font-semibold text-slate-400">{neighborhoodOf(activeDelivery)}</p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => setDetailsId(activeDelivery.id)} className="flex shrink-0 items-center gap-0.5 text-sm font-black text-white transition hover:text-red-400">
+                          <span>{kmTo(activeDelivery) || (routeActiveFor === activeDelivery.id && liveRouteInfo ? `${liveRouteInfo.distanceKm.toFixed(1)} km` : 'Ver detalhes')}</span>
+                          <ChevronRight size={16} className="text-slate-400" />
                         </button>
                       </div>
-                    </div>
+
+                      {orderedOrders.length > 1 && (
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {orderedOrders.map((order, index) => (
+                            <button key={order.id} type="button" onClick={() => { setSelectedId(order.id); setLiveRouteInfo(null); }} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition ${order.id === activeDelivery.id ? 'border-red-500 bg-red-600/20 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`}>
+                              #{order.code} · {index + 1}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <button type="button" onClick={() => handleViewRoute(activeDelivery)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#1c2331] px-3 text-xs font-black text-white shadow-sm transition hover:bg-[#252f42] active:scale-95">
+                          <Navigation size={15} className="text-sky-400" />
+                          <span>{routeActiveFor === activeDelivery.id ? 'Atualizar rota' : 'Ver rota'}</span>
+                        </button>
+                        <a href={`tel:${(activeDelivery.customer_phone || '').replace(/\D/g, '')}`} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#13263b] px-3 text-xs font-black text-white shadow-sm transition hover:bg-[#1a334f] active:scale-95">
+                          <Phone size={15} className="text-sky-400" />
+                          <span>Ligar</span>
+                        </a>
+                      </div>
+
+                      {isRouteable(activeDelivery) && activeDelivery.order_status !== 'saiu_entrega' && activeDelivery.courier_status !== 'cheguei' && (
+                        <button type="button" disabled={busy === activeDelivery.id} onClick={() => void action(activeDelivery, 'start')} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#ea1d2c] px-4 text-base font-black text-white shadow-lg shadow-red-950/60 transition hover:bg-red-700 active:scale-[0.98]">
+                          <Bike size={20} />
+                          <span>{busy === activeDelivery.id ? 'Iniciando…' : 'Aceitar entrega'}</span>
+                        </button>
+                      )}
+                      {!isRouteable(activeDelivery) && (
+                        <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-center text-xs font-bold text-amber-200">Aguardando o pedido ficar pronto para entrega</div>
+                      )}
+                      {activeDelivery.order_status === 'saiu_entrega' && activeDelivery.courier_status !== 'cheguei' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" onClick={() => whatsapp(activeDelivery)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-xs font-black text-white transition hover:bg-emerald-500"><MessageCircle size={15} /> WhatsApp</button>
+                          <button type="button" onClick={() => waze(activeDelivery)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3 text-xs font-black text-white transition hover:bg-sky-500"><ExternalLink size={15} /> Abrir Waze</button>
+                          <button type="button" disabled={busy === activeDelivery.id} onClick={() => void action(activeDelivery, 'arrive')} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 text-xs font-black text-slate-950 transition hover:bg-amber-400"><MapPin size={15} /> Cheguei</button>
+                        </div>
+                      )}
+                      {activeDelivery.courier_status === 'cheguei' && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input type="text" inputMode="numeric" maxLength={6} placeholder="Código 6 dígitos" value={confirmation[activeDelivery.id] || ''} onChange={(e) => setConfirmation({ ...confirmation, [activeDelivery.id]: e.target.value.replace(/\D/g, '').slice(0, 6) })} className="h-12 flex-1 rounded-xl border border-white/20 bg-slate-900 px-3 text-center text-lg font-black tracking-widest text-white focus:border-red-500 focus:outline-none" />
+                            <button type="button" disabled={busy === activeDelivery.id || (activeDelivery.confirmation_code ? (confirmation[activeDelivery.id] || '').length !== 6 : false)} onClick={() => void action(activeDelivery, 'complete')} className="flex h-12 items-center justify-center rounded-xl bg-emerald-500 px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-400 active:scale-95">Confirmar</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {bottomSheetExpanded && (
+                        <div className="space-y-3.5 border-t border-white/10 pt-2 animate-in fade-in duration-200">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-bold text-slate-400">Fila de entregas ({orderedOrders.length})</p>
+                            <button type="button" disabled={orderedOrders.length < 2} onClick={adjustOrder} className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 px-3 py-2 text-[11px] font-black text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"><SlidersVertical size={14} /> Ajustar ordem</button>
+                          </div>
+                          {orderedOrders.length === 0 ? (
+                            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-center text-xs text-slate-500">Nenhuma entrega para organizar.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {orderedOrders.map((order, index) => (
+                                <div key={order.id} draggable onDragStart={() => setDraggedOrderId(order.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => {
+                                  if (!draggedOrderId || draggedOrderId === order.id) return;
+                                  const next = [...orderedOrders];
+                                  const from = next.findIndex((item) => item.id === draggedOrderId);
+                                  const to = next.findIndex((item) => item.id === order.id);
+                                  if (from < 0 || to < 0) return;
+                                  const [moved] = next.splice(from, 1);
+                                  next.splice(to, 0, moved);
+                                  setRoadOrderIds(next.map((item) => item.id));
+                                  setDraggedOrderId(null);
+                                }} onDragEnd={() => setDraggedOrderId(null)} className={`flex items-center gap-3 rounded-xl border p-3 transition ${order.id === activeDelivery.id ? 'border-red-500/50 bg-red-600/10' : 'border-white/10 bg-white/[0.03]'} ${draggedOrderId === order.id ? 'opacity-50' : ''}`}>
+                                  <span className="cursor-grab text-slate-500">⋮⋮</span>
+                                  <button type="button" onClick={() => { setSelectedId(order.id); setLiveRouteInfo(null); }} className="min-w-0 flex-1 text-left"><span className="block text-xs font-black text-white">{index + 1}. Pedido #{order.code}</span><span className="block truncate text-[11px] text-slate-400">{addressStreetAndNumber(order.address)} · {neighborhoodOf(order)}</span></button>
+                                  <div className="flex shrink-0 flex-col">
+                                    <button type="button" aria-label={`Mover pedido ${order.code} para cima`} disabled={index === 0} onClick={() => {
+                                      const next = [...orderedOrders];
+                                      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                                      setRoadOrderIds(next.map((item) => item.id));
+                                    }} className="rounded p-0.5 text-slate-400 disabled:opacity-30"><ChevronUp size={14} /></button>
+                                    <button type="button" aria-label={`Mover pedido ${order.code} para baixo`} disabled={index === orderedOrders.length - 1} onClick={() => {
+                                      const next = [...orderedOrders];
+                                      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                                      setRoadOrderIds(next.map((item) => item.id));
+                                    }} className="rounded p-0.5 text-slate-400 disabled:opacity-30"><ChevronDown size={14} /></button>
+                                  </div>
+                                  <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold text-slate-300">{statusInfo(order).label}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-1.5">
+                            <p className="text-xs font-bold text-slate-400">Itens do pedido selecionado:</p>
+                            {activeDelivery.items?.map((it, idx) => <div key={idx} className="flex justify-between text-xs text-white"><span>{it.quantity}× {it.meal_name} ({it.size_label})</span></div>)}
+                            {activeDelivery.notes && <p className="pt-1 text-[11px] italic text-amber-300">Obs: {activeDelivery.notes}</p>}
+                          </div>
+                          <div className="flex items-center justify-between px-1 text-xs font-bold text-slate-300"><span>Total: <b className="mt-1 text-sm text-white">{currency(Number(activeDelivery.total))}</b></span><span className="rounded bg-white/10 px-2 py-0.5 text-[11px] text-emerald-300">{paymentLabel(activeDelivery.payment_method)}</span></div>
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <button type="button" onClick={() => whatsapp(activeDelivery)} className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-black text-white transition hover:bg-emerald-500"><MessageCircle size={15} /> WhatsApp</button>
+                            <button type="button" onClick={() => waze(activeDelivery)} className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-sky-600 text-xs font-black text-white transition hover:bg-sky-500"><ExternalLink size={15} /> Abrir no Waze</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -863,7 +880,7 @@ function CourierDeliveries() {
 
             {/* Lista de Pedidos */}
             <div className="flex-1 overflow-y-auto space-y-2.5 pb-20">
-              {orders.length === 0 ? (
+              {orderedOrders.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-[#0e1422] p-6 text-center space-y-3">
                   <PackageCheck size={32} className="mx-auto text-slate-600" />
                   <p className="text-sm font-bold text-slate-400">Nenhum pedido real no momento.</p>

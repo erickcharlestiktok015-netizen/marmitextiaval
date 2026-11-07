@@ -10,6 +10,7 @@ export interface DeliveryMapProps {
   destinationNeighborhood?: string;
   className?: string;
   interactive?: boolean;
+  showRoute?: boolean;
   showWazeButton?: boolean;
   showLocationPill?: boolean;
   onRouteCalculated?: (info: { distanceKm: number; durationMin: number }) => void;
@@ -60,6 +61,7 @@ export function DeliveryMap({
   destinationNeighborhood,
   className = 'h-72 w-full',
   interactive = true,
+  showRoute = true,
   showWazeButton = true,
   showLocationPill = true,
   onRouteCalculated,
@@ -286,7 +288,7 @@ export function DeliveryMap({
     const L = (window as unknown as { L: any }).L;
     if (!L) return;
 
-    if (!courierLocation || !destinationLocation) {
+    if (!courierLocation || !destinationLocation || !showRoute) {
       if (routePolylineRef.current) {
         routePolylineRef.current.remove();
         routePolylineRef.current = null;
@@ -340,7 +342,9 @@ export function DeliveryMap({
           paddingBottomRight: [50, 140],
           maxZoom: 16,
         });
-      } catch {}
+      } catch {
+        // Ignore map fitting errors if the route bounds cannot be calculated.
+      }
     };
 
     fetch(url, { signal: controller.signal })
@@ -397,7 +401,7 @@ export function DeliveryMap({
       active = false;
       clearTimeout(timeout);
     };
-  }, [courierLocation?.latitude, courierLocation?.longitude, destinationLocation?.latitude, destinationLocation?.longitude, mapReady]);
+  }, [courierLocation?.latitude, courierLocation?.longitude, destinationLocation?.latitude, destinationLocation?.longitude, mapReady, showRoute]);
 
   // Center on courier
   const handleRecenter = () => {
@@ -430,7 +434,7 @@ export function DeliveryMap({
       <div ref={containerRef} className="h-full w-full" />
 
       {/* Top Floating ETA Badge */}
-      {routeInfo && routeInfo.durationMin > 0 && (
+      {showRoute && routeInfo && routeInfo.durationMin > 0 && (
         <div className="pointer-events-none absolute left-1/2 top-3 z-[400] -translate-x-1/2">
           <div className="flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-[#0b0f19]/90 px-3.5 py-1.5 text-xs font-black text-sky-300 shadow-2xl backdrop-blur-md">
             <span className="h-2 w-2 animate-ping rounded-full bg-sky-400" />

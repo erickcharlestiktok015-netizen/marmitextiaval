@@ -128,7 +128,8 @@ export const Route = createFileRoute('/api/courier/orders')({
           patch = { courier_status: 'cheguei' };
         } else {
           if (order.courier_status !== 'cheguei') return Response.json({ error: 'Marque que chegou ao endereço antes de concluir.' }, { status: 409 });
-          if (typeof body.code !== 'string' || !/^\d{6}$/.test(body.code) || body.code !== order.confirmation_code) return Response.json({ error: 'Código de confirmação incorreto.' }, { status: 400 });
+          const cleanedCode = typeof body.code === 'string' ? body.code.trim() : '';
+          if (typeof body.code !== 'string' || !/^\d{6}$/.test(cleanedCode) || cleanedCode !== order.confirmation_code) return Response.json({ error: 'Código de confirmação incorreto.' }, { status: 400 });
           patch = { order_status: 'concluido', courier_status: 'entregue' };
         }
         await supabaseRequest(`orders?id=eq.${encodeURIComponent(order.id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch) });
