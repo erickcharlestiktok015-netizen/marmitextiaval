@@ -226,6 +226,10 @@ function CourierDeliveries() {
   const [presenceBusy, setPresenceBusy] = useState(false);
   const [presenceError, setPresenceError] = useState('');
   const [roadOrderIds, setRoadOrderIds] = useState<string[]>([]);
+  const [demoState, setDemoState] = useState<{ status: string; courierStatus: string }>({
+    status: 'pronto_entrega',
+    courierStatus: 'pendente',
+  });
   const [routeCalculation, setRouteCalculation] = useState('');
   const [tab, setTab] = useState<Tab>('mapa'); // Abre direto no Mapa igual à foto
   const [filter, setFilter] = useState<Filter>('todos');
@@ -471,11 +475,6 @@ function CourierDeliveries() {
     setRouteCalculation('⚡ Rotas reordenadas pela proximidade do seu GPS!');
     setTimeout(() => setRouteCalculation(''), 4500);
   };
-
-  const [demoState, setDemoState] = useState<{ status: string; courierStatus: string }>({
-    status: 'pronto_entrega',
-    courierStatus: 'pendente',
-  });
 
   const action = async (order: Delivery, next: 'start' | 'arrive' | 'complete') => {
     setBusy(order.id);
