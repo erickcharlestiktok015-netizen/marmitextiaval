@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Bike, CalendarCheck, ChevronRight, Clock, Heart, Instagram, LoaderCircle, LogIn, LogOut, MapPin, MessageCircle, Minus, Pause, Phone, Play, Plus, ReceiptText, RefreshCw, ShieldCheck, ShoppingBag, Store, Trash2, UserCheck } from 'lucide-react';
+import { AlertCircle, Bike, Sun, Moon, CalendarCheck, ChevronRight, Clock, Heart, Instagram, LoaderCircle, LogIn, LogOut, MapPin, MessageCircle, Minus, Pause, Phone, Play, Plus, ReceiptText, RefreshCw, ShieldCheck, ShoppingBag, Store, Trash2, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { CheckoutForm } from '@/components/restaurant/checkout-form';
@@ -45,6 +45,22 @@ function Stepper({ value, onMinus, onPlus, min = 0, max = 20, small = false }: {
 }
 
 export function DeliveryHome() {
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    try {
+      const saved = window.localStorage.getItem("tia-val-home-theme");
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {}
+    return "light";
+  });
+
+  const toggleTheme = () => {
+    setTheme(curr => {
+      const next = curr === "dark" ? "light" : "dark";
+      try { window.localStorage.setItem("tia-val-home-theme", next); } catch {}
+      return next;
+    });
+  };
   const [open, setOpen] = useState<boolean | null>(null);
   const [todayMeal, setTodayMeal] = useState<Meal>(() => getTodayMeal());
   const [tomorrowMeal, setTomorrowMeal] = useState<Meal>(() => getTomorrowMeal());
@@ -193,8 +209,8 @@ export function DeliveryHome() {
 
   const sheetClass = 'delivery-app inset-x-0 mx-auto flex max-h-[94dvh] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-3xl border-0 p-0';
 
-  return <div className="delivery-app min-h-screen bg-secondary">
-    <div className="mx-auto min-h-screen max-w-lg bg-background pb-32 shadow-card">
+  return <div className={`delivery-app min-h-screen ${theme === "dark" ? "theme-dark bg-[#141412]" : "bg-secondary"}`} data-theme={theme}>
+    <div className={`mx-auto min-h-screen max-w-lg ${theme === "dark" ? "bg-[#1b1a17]" : "bg-background"} pb-32 shadow-card`}>
       {/* Capa */}
       <header className="relative">
         <div className="relative aspect-[3/1] overflow-hidden">

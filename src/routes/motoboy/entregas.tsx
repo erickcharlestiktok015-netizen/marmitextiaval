@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Bike, Bell, CheckCircle2, ChevronRight, Clock3, Home, ListOrdered, LogOut, MapPin, Map as MapIcon, Navigation, PackageCheck, Phone, MessageCircle, RefreshCw, Route as RouteIcon, Wallet, Wifi, WifiOff, AlertTriangle, X, Hand } from 'lucide-react';
+import { Bike, Bell, CheckCircle2, Sun, Moon, ChevronRight, Clock3, Home, ListOrdered, LogOut, MapPin, Map as MapIcon, Navigation, PackageCheck, Phone, MessageCircle, RefreshCw, Route as RouteIcon, Wallet, Wifi, WifiOff, AlertTriangle, X, Hand } from 'lucide-react';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 type Delivery = {
@@ -57,6 +57,22 @@ export const Route = createFileRoute('/motoboy/entregas')({
 });
 
 function CourierDeliveries() {
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") return "dark";
+    try {
+      const saved = window.localStorage.getItem("tia-val-courier-theme");
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {}
+    return "dark";
+  });
+
+  const toggleTheme = () => {
+    setTheme(curr => {
+      const next = curr === "dark" ? "light" : "dark";
+      try { window.localStorage.setItem("tia-val-courier-theme", next); } catch {}
+      return next;
+    });
+  };
   const [orders, setOrders] = useState<Delivery[]>([]);
   const [dailyEarnings, setDailyEarnings] = useState(0);
   const [location, setLocation] = useState<Geo | null>(null);
@@ -507,7 +523,7 @@ function CourierDeliveries() {
     { id: 'ganhos', label: 'Ganhos', icon: Wallet },
   ];
 
-  return <main className="courier-screen min-h-screen bg-[#070b12] text-slate-100" data-courier-theme="dark">
+  return <main className={`courier-screen min-h-screen ${theme === "light" ? "courier-light bg-[#f4f5f7] text-[#17191d]" : "bg-[#070b12] text-slate-100"}`} data-courier-theme={theme}>
     <div className="mx-auto max-w-lg px-4 pb-28 pt-5">
       {tab === 'inicio' && <div className="space-y-4">
         <header className="flex items-center justify-between gap-3">
@@ -516,7 +532,16 @@ function CourierDeliveries() {
 
             <div className="min-w-0"><p className="truncate text-lg font-black"><span className="text-red-500">Tia Val</span> · Motoboy</p><p className="truncate text-xs text-slate-400">Entregas rápidas · Com segurança</p></div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Mudar para pagina branca (modo sol)" : "Mudar para estilo escuro (modo noite)"}
+              className="flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white/10"
+              title={theme === "dark" ? "Ativar pagina branca (contraste no sol)" : "Ativar estilo escuro (noite)"}
+            >
+              {theme === "dark" ? <><Sun size={15} className="text-amber-400"/><span className="text-[11px]">Branco</span></> : <><Moon size={15} className="text-slate-700"/><span className="text-[11px]">Escuro</span></>}
+            </button>
             <button type="button" onClick={() => setTab('pedidos')} aria-label="Pedidos prontos" className="relative rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><Bell size={20}/>{readyCount > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500"/>}</button>
             <button type="button" onClick={() => void logout()} aria-label="Sair" className="rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><LogOut size={20}/></button>
           </div>
@@ -558,7 +583,20 @@ function CourierDeliveries() {
       </div>}
 
       {tab === 'pedidos' && <div className="space-y-4">
-        <header className="flex items-center justify-between"><h1 className="text-2xl font-black">Pedidos</h1><button type="button" onClick={() => void load()} aria-label="Atualizar" className="rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><RefreshCw size={20}/></button></header>
+        <header className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-black">Pedidos</h1>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Ativar pagina branca" : "Ativar estilo escuro"}
+              className="flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white/10"
+            >
+              {theme === "dark" ? <><Sun size={15} className="text-amber-400"/><span className="text-[11px]">Branco</span></> : <><Moon size={15} className="text-slate-700"/><span className="text-[11px]">Escuro</span></>}
+            </button>
+            <button type="button" onClick={() => void load()} aria-label="Atualizar" className="rounded-xl p-2.5 text-slate-300 hover:bg-white/5"><RefreshCw size={20}/></button>
+          </div>
+        </header>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {([['todos', `Todos (${orders.length})`], ['preparo', `Em preparo (${prepCount})`], ['prontos', `Prontos (${readyCount + activeCount})`]] as Array<[Filter, string]>).map(([id, label]) => <button key={id} type="button" onClick={() => setFilter(id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${filter === id ? 'bg-red-500 text-white' : 'border border-white/15 text-slate-300'}`}>{label}</button>)}
         </div>
@@ -574,7 +612,20 @@ function CourierDeliveries() {
       </div>}
 
       {tab === 'mapa' && <div className="space-y-4">
-        <header><h1 className="text-2xl font-black">{current ? (current.courier_status === 'cheguei' ? 'Chegou' : current.order_status === 'saiu_entrega' ? 'Em rota' : 'Próxima rota') : 'Mapa'}</h1>{current && <p className="text-sm text-slate-400">Pedido #{current.code}</p>}</header>
+        <header className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-black">{current ? (current.courier_status === 'cheguei' ? 'Chegou' : current.order_status === 'saiu_entrega' ? 'Em rota' : 'Próxima rota') : 'Mapa'}</h1>
+            {current && <p className="text-sm text-slate-400">Pedido #{current.code}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Ativar pagina branca" : "Ativar estilo escuro"}
+            className="flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white/10"
+          >
+            {theme === "dark" ? <><Sun size={15} className="text-amber-400"/><span className="text-[11px]">Branco</span></> : <><Moon size={15} className="text-slate-700"/><span className="text-[11px]">Escuro</span></>}
+          </button>
+        </header>
         <div className="relative h-64 overflow-hidden rounded-2xl border border-white/10 bg-[#0b1420]">
           {mapSrc ? <iframe title="Mapa da entrega" src={mapSrc} className="h-full w-full border-0 opacity-90" loading="lazy" referrerPolicy="no-referrer-when-downgrade"/> : <div className="flex h-full flex-col items-center justify-center px-6 text-center"><MapPin size={34} className="text-red-400"/><p className="mt-2 font-bold">Ative o GPS para ver o mapa</p><button type="button" onClick={getLocation} className="mt-3 rounded-xl bg-red-500 px-4 py-2.5 font-bold text-white">Ativar GPS</button></div>}
           {current && kmTo(current) && <span className="absolute right-3 top-3 rounded-xl bg-[#080d16]/90 px-3 py-1.5 text-sm font-bold">{kmTo(current)}</span>}
@@ -594,6 +645,14 @@ function CourierDeliveries() {
               {current.customer_phone && <>
                 <a href={`tel:${current.customer_phone.replace(/[^+\d]/g, '')}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 font-bold hover:bg-white/5"><Phone size={17}/> Ligar</a>
                 <button type="button" onClick={() => whatsapp(current)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 font-bold text-white hover:bg-emerald-500"><MessageCircle size={17}/> WhatsApp</button>
+                <div className="col-span-2 mt-1 flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => whatsapp(current, `Olá, ${current.customer_name}! Aqui é o motoboy da Tia Val. Já saí com a sua marmita quente e chego em ~10 min!`)} className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20">
+                    🛵 Avisar: "A caminho (~10 min)"
+                  </button>
+                  <button type="button" onClick={() => whatsapp(current, `Olá, ${current.customer_name}! O motoboy da Tia Val acabou de chegar no endereço com o pedido #${current.code}. Pode atender no portão?`)} className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20">
+                    🚪 Avisar: "Cheguei no portão!"
+                  </button>
+                </div>
               </>}
             </div>
             {current.order_status !== 'pronto_entrega' && <Steps order={current}/>}
@@ -609,7 +668,20 @@ function CourierDeliveries() {
       </div>}
 
       {tab === 'ganhos' && <div className="space-y-4">
-        <header className="flex items-center justify-between"><h1 className="text-2xl font-black">Ganhos</h1><span className="rounded-full bg-red-500 px-4 py-1.5 text-sm font-bold text-white">Hoje</span></header>
+        <header className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-black">Ganhos</h1>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Ativar pagina branca" : "Ativar estilo escuro"}
+              className="flex items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold transition hover:bg-white/10"
+            >
+              {theme === "dark" ? <><Sun size={15} className="text-amber-400"/><span className="text-[11px]">Branco</span></> : <><Moon size={15} className="text-slate-700"/><span className="text-[11px]">Escuro</span></>}
+            </button>
+            <span className="rounded-full bg-red-500 px-4 py-1.5 text-sm font-bold text-white">Hoje</span>
+          </div>
+        </header>
         <div className={`${card} p-5`}>
           <p className="text-sm text-slate-400">Total do dia (taxas de entrega)</p>
           <p className="mt-1 text-4xl font-black">{currency(dailyEarnings)}</p>
