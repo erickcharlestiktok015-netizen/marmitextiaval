@@ -3,16 +3,54 @@ import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 import { Bell, Bike, CalendarCheck, Check, CheckCircle2, ChevronRight, Clock3, CookingPot, MapPin, MessageCircle, PackageCheck, ReceiptText } from 'lucide-react';
 import { PLAN_DAYS, planDateLabel, planDeliveredCount, type PlanMeta } from '@/lib/weekly-plan';
+import { DeliveryMap, type GeoPoint } from '@/components/delivery-map';
 
 const searchSchema = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/).catch('') });
 type SavedOrder = { code: string; token: string; savedAt: string };
 type TrackingOrder = {
+  address?: unknown;
   code: string; order_status: string; payment_status: string; payment_method: string;
   fulfillment: string; estimated_delivery_at: string | null; courier_status: string;
   confirmation_code: string | null; created_at: string; updated_at: string; courier_latitude: number | null; courier_longitude: number | null; courier_location_updated_at: string | null;
   plan: PlanMeta | null;
   items: Array<{ meal_name: string; size_label: string; quantity: number }>;
 };
+
+const coords = (address: unknown): GeoPoint | null => {
+  if (!address || typeof address !== 'object') return null;
+  const a = address as Record<string, unknown>;
+  const latitude = Number(a['latitude'] ?? a['lat']);
+  const longitude = Number(a['longitude'] ?? a['lng'] ?? a['lon']);
+  return Number.isFinite(latitude) &&
+    Math.abs(latitude) <= 90 &&
+    Number.isFinite(longitude) &&
+    Math.abs(longitude) <= 180
+    ? { latitude, longitude }
+    : null;
+};
+
+const neighborhoodOf = (address: unknown) => {
+  if (!address || typeof address !== 'object') return '';
+  const a = address as Record<string, unknown>;
+  return String(a['bairro'] ?? a['neighborhood'] ?? a['district'] ?? '').trim();
+};
+
+const addressText = (value: unknown) => {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+  const a = value as Record<string, unknown>;
+  return (
+    [
+      a['street'] ?? a['rua'],
+      a['number'] ?? a['numero'],
+      a['bairro'],
+      a['cidade'],
+    ]
+      .filter(Boolean)
+      .join(', ') || ''
+  );
+};
+
 const steps = [
   { value: 'novo', title: 'Pedido recebido', description: 'Recebemos seu pedido.' },
   { value: 'confirmado', title: 'Pedido confirmado', description: 'A Tia Val confirmou seu pedido.' },
@@ -193,17 +231,47 @@ function TrackingPage() {
           </ol>
         </section>}
 
-        {/* Mapa do motoboy */}
-        {order.order_status === 'saiu_entrega' && typeof order.courier_latitude === 'number' && typeof order.courier_longitude === 'number' && <section className="overflow-hidden rounded-3xl bg-card shadow-card">
-          <div className="p-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-primary">Acompanhamento da entrega</p>
-            <h2 className="mt-1 text-lg font-extrabold">Seu motoboy está a caminho 🛵</h2>
-            <p className="mt-1 text-sm text-muted-foreground">O mapa é atualizado a cada 10 segundos. O ícone marca a última posição recebida.</p>
-            {order.courier_location_updated_at && <p className="mt-2 text-xs text-muted-foreground">Última localização às {brasiliaTime(order.courier_location_updated_at)}.</p>}
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-success-surface px-3 py-2 text-xs font-bold text-success"><span className="size-2 animate-ping rounded-full bg-success" /><span className="-ml-4 size-2 rounded-full bg-success" /> Motoboy localizado</div>
-          </div>
-          <iframe title="Localização aproximada do motoboy" className="h-64 w-full border-0 sm:h-80" loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://www.openstreetmap.org/export/embed.html?bbox=${order.courier_longitude-0.012}%2C${order.courier_latitude-0.009}%2C${order.courier_longitude+0.012}%2C${order.courier_latitude+0.009}&layer=mapnik&marker=${order.courier_latitude}%2C${order.courier_longitude}`}/>
-        </section>}
+        {/* Mapa do motoboy estilo iFood */}
+        {order.order_status === 'saiu_entrega' && typeof order.courier_latitude === 'number' && typeof order.courier_longitude === 'number' && (
+          <section className="overflow-hidden rounded-3xl border border-border bg-card p-4 sm:p-5 shadow-card space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-primary">Acompanhamento da entrega</p>
+                <h2 className="mt-0.5 text-lg font-black flex items-center gap-2">
+                  <span>Seu motoboy está a caminho</span>
+                  <span className="text-xl">🛵</span>
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Acompanhe em tempo real. O bonequinho atualiza o GPS a cada 10 segundos.
+                </p>
+                {order.courier_location_updated_at && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Última localização às {brasiliaTime(order.courier_location_updated_at)}.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 rounded-full bg-success-surface px-3 py-1.5 text-xs font-bold text-success">
+                <span className="size-2 animate-ping rounded-full bg-success" />
+                <span className="-ml-3 size-2 rounded-full bg-success" />
+                <span>GPS ao vivo</span>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 shadow-inner">
+              <DeliveryMap
+                courierLocation={{
+                  latitude: order.courier_latitude,
+                  longitude: order.courier_longitude,
+                }}
+                destinationLocation={coords(order.address)}
+                destinationNeighborhood={neighborhoodOf(order.address)}
+                destinationTitle={addressText(order.address)}
+                className="h-72 w-full sm:h-80"
+                showWazeButton={false}
+              />
+            </div>
+          </section>
+        )}
 
         {/* Timeline */}
         <section className="rounded-3xl bg-card p-5 shadow-card">
