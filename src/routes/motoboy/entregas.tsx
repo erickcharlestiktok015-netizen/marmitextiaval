@@ -405,14 +405,22 @@ function CourierDeliveries() {
     return [...orders].sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
   }, [orders, roadOrderIds]);
   const hasRealOrders = orderedOrders.length > 0;
-  const activeDelivery: Delivery | null = useMemo(() => {
-    if (!hasRealOrders) return null;
+  // Se não houver pedidos reais no banco, mantemos DEMO_DELIVERY fixo para a barrinha
+  // nunca sumir da tela do motoboy (igual à referência enviada).
+  const activeDelivery: Delivery = useMemo(() => {
+    if (!hasRealOrders) {
+      return {
+        ...DEMO_DELIVERY,
+        order_status: demoState.status,
+        courier_status: demoState.courierStatus,
+      };
+    }
     if (selectedId) {
       const found = orderedOrders.find((o) => o.id === selectedId);
       if (found) return found;
     }
-    return orderedOrders.find((o) => isRouteable(o)) || orderedOrders[0] || null;
-  }, [hasRealOrders, orderedOrders, selectedId]);
+    return orderedOrders.find((o) => isRouteable(o)) || orderedOrders[0] || DEMO_DELIVERY;
+  }, [hasRealOrders, orderedOrders, selectedId, demoState]);
 
   const currentIndex = activeDelivery ? orderedOrders.findIndex((o) => o.id === activeDelivery.id) : -1;
   const handleNextDelivery = () => {
@@ -464,8 +472,28 @@ function CourierDeliveries() {
     setTimeout(() => setRouteCalculation(''), 4500);
   };
 
+  const [demoState, setDemoState] = useState<{ status: string; courierStatus: string }>({
+    status: 'pronto_entrega',
+    courierStatus: 'pendente',
+  });
+
   const action = async (order: Delivery, next: 'start' | 'arrive' | 'complete') => {
     setBusy(order.id);
+    // Suporte para o pedido teste/demo nunca travar ou dar erro de rede na interface
+    if (order.id === DEMO_DELIVERY.id) {
+      setTimeout(() => {
+        if (next === 'start') {
+          setDemoState({ status: 'saiu_entrega', courierStatus: 'saiu_entrega' });
+        } else if (next === 'arrive') {
+          setDemoState({ status: 'saiu_entrega', courierStatus: 'cheguei' });
+        } else if (next === 'complete') {
+          setSuccess({ id: order.id, code: order.code, fee: 5.0, at: new Date().toISOString() });
+          setDemoState({ status: 'concluido', courierStatus: 'entregue' });
+        }
+        setBusy('');
+      }, 350);
+      return;
+    }
     try {
       const code = confirmation[order.id] || '';
       const apiAction = next === 'start' ? 'start' : next === 'arrive' ? 'arrived' : 'delivered';
