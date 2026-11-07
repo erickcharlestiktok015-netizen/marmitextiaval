@@ -374,8 +374,16 @@ function CourierDeliveries() {
 
   useEffect(() => {
     void load();
-    const interval = setInterval(() => void load(), 12000);
-    return () => clearInterval(interval);
+    // Atualização em tempo real rápida para quando saírem novos pedidos na cozinha
+    const interval = setInterval(() => void load(), 4000);
+    const handleFocus = () => void load();
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
   }, [load]);
 
   const togglePresence = async (forceOnline?: boolean) => {
@@ -409,22 +417,18 @@ function CourierDeliveries() {
     return [...orders].sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
   }, [orders, roadOrderIds]);
   const hasRealOrders = orderedOrders.length > 0;
-  // Se não houver pedidos reais no banco, mantemos DEMO_DELIVERY fixo para a barrinha
-  // nunca sumir da tela do motoboy (igual à referência enviada).
-  const activeDelivery: Delivery = useMemo(() => {
+  // Quando não há pedidos reais pendentes/em rota, activeDelivery fica null e a barrinha exibe
+  // 'Não há entregas no momento'. Se houver pedidos, seleciona o atual ou o próximo da rota.
+  const activeDelivery: Delivery | null = useMemo(() => {
     if (!hasRealOrders) {
-      return {
-        ...DEMO_DELIVERY,
-        order_status: demoState.status,
-        courier_status: demoState.courierStatus,
-      };
+      return null;
     }
     if (selectedId) {
       const found = orderedOrders.find((o) => o.id === selectedId);
       if (found) return found;
     }
-    return orderedOrders.find((o) => isRouteable(o)) || orderedOrders[0] || DEMO_DELIVERY;
-  }, [hasRealOrders, orderedOrders, selectedId, demoState]);
+    return orderedOrders.find((o) => isRouteable(o)) || orderedOrders[0] || null;
+  }, [hasRealOrders, orderedOrders, selectedId]);
 
   const currentIndex = activeDelivery ? orderedOrders.findIndex((o) => o.id === activeDelivery.id) : -1;
   const handleNextDelivery = () => {
@@ -508,6 +512,9 @@ function CourierDeliveries() {
       }
       if (next === 'complete') {
         setSuccess({ id: order.id, code: order.code, fee: order.delivery_fee || 5.0, at: new Date().toISOString() });
+        setRouteActiveFor(null);
+        setLiveRouteInfo(null);
+        setSelectedId(null);
       }
       await load();
     } catch {
@@ -726,10 +733,12 @@ function CourierDeliveries() {
 
                 <div className="flex-1 overflow-y-auto px-4 pb-3 pt-1 space-y-3">
                   {!activeDelivery ? (
-                    <div className="flex min-h-28 flex-col items-center justify-center gap-2 text-center">
-                      <PackageCheck size={26} className="text-slate-500" />
-                      <p className="text-sm font-bold text-slate-300">Não há entregas no momento</p>
-                      <p className="text-xs text-slate-500">Os novos pedidos aparecerão aqui automaticamente.</p>
+                    <div className="flex min-h-[140px] flex-col items-center justify-center gap-2 py-4 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-slate-800/80 text-emerald-400 shadow-md">
+                        <PackageCheck size={26} />
+                      </div>
+                      <p className="text-sm font-black text-white">Não há entregas pendentes</p>
+                      <p className="max-w-[260px] text-xs text-slate-400">Tudo concluído! Novos pedidos prontos para entrega aparecerão aqui automaticamente.</p>
                     </div>
                   ) : (
                     <>

@@ -433,17 +433,30 @@ export function DeliveryMap({
       {/* Map Canvas */}
       <div ref={containerRef} className="h-full w-full" />
 
-      {/* Top Floating ETA Badge */}
-      {showRoute && routeInfo && routeInfo.durationMin > 0 && (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-[400] -translate-x-1/2">
-          <div className="flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-[#0b0f19]/90 px-3.5 py-1.5 text-xs font-black text-sky-300 shadow-2xl backdrop-blur-md">
+      {/* Floating Top Header: Minha Localização à esquerda e ETA Badge quando houver rota */}
+      <div className="pointer-events-none absolute left-3.5 right-14 top-3.5 z-[400] flex items-center justify-between gap-2">
+        {showLocationPill && (
+          <button
+            type="button"
+            onClick={handleRecenter}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#0e1422]/90 px-3 py-1.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition active:scale-95 hover:bg-slate-800"
+          >
+            <Crosshair size={14} className="text-sky-400" />
+            <span className="hidden sm:inline">Minha localização</span>
+            <span className="sm:hidden">GPS</span>
+          </button>
+        )}
+
+        {/* Top Floating ETA Badge sem sobrepor o botão de GPS */}
+        {showRoute && routeInfo && routeInfo.durationMin > 0 && (
+          <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-[#0b0f19]/90 px-3 py-1.5 text-xs font-black text-sky-300 shadow-2xl backdrop-blur-md">
             <span className="h-2 w-2 animate-ping rounded-full bg-sky-400" />
             <span>~{routeInfo.durationMin} min</span>
             <span className="text-slate-500">·</span>
             <span className="text-slate-200">{routeInfo.distanceKm} km</span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Floating Zoom Controls (Top Right) */}
       <div className="absolute right-3.5 top-3.5 z-[400] flex flex-col gap-1.5">
@@ -464,20 +477,6 @@ export function DeliveryMap({
           <Minus size={18} />
         </button>
       </div>
-
-      {/* Floating Minha Localização (posicionado no topo para nunca colidir com a barrinha inferior) */}
-      {showLocationPill && (
-        <div className="absolute top-3.5 left-3.5 z-[400]">
-          <button
-            type="button"
-            onClick={handleRecenter}
-            className="flex items-center gap-1.5 rounded-full border border-white/20 bg-[#0e1422]/90 px-3.5 py-2 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition active:scale-95 hover:bg-slate-800"
-          >
-            <Crosshair size={15} className="text-sky-400" />
-            <span>Minha localização</span>
-          </button>
-        </div>
-      )}
 
       {/* Floating Bottom Right: Waze Navigation Button */}
       {showWazeButton && destinationLocation && (
