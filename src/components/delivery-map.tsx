@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Crosshair, Minus, Plus, Navigation } from 'lucide-react';
+import { Crosshair, Minus, Plus } from 'lucide-react';
 
 export type GeoPoint = { latitude: number; longitude: number };
 
@@ -11,8 +11,10 @@ export interface DeliveryMapProps {
   className?: string;
   interactive?: boolean;
   showWazeButton?: boolean;
+  showLocationPill?: boolean;
   onRouteCalculated?: (info: { distanceKm: number; durationMin: number }) => void;
   onRequestLocation?: () => void;
+  onFitRoute?: () => void;
 }
 
 // Global script loader for Leaflet
@@ -59,6 +61,7 @@ export function DeliveryMap({
   className = 'h-72 w-full',
   interactive = true,
   showWazeButton = true,
+  showLocationPill = true,
   onRouteCalculated,
   onRequestLocation,
 }: DeliveryMapProps) {
@@ -77,7 +80,7 @@ export function DeliveryMap({
   const [mapReady, setMapReady] = useState(false);
   const [routeInfo, setRouteInfo] = useState<{ distanceKm: number; durationMin: number } | null>(null);
 
-  // Initialize Leaflet Map
+  // Initialize Leaflet Map with 100% Free, Reliable Dark Tiles (Zero API Key Required)
   useEffect(() => {
     let active = true;
     if (!containerRef.current) return;
@@ -111,10 +114,18 @@ export function DeliveryMap({
           doubleClickZoom: interactive,
         });
 
-        // Dark Matter tiles (CartoDB) - Dark theme match
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png', {
-          subdomains: 'abcd',
+        // 1) Primary Dark Base Tiles: Esri World Dark Gray Base (No API key, globally available, no watermark)
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
           maxZoom: 19,
+          attribution: '',
+          crossOrigin: true,
+        }).addTo(map);
+
+        // 2) Esri World Dark Gray Reference: Clean street names and labels in English/Portuguese
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19,
+          attribution: '',
+          crossOrigin: true,
         }).addTo(map);
 
         mapInstanceRef.current = map;
@@ -133,7 +144,7 @@ export function DeliveryMap({
     };
   }, [interactive]);
 
-  // Update Courier Marker
+  // Update Courier Marker (Motoboy Avatar com capacete, mochila Tia Val e scooter)
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,56 +160,59 @@ export function DeliveryMap({
     }
 
     const html = `
-      <div class="relative flex items-center justify-center" style="width: 58px; height: 58px;">
-        <!-- Forward light beam -->
-        <div class="absolute -top-3 w-10 h-10 pointer-events-none opacity-60" style="background: radial-gradient(circle at 50% 100%, rgba(56,189,248,0.7) 0%, rgba(2,132,199,0.1) 70%, transparent 100%); clip-path: polygon(25% 0%, 75% 0%, 100% 100%, 0% 100%);"></div>
-        <!-- Pulse ring -->
-        <span class="absolute w-12 h-12 rounded-full bg-sky-500/30 animate-ping"></span>
-        <span class="absolute w-10 h-10 rounded-full border border-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(56,189,248,0.6)]"></span>
+      <div class="relative flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-110" style="width: 60px; height: 60px;">
+        <!-- Forward pulse / radar cone -->
+        <span class="absolute w-14 h-14 rounded-full bg-sky-500/25 animate-ping"></span>
+        <span class="absolute w-11 h-11 rounded-full border border-sky-400/80 bg-sky-500/20 shadow-[0_0_18px_rgba(56,189,248,0.7)]"></span>
         
-        <!-- Motoboy 3D Avatar (Red helmet, red backpack/mochila Tia Val) -->
-        <svg viewBox="0 0 64 64" width="46" height="46" class="relative z-10 drop-shadow-md">
-          <!-- Scooter rear tire -->
-          <rect x="29" y="47" width="6" height="10" rx="3" fill="#0f172a" stroke="#334155" stroke-width="1"/>
-          <!-- Mudguard -->
-          <path d="M26 45 Q32 41 38 45" stroke="#1e293b" stroke-width="3" fill="none"/>
-          <!-- Red Tail light glow -->
-          <rect x="28" y="43" width="8" height="3" rx="1.5" fill="#ef4444" style="filter: drop-shadow(0 0 4px #ef4444);"/>
-          <!-- Scooter Chassis -->
-          <ellipse cx="32" cy="38" rx="11" ry="6" fill="#dc2626" stroke="#991b1b" stroke-width="1"/>
+        <!-- Motoboy 3D Avatar (Capacete vermelho, mochila térmica Tia Val e scooter) -->
+        <svg viewBox="0 0 64 64" width="48" height="48" class="relative z-10 drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]">
+          <!-- Sombra no chão -->
+          <ellipse cx="32" cy="56" rx="16" ry="4" fill="rgba(0,0,0,0.4)" filter="blur(1px)"/>
           
-          <!-- Mirrors -->
-          <circle cx="18" cy="21" r="2.2" fill="#94a3b8" stroke="#0f172a" stroke-width="1"/>
-          <circle cx="46" cy="21" r="2.2" fill="#94a3b8" stroke="#0f172a" stroke-width="1"/>
-          <line x1="22" y1="25" x2="18" y2="21" stroke="#475569" stroke-width="1.8" stroke-linecap="round"/>
-          <line x1="42" y1="25" x2="46" y2="21" stroke="#475569" stroke-width="1.8" stroke-linecap="round"/>
+          <!-- Pneu traseiro scooter -->
+          <rect x="29" y="47" width="6" height="10" rx="3" fill="#090d16" stroke="#334155" stroke-width="1"/>
+          <!-- Para-lama -->
+          <path d="M25 46 Q32 41 39 46" stroke="#1e293b" stroke-width="3" fill="none"/>
+          <!-- Luz traseira vermelha com brilho -->
+          <rect x="28" y="44" width="8" height="3" rx="1.5" fill="#ef4444" style="filter: drop-shadow(0 0 5px #ef4444);"/>
+          <!-- Chassi da scooter -->
+          <ellipse cx="32" cy="39" rx="12" ry="6" fill="#dc2626" stroke="#991b1b" stroke-width="1"/>
           
-          <!-- Driver shoulders -->
-          <path d="M20 34 C20 27 44 27 44 34 Z" fill="#1e293b"/>
+          <!-- Guidão e retrovisores -->
+          <line x1="19" y1="23" x2="45" y2="23" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="18" cy="20" r="2.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="1"/>
+          <circle cx="46" cy="20" r="2.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="1"/>
           
-          <!-- Thermal Delivery Bag (Mochila Vermelha estilo iFood) -->
-          <rect x="22" y="24" width="20" height="15" rx="3.5" fill="#ef4444" stroke="#b91c1c" stroke-width="1.2"/>
-          <!-- Handle -->
-          <path d="M28 24 C28 22 36 22 36 24" fill="none" stroke="#7f1d1d" stroke-width="1.5"/>
-          <!-- Reflective stripe -->
-          <rect x="24" y="30" width="16" height="3" rx="1" fill="#f8fafc" opacity="0.95"/>
-          <rect x="24" y="35" width="16" height="1" fill="#991b1b"/>
+          <!-- Ombros / Jaqueta escura do piloto -->
+          <path d="M19 35 C19 27 45 27 45 35 Z" fill="#0f172a"/>
           
-          <!-- Helmet seen from rear/top -->
-          <ellipse cx="32" cy="18" rx="8" ry="8.5" fill="#ef4444" stroke="#991b1b" stroke-width="1.2"/>
-          <!-- 3D Gloss highlight -->
-          <ellipse cx="29" cy="15" rx="3.5" ry="2" fill="#fecaca" opacity="0.7"/>
-          <!-- Visor border -->
-          <path d="M25 19 Q32 22 39 19" stroke="#0f172a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <!-- Mochila térmica vermelha (Mochila Tia Val / iFood) -->
+          <rect x="21" y="24" width="22" height="16" rx="3.5" fill="#ea1d2c" stroke="#b91c1c" stroke-width="1.2"/>
+          <!-- Faixa refletiva branca horizontal da mochila -->
+          <rect x="21" y="31" width="22" height="3" fill="#ffffff" opacity="0.95"/>
+          <rect x="21" y="32" width="22" height="1" fill="#facc15" opacity="0.8"/>
+          <!-- Alças da mochila -->
+          <line x1="24" y1="24" x2="24" y2="34" stroke="#7f1d1d" stroke-width="1.2"/>
+          <line x1="40" y1="24" x2="40" y2="34" stroke="#7f1d1d" stroke-width="1.2"/>
+          
+          <!-- Capacete do Motoboy (Vermelho com visor preto brilhante) -->
+          <circle cx="32" cy="18" r="8" fill="#ea1d2c" stroke="#991b1b" stroke-width="1.2"/>
+          <!-- Viseira fumê -->
+          <path d="M27 15 Q32 13 37 15 Q38 19 32 20 Q26 19 27 15 Z" fill="#020617" stroke="#334155" stroke-width="0.8"/>
+          <!-- Brilho na viseira -->
+          <path d="M28 15 Q31 14 34 15" stroke="#38bdf8" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.9"/>
+          <!-- Brilho no capacete -->
+          <path d="M27 13 Q31 11 35 12" stroke="#fca5a5" stroke-width="1" fill="none" opacity="0.7"/>
         </svg>
       </div>
     `;
 
     const icon = L.divIcon({
-      className: 'custom-courier-pin',
+      className: 'custom-motoboy-pin',
       html,
-      iconSize: [58, 58],
-      iconAnchor: [29, 29],
+      iconSize: [60, 60],
+      iconAnchor: [30, 30],
     });
 
     if (courierMarkerRef.current) {
@@ -211,7 +225,7 @@ export function DeliveryMap({
     }
   }, [courierLocation, mapReady]);
 
-  // Update Destination Marker
+  // Update Destination Marker (Casinha Vermelha com Etiqueta do Bairro)
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -229,19 +243,22 @@ export function DeliveryMap({
     const neighborhoodLabel = destinationNeighborhood || (destinationTitle ? destinationTitle.split(',')[0] : '');
 
     const html = `
-      <div class="relative flex flex-col items-center" style="transform: translate(-50%, -100%);">
+      <div class="relative flex flex-col items-center cursor-pointer transition-transform duration-300 hover:scale-110" style="transform: translate(-50%, -100%);">
         ${
           neighborhoodLabel
-            ? `<div class="mb-1 whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-0.5 text-[11px] font-black text-white shadow-lg border border-white/20 backdrop-blur-sm tracking-wide">
-                ${neighborhoodLabel}
+            ? `<div class="mb-1 whitespace-nowrap rounded-lg bg-[#0b0f19]/95 px-2.5 py-1 text-[11px] font-black text-white shadow-xl border border-red-500/40 backdrop-blur-md tracking-wide">
+                📍 ${neighborhoodLabel}
                </div>`
             : ''
         }
-        <div class="relative flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white shadow-[0_4px_12px_rgba(220,38,38,0.5)] ring-4 ring-red-500/30">
-          <svg class="h-5 w-5 fill-current" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <!-- Red destination pin with house icon -->
+        <div class="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-red-600 to-red-500 text-white shadow-[0_6px_18px_rgba(234,29,44,0.6)] ring-4 ring-red-500/30 border border-white/20">
+          <svg class="h-6 w-6 fill-current drop-shadow-sm" viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+          </svg>
         </div>
-        <div class="h-2 w-2 rotate-45 -mt-1 bg-red-600 shadow-md"></div>
-        <div class="h-2 w-8 rounded-full bg-black/40 blur-[2px] mt-0.5"></div>
+        <div class="h-2.5 w-2.5 rotate-45 -mt-1.5 bg-red-600 shadow-md"></div>
+        <div class="h-2 w-9 rounded-full bg-black/50 blur-[2px] mt-0.5"></div>
       </div>
     `;
 
@@ -262,7 +279,7 @@ export function DeliveryMap({
     }
   }, [destinationLocation, destinationNeighborhood, destinationTitle, mapReady]);
 
-  // Calculate & Draw Road Polyline (OSRM)
+  // Calculate & Draw Road Polyline (OSRM com traçado pelas ruas e linha azul neon)
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -288,6 +305,44 @@ export function DeliveryMap({
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
 
+    const applyRoute = (latlngs: Array<[number, number]>, dist: number, dur: number) => {
+      if (!active || !mapInstanceRef.current) return;
+
+      if (routeGlowPolylineRef.current) routeGlowPolylineRef.current.remove();
+      if (routePolylineRef.current) routePolylineRef.current.remove();
+
+      // Outer glowing cyan halo
+      routeGlowPolylineRef.current = L.polyline(latlngs, {
+        color: '#38bdf8',
+        weight: 10,
+        opacity: 0.35,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(mapInstanceRef.current);
+
+      // Core electric cyan/blue line
+      routePolylineRef.current = L.polyline(latlngs, {
+        color: '#0284c7',
+        weight: 5,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(mapInstanceRef.current);
+
+      const info = { distanceKm: dist, durationMin: dur };
+      setRouteInfo(info);
+      onRouteCalculated?.(info);
+
+      try {
+        const bounds = L.latLngBounds(latlngs);
+        mapInstanceRef.current.fitBounds(bounds, {
+          paddingTopLeft: [50, 50],
+          paddingBottomRight: [50, 140],
+          maxZoom: 16,
+        });
+      } catch {}
+    };
+
     fetch(url, { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
@@ -302,72 +357,40 @@ export function DeliveryMap({
           const route = data.routes[0];
           dist = Number((route.distance / 1000).toFixed(1));
           dur = Math.max(1, Math.round(route.duration / 60));
-          // GeoJSON is [lon, lat] -> Leaflet wants [lat, lon]
           latlngs = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]]);
         } else {
-          // Fallback line
+          // Fallback straight / intermediate line
           latlngs = [
             [courierLocation.latitude, courierLocation.longitude],
             [destinationLocation.latitude, destinationLocation.longitude],
           ];
+          const rad = (n: number) => (n * Math.PI) / 180;
+          const dLat = rad(destinationLocation.latitude - courierLocation.latitude);
+          const dLon = rad(destinationLocation.longitude - courierLocation.longitude);
+          const x =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(rad(courierLocation.latitude)) * Math.cos(rad(destinationLocation.latitude)) * Math.sin(dLon / 2) ** 2;
+          dist = Number((6371 * 2 * Math.asin(Math.sqrt(x))).toFixed(1));
+          dur = Math.max(2, Math.round(dist * 2.5));
         }
 
-        if (routeGlowPolylineRef.current) routeGlowPolylineRef.current.remove();
-        if (routePolylineRef.current) routePolylineRef.current.remove();
-
-        // Blue glow outer line
-        routeGlowPolylineRef.current = L.polyline(latlngs, {
-          color: '#38bdf8',
-          weight: 9,
-          opacity: 0.35,
-          lineCap: 'round',
-          lineJoin: 'round',
-        }).addTo(mapInstanceRef.current);
-
-        // Core blue route line
-        routePolylineRef.current = L.polyline(latlngs, {
-          color: '#0284c7',
-          weight: 5,
-          opacity: 0.95,
-          lineCap: 'round',
-          lineJoin: 'round',
-        }).addTo(mapInstanceRef.current);
-
-        const info = { distanceKm: dist, durationMin: dur };
-        setRouteInfo(info);
-        onRouteCalculated?.(info);
-
-        // Fit map bounds to view both points nicely
-        try {
-          const bounds = L.latLngBounds(latlngs);
-          mapInstanceRef.current.fitBounds(bounds, {
-            paddingTopLeft: [40, 40],
-            paddingBottomRight: [40, 120],
-            maxZoom: 16,
-          });
-        } catch {}
+        applyRoute(latlngs, dist, dur);
       })
       .catch(() => {
-        // Fallback straight line
         if (!active || !mapInstanceRef.current) return;
         const latlngs: Array<[number, number]> = [
           [courierLocation.latitude, courierLocation.longitude],
           [destinationLocation.latitude, destinationLocation.longitude],
         ];
-        if (routeGlowPolylineRef.current) routeGlowPolylineRef.current.remove();
-        if (routePolylineRef.current) routePolylineRef.current.remove();
-
-        routeGlowPolylineRef.current = L.polyline(latlngs, {
-          color: '#38bdf8',
-          weight: 7,
-          opacity: 0.3,
-        }).addTo(mapInstanceRef.current);
-
-        routePolylineRef.current = L.polyline(latlngs, {
-          color: '#0284c7',
-          weight: 4,
-          opacity: 0.9,
-        }).addTo(mapInstanceRef.current);
+        const rad = (n: number) => (n * Math.PI) / 180;
+        const dLat = rad(destinationLocation.latitude - courierLocation.latitude);
+        const dLon = rad(destinationLocation.longitude - courierLocation.longitude);
+        const x =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(rad(courierLocation.latitude)) * Math.cos(rad(destinationLocation.latitude)) * Math.sin(dLon / 2) ** 2;
+        const dist = Number((6371 * 2 * Math.asin(Math.sqrt(x))).toFixed(1));
+        const dur = Math.max(2, Math.round(dist * 2.5));
+        applyRoute(latlngs, dist, dur);
       });
 
     return () => {
@@ -406,10 +429,10 @@ export function DeliveryMap({
       {/* Map Canvas */}
       <div ref={containerRef} className="h-full w-full" />
 
-      {/* Top Floating ETA Badge (when route is ready) */}
+      {/* Top Floating ETA Badge */}
       {routeInfo && routeInfo.durationMin > 0 && (
         <div className="pointer-events-none absolute left-1/2 top-3 z-[400] -translate-x-1/2">
-          <div className="flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-slate-900/90 px-3.5 py-1.5 text-xs font-black text-sky-300 shadow-xl backdrop-blur-md">
+          <div className="flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-[#0b0f19]/90 px-3.5 py-1.5 text-xs font-black text-sky-300 shadow-2xl backdrop-blur-md">
             <span className="h-2 w-2 animate-ping rounded-full bg-sky-400" />
             <span>~{routeInfo.durationMin} min</span>
             <span className="text-slate-500">·</span>
@@ -419,12 +442,12 @@ export function DeliveryMap({
       )}
 
       {/* Floating Zoom Controls (Top Right) */}
-      <div className="absolute right-3 top-3 z-[400] flex flex-col gap-1.5">
+      <div className="absolute right-3.5 top-3.5 z-[400] flex flex-col gap-1.5">
         <button
           type="button"
           onClick={handleZoomIn}
           aria-label="Aproximar mapa"
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-900/80 text-white shadow-lg backdrop-blur-md transition active:scale-95 hover:bg-slate-800"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-[#0e1422]/90 text-white shadow-xl backdrop-blur-md transition active:scale-95 hover:bg-slate-800"
         >
           <Plus size={18} />
         </button>
@@ -432,27 +455,29 @@ export function DeliveryMap({
           type="button"
           onClick={handleZoomOut}
           aria-label="Afastar mapa"
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-900/80 text-white shadow-lg backdrop-blur-md transition active:scale-95 hover:bg-slate-800"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-[#0e1422]/90 text-white shadow-xl backdrop-blur-md transition active:scale-95 hover:bg-slate-800"
         >
           <Minus size={18} />
         </button>
       </div>
 
       {/* Floating Bottom Left: Minha Localização */}
-      <div className="absolute bottom-4 left-3 z-[400]">
-        <button
-          type="button"
-          onClick={handleRecenter}
-          className="flex items-center gap-1.5 rounded-full border border-white/15 bg-slate-900/85 px-3 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md transition active:scale-95 hover:bg-slate-800"
-        >
-          <Crosshair size={15} className="text-sky-400" />
-          <span>Minha localização</span>
-        </button>
-      </div>
+      {showLocationPill && (
+        <div className="absolute bottom-4 left-3.5 z-[400]">
+          <button
+            type="button"
+            onClick={handleRecenter}
+            className="flex items-center gap-1.5 rounded-full border border-white/20 bg-[#0e1422]/90 px-3.5 py-2 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition active:scale-95 hover:bg-slate-800"
+          >
+            <Crosshair size={15} className="text-sky-400" />
+            <span>Minha localização</span>
+          </button>
+        </div>
+      )}
 
       {/* Floating Bottom Right: Waze Navigation Button */}
       {showWazeButton && destinationLocation && (
-        <div className="absolute bottom-4 right-3 z-[400]">
+        <div className="absolute bottom-4 right-3.5 z-[400]">
           <button
             type="button"
             onClick={handleOpenWaze}
