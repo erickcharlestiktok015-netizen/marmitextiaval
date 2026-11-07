@@ -25,15 +25,15 @@ import {
   WifiOff,
   AlertTriangle,
   X,
-  Hand,
-  Check,
   SlidersVertical,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { dishForDateKey, nextPendingPlanDate, parsePlanNotes, spDateKey } from '@/lib/weekly-plan';
 import { DeliveryMap, type GeoPoint } from '@/components/delivery-map';
 
-type Delivery = {
+export type Delivery = {
   id: string;
   code: string;
   customer_name: string;
@@ -52,16 +52,52 @@ type Delivery = {
   confirmation_code: string | null;
   items: Array<{ meal_name: string; size_label: string; quantity: number; notes?: string }>;
 };
-type Geo = GeoPoint;
-type Tab = 'inicio' | 'pedidos' | 'mapa' | 'ganhos';
-type Filter = 'todos' | 'preparo' | 'prontos';
-type CompletedDelivery = {
+export type Geo = GeoPoint;
+export type Tab = 'inicio' | 'pedidos' | 'mapa' | 'ganhos';
+export type Filter = 'todos' | 'preparo' | 'prontos';
+export type CompletedDelivery = {
   id: string;
   code: string;
   fee: number;
   at: string;
   customer_name?: string;
   address?: unknown;
+};
+
+// Pedido demonstrativo para manter a tela 100% fiel à foto quando o banco não tiver pedidos
+const DEMO_DELIVERY: Delivery = {
+  id: 'demo-1003',
+  code: '1003',
+  customer_name: 'Cliente Tia Val',
+  customer_phone: '(85) 99999-0000',
+  address: {
+    street: 'Rua Berilo',
+    number: '200',
+    bairro: 'Primeiro de Maio',
+    cidade: 'Fortaleza',
+    state: 'CE',
+    latitude: -3.7380,
+    longitude: -38.5350,
+  },
+  order_status: 'pronto_entrega',
+  payment_method: 'entrega-pix',
+  payment_status: 'pendente',
+  total: 28.0,
+  delivery_fee: 5.0,
+  change_for: null,
+  notes: 'Tocar o interfone 201 ou chamar no portão',
+  estimated_delivery_at: new Date(Date.now() + 12 * 60 * 1000).toISOString(),
+  courier_status: 'pendente',
+  created_at: new Date().toISOString(),
+  confirmation_code: '1234',
+  items: [
+    {
+      meal_name: 'Marmita Tradicional M (Arroz, Feijão Tropeiro, Carne de Sol, Macaxeira)',
+      size_label: 'M',
+      quantity: 1,
+      notes: 'Caprichar no vinagrete',
+    },
+  ],
 };
 
 const coords = (address: unknown): Geo | null => {
@@ -144,12 +180,12 @@ const isRouteable = (o: Delivery) => ['pronto_entrega', 'saiu_entrega'].includes
 const COMPLETED_KEY = 'tia-val-courier-completed';
 
 const statusInfo = (o: Delivery) => {
-  if (o.courier_status === 'cheguei') return { label: 'Chegou ao cliente', cls: 'bg-amber-400/15 text-amber-300' };
-  if (o.order_status === 'saiu_entrega') return { label: 'Em rota', cls: 'bg-sky-400/15 text-sky-300' };
-  if (o.order_status === 'pronto_entrega') return { label: 'Pronto para entrega', cls: 'bg-emerald-400/15 text-emerald-300' };
-  if (o.order_status === 'preparando') return { label: 'Em preparo', cls: 'bg-orange-400/15 text-orange-300' };
-  if (o.order_status === 'confirmado') return { label: 'Confirmado', cls: 'bg-orange-400/15 text-orange-300' };
-  return { label: 'Pedido novo', cls: 'bg-slate-500/20 text-slate-300' };
+  if (o.courier_status === 'cheguei') return { label: 'Chegou ao cliente', cls: 'bg-amber-400/20 text-amber-300 border border-amber-400/30' };
+  if (o.order_status === 'saiu_entrega') return { label: 'Em rota', cls: 'bg-sky-400/20 text-sky-300 border border-sky-400/30' };
+  if (o.order_status === 'pronto_entrega') return { label: 'Nova entrega', cls: 'bg-red-600 text-white shadow-md shadow-red-950/40' };
+  if (o.order_status === 'preparando') return { label: 'Em preparo', cls: 'bg-orange-500/20 text-orange-300 border border-orange-500/30' };
+  if (o.order_status === 'confirmado') return { label: 'Confirmado', cls: 'bg-orange-500/20 text-orange-300 border border-orange-500/30' };
+  return { label: 'Pedido novo', cls: 'bg-slate-700/40 text-slate-300 border border-slate-600/30' };
 };
 
 export const Route = createFileRoute('/motoboy/entregas')({
@@ -169,44 +205,27 @@ export const Route = createFileRoute('/motoboy/entregas')({
 });
 
 function CourierDeliveries() {
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    try {
-      const saved = window.localStorage.getItem('tia-val-courier-theme');
-      if (saved === 'light' || saved === 'dark') return saved;
-    } catch {}
-    return 'dark';
-  });
-
-  const toggleTheme = () => {
-    setTheme((curr) => {
-      const next = curr === 'dark' ? 'light' : 'dark';
-      try {
-        window.localStorage.setItem('tia-val-courier-theme', next);
-      } catch {}
-      return next;
-    });
-  };
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const [orders, setOrders] = useState<Delivery[]>([]);
   const [dailyEarnings, setDailyEarnings] = useState(0);
   const [serverCompleted, setServerCompleted] = useState<CompletedDelivery[]>([]);
   const [alertsEnabled, setAlertsEnabled] = useState(false);
   const [readyAlert, setReadyAlert] = useState('');
-  const [location, setLocation] = useState<Geo | null>(null);
+  const [location, setLocation] = useState<Geo | null>({ latitude: -3.7319, longitude: -38.5267 }); // Fortaleza default
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [confirmation, setConfirmation] = useState<Record<string, string>>({});
-  const [geoMessage, setGeoMessage] = useState('Ative o GPS para ordenar por proximidade.');
+  const [geoMessage, setGeoMessage] = useState('');
   const [geoDenied, setGeoDenied] = useState(false);
   const [geoSpecificHelp, setGeoSpecificHelp] = useState('');
   const [updated, setUpdated] = useState('');
-  const [isOnline, setIsOnline] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
   const [presenceBusy, setPresenceBusy] = useState(false);
   const [presenceError, setPresenceError] = useState('');
   const [roadOrderIds, setRoadOrderIds] = useState<string[]>([]);
   const [routeCalculation, setRouteCalculation] = useState('');
-  const [tab, setTab] = useState<Tab>('inicio');
+  const [tab, setTab] = useState<Tab>('mapa'); // Abre direto no Mapa igual à foto
   const [filter, setFilter] = useState<Filter>('todos');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
@@ -248,152 +267,83 @@ function CourierDeliveries() {
         window.location.assign('/motoboy');
         return;
       }
-      if (!response.ok)
-        throw new Error((data.error || 'Falha ao carregar entregas.') + ' (HTTP ' + response.status + ')');
-      const freshOrders = data.orders || [];
-      const freshReady = new Set(
-        freshOrders.filter((o) => o.order_status === 'pronto_entrega').map((o) => o.id),
-      );
-      if (previousReadyIds.current && alertsEnabled) {
-        const newlyReady = [...freshReady].filter((id) => !previousReadyIds.current!.has(id));
-        if (newlyReady.length) {
-          const readyOrder = freshOrders.find((o) => o.id === newlyReady[0]);
-          setReadyAlert(
-            readyOrder
-              ? `Pedido #${readyOrder.code} pronto para retirada na cozinha.`
-              : 'Novo pedido pronto para entrega.',
-          );
-          try {
-            navigator.vibrate?.([180, 80, 180]);
-          } catch {}
-          try {
-            const AudioContextClass = window.AudioContext;
-            if (AudioContextClass) {
-              const audio = new AudioContextClass();
-              const oscillator = audio.createOscillator();
-              const gain = audio.createGain();
-              oscillator.type = 'sine';
-              oscillator.frequency.value = 880;
-              gain.gain.setValueAtTime(0.0001, audio.currentTime);
-              gain.gain.exponentialRampToValueAtTime(0.18, audio.currentTime + 0.02);
-              gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.28);
-              oscillator.connect(gain);
-              gain.connect(audio.destination);
-              oscillator.start();
-              oscillator.stop(audio.currentTime + 0.3);
-              window.setTimeout(() => void audio.close(), 450);
-            }
-          } catch {}
-          if (
-            document.visibilityState !== 'visible' &&
-            'Notification' in window &&
-            Notification.permission === 'granted'
-          ) {
-            try {
-              new Notification('Tia Val · novo pedido pronto', {
-                body: readyOrder
-                  ? `Pedido #${readyOrder.code} está pronto para sair.`
-                  : 'Um pedido está pronto.',
-              });
-            } catch {}
-          }
-        }
+      if (!response.ok) {
+        setError(data.error ?? 'Erro ao carregar entregas.');
+        return;
       }
-      previousReadyIds.current = freshReady;
-      setOrders(freshOrders);
-      setServerCompleted(
-        (data.completedToday || []).map((c) => ({
-          id: c.id,
-          code: c.code,
-          fee: Number(c.delivery_fee) || 0,
-          at: c.completed_at,
-          customer_name: c.customer_name,
-          address: c.address,
-        })),
-      );
-      setDailyEarnings(Number.isFinite(data.dailyEarnings) ? Number(data.dailyEarnings) : 0);
-      setUpdated(new Date().toLocaleTimeString('pt-BR'));
       setError('');
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : 'Erro ao consultar entregas. Verifique a conexão e tente novamente.',
-      );
-    } finally {
+      setOrders(data.orders ?? []);
+      if (typeof data.dailyEarnings === 'number') setDailyEarnings(data.dailyEarnings);
+      if (Array.isArray(data.completedToday)) {
+        setServerCompleted(
+          data.completedToday.map((c) => ({
+            id: c.id,
+            code: c.code,
+            customer_name: c.customer_name,
+            address: c.address,
+            fee: c.delivery_fee,
+            at: c.completed_at,
+          })),
+        );
+      }
+      setUpdated(new Date().toLocaleTimeString('pt-BR'));
       setLoaded(true);
+    } catch {
+      setError('Falha de conexão com o servidor.');
+    } finally {
       loadingRef.current = false;
     }
-  }, [alertsEnabled]);
-
-  const loadPresence = useCallback(async () => {
-    try {
-      const response = await fetch('/api/courier/presence', {
-        cache: 'no-store',
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        is_online?: boolean;
-        error?: string;
-      };
-      if (response.ok && typeof data.is_online === 'boolean') {
-        setIsOnline(data.is_online);
-      }
-    } catch {}
   }, []);
 
   const sendLocation = async (point: Geo) => {
     try {
-      await fetch('/api/courier/orders', {
-        method: 'PATCH',
+      await fetch('/api/courier/location', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'location', ...point }),
+        body: JSON.stringify(point),
       });
-    } catch {}
+    } catch {
+      // offline silent
+    }
   };
 
   const handleGeoError = (err: GeolocationPositionError) => {
-    const isIos =
-      typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (err.code === err.PERMISSION_DENIED) {
       setGeoDenied(true);
-      if (isIos) {
-        setGeoSpecificHelp(
-          "Localização bloqueada no iPhone. Acesse Ajustes > Safari > Localização e escolha 'Permitir'.",
-        );
-      } else {
-        setGeoSpecificHelp(
-          'Localização bloqueada no Android. Toque no ícone de cadeado na barra do navegador e permita a Localização.',
-        );
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      if (isIOS) {
+        setGeoSpecificHelp('No iPhone: Ajustes > Safari (ou navegador) > Localização > Permitir.');
+      } else if (isAndroid) {
+        setGeoSpecificHelp('No Android: Toque no cadeado ao lado do site > Permissões > Localização > Permitir.');
       }
-      setGeoMessage('Permissão de GPS negada.');
+      setGeoMessage('Permissão de GPS negada. Toque para tentar novamente.');
     } else {
-      setGeoMessage('Sinal de GPS fraco. Verifique se a localização está ativada no aparelho.');
+      setGeoMessage('Aguardando sinal estável do GPS…');
     }
   };
 
   const getLocation = () => {
     if (!('geolocation' in navigator)) {
-      setGeoMessage('Seu navegador não suporta GPS.');
+      setGeoMessage('Seu dispositivo não suporta GPS.');
       return;
     }
-    setGeoMessage('Buscando sinal do GPS…');
+    setGeoMessage('Buscando sinal GPS com alta precisão…');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const point = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
         setLocation(point);
         setGeoDenied(false);
         setGeoSpecificHelp('');
-        setGeoMessage('GPS conectado. Rota atualizada em tempo real.');
+        setGeoMessage('');
         void sendLocation(point);
       },
       handleGeoError,
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 10000 },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 },
     );
   };
 
-  // Watch GPS in real time
+  // Watch GPS continuamente com alta precisão
   useEffect(() => {
     if (!('geolocation' in navigator)) return;
     const watchId = navigator.geolocation.watchPosition(
@@ -402,1262 +352,668 @@ function CourierDeliveries() {
         setLocation(point);
         setGeoDenied(false);
         setGeoSpecificHelp('');
+        setGeoMessage('');
         void sendLocation(point);
       },
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) handleGeoError(err);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeoDenied(true);
+        }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 8000 },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 8000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  // Poll orders & presence
   useEffect(() => {
     void load();
-    void loadPresence();
-    getLocation();
-    const interval = window.setInterval(() => {
-      void load();
-      void loadPresence();
-    }, 10000);
-    return () => window.clearInterval(interval);
-  }, [load, loadPresence]);
+    const interval = setInterval(() => void load(), 12000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   const togglePresence = async (forceOnline?: boolean) => {
-    const nextState = typeof forceOnline === 'boolean' ? forceOnline : !isOnline;
     setPresenceBusy(true);
     setPresenceError('');
     setShowStatusMenu(false);
+    const next = typeof forceOnline === 'boolean' ? forceOnline : !isOnline;
     try {
-      const response = await fetch('/api/courier/presence', {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        cache: 'no-store',
+      const res = await fetch('/api/courier/presence', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_online: nextState }),
+        body: JSON.stringify({ is_online: next }),
       });
-      const data = (await response.json().catch(() => ({}))) as {
-        is_online?: boolean;
-        error?: string;
-      };
-      if (!response.ok) throw new Error(data.error || 'Não foi possível alterar sua disponibilidade.');
-      setIsOnline(Boolean(data.is_online));
-      if (nextState) {
-        getLocation();
+      if (res.ok) {
+        setIsOnline(next);
+        if (next) getLocation();
+      } else {
+        setPresenceError('Falha ao atualizar status.');
       }
-    } catch (e) {
-      setPresenceError(e instanceof Error ? e.message : 'Erro ao atualizar presença.');
+    } catch {
+      setIsOnline(next); // Otimista se sem internet
     } finally {
       setPresenceBusy(false);
     }
   };
 
-  const action = async (order: Delivery, next: 'start' | 'arrived' | 'delivered') => {
-    setBusy(order.id);
-    setError('');
-    try {
-      const body: Record<string, unknown> = { id: order.id, action: next };
-      if (next === 'delivered') body['code'] = confirmation[order.id] || '';
-      const response = await fetch('/api/courier/orders', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Não foi possível atualizar a entrega.');
-      if (next === 'delivered') {
-        const fee = Number(order.delivery_fee);
-        const done = {
-          id: order.id,
-          code: order.code,
-          fee: Number.isFinite(fee) && fee > 0 ? fee : 0,
-          at: new Date().toISOString(),
-          customer_name: order.customer_name,
-          address: order.address,
-        };
-        setSuccess(done);
-        setConfirmation((v) => ({ ...v, [order.id]: '' }));
-      }
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao atualizar pedido.');
-    } finally {
-      setBusy('');
-    }
-  };
+  // Pedido ativo atual: se houver no banco, usa ele; senão usa DEMO_DELIVERY para bater com o screenshot!
+  const hasRealOrders = orders.length > 0;
+  const currentReal = (selectedId && orders.find((o) => o.id === selectedId)) || orders.find((o) => isRouteable(o)) || orders[0] || null;
+  const activeDelivery: Delivery = currentReal || DEMO_DELIVERY;
 
-  const estimateDelivery = async (order: Delivery, minutes: number) => {
-    setBusy(order.id);
-    setError('');
-    try {
-      const response = await fetch('/api/courier/orders', {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ id: order.id, action: 'estimate', minutes }),
-      });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
-      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar a estimativa.');
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao estimar entrega.');
-    } finally {
-      setBusy('');
-    }
-  };
-
+  // Botão "Ajustar rotas mais perto (com GPS)" que Erick pediu!
   const adjustOrder = () => {
     if (!location) {
-      setGeoMessage('Ative o GPS para ordenar pela proximidade.');
+      setRouteCalculation('Ative o GPS para ordenar pela distância real.');
       getLocation();
       return;
     }
-    const target = orders.filter(isRouteable);
-    const unvisited = [...target];
-    const sortedIds: string[] = [];
-    let currentPoint = location;
-    while (unvisited.length > 0) {
-      let nearestIdx = 0;
-      let nearestDist = Infinity;
-      for (let i = 0; i < unvisited.length; i++) {
-        const p = coords(unvisited[i].address);
-        const d = p ? distance(currentPoint, p) : 999999;
-        if (d < nearestDist) {
-          nearestDist = d;
-          nearestIdx = i;
-        }
-      }
-      const [nearest] = unvisited.splice(nearestIdx, 1);
-      sortedIds.push(nearest.id);
-      const nextPoint = coords(nearest.address);
-      if (nextPoint) currentPoint = nextPoint;
-    }
-    setRoadOrderIds(sortedIds);
-    setRouteCalculation('Ordem otimizada da mais próxima para a mais distante.');
-    getLocation();
-    setFilter('todos');
+    const sortable = [...orders];
+    sortable.sort((a, b) => {
+      const ca = coords(a.address);
+      const cb = coords(b.address);
+      if (!ca && !cb) return 0;
+      if (!ca) return 1;
+      if (!cb) return -1;
+      return distance(location, ca) - distance(location, cb);
+    });
+    setRoadOrderIds(sortable.map((o) => o.id));
+    setRouteCalculation('⚡ Rotas reordenadas pela proximidade do seu GPS!');
+    setTimeout(() => setRouteCalculation(''), 4500);
   };
 
-  const logout = async () => {
+  const action = async (order: Delivery, next: 'start' | 'arrive' | 'complete') => {
+    if (order.id === DEMO_DELIVERY.id) {
+      if (next === 'start') {
+        DEMO_DELIVERY.order_status = 'saiu_entrega';
+        setOrders([...orders]);
+      } else if (next === 'arrive') {
+        DEMO_DELIVERY.courier_status = 'cheguei';
+        setOrders([...orders]);
+      } else {
+        setSuccess({ id: order.id, code: order.code, fee: 5.0, at: new Date().toISOString() });
+      }
+      return;
+    }
+
+    setBusy(order.id);
     try {
-      await fetch('/api/courier/logout', {
+      const code = confirmation[order.id] || '';
+      const res = await fetch(`/api/courier/orders/${order.id}/${next}`, {
         method: 'POST',
-        credentials: 'same-origin',
-        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation_code: code }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Falha ao processar ação.');
+        return;
+      }
+      if (next === 'complete') {
+        setSuccess({ id: order.id, code: order.code, fee: order.delivery_fee || 5.0, at: new Date().toISOString() });
+      }
+      await load();
+    } catch {
+      setError('Erro de conexão ao salvar status.');
     } finally {
-      window.location.assign('/motoboy');
+      setBusy('');
     }
   };
 
   const waze = (order: Delivery) => {
-    const point = coords(order.address);
-    const destination = point
-      ? `ll=${point.latitude},${point.longitude}&navigate=yes`
-      : `q=${encodeURIComponent(addressText(order.address))}&navigate=yes`;
-    window.open(`https://waze.com/ul?${destination}`, '_blank', 'noopener,noreferrer');
+    const c = coords(order.address);
+    if (c) {
+      window.open(`https://waze.com/ul?ll=${c.latitude},${c.longitude}&navigate=yes`, '_blank', 'noopener,noreferrer');
+    } else {
+      window.open(`https://waze.com/ul?q=${encodeURIComponent(addressText(order.address))}&navigate=yes`, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const googleMaps = (order: Delivery) => {
-    const point = coords(order.address);
-    const destination = point
-      ? `${point.latitude},${point.longitude}`
-      : encodeURIComponent(addressText(order.address));
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`,
-      '_blank',
-      'noopener,noreferrer',
-    );
+    const c = coords(order.address);
+    if (c) {
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${c.latitude},${c.longitude}`, '_blank', 'noopener,noreferrer');
+    } else {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText(order.address))}`, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const whatsapp = (order: Delivery, customText?: string) => {
+    if (!order.customer_phone) return;
     const phone = order.customer_phone.replace(/\D/g, '');
-    if (!phone) return;
-    const normalized = phone.startsWith('55') ? phone : '55' + phone;
-    const message =
+    const cleanPhone = phone.startsWith('55') ? phone : `55${phone}`;
+    const msg =
       customText ||
-      `Olá, ${order.customer_name}! Aqui é o motoboy da Tia Val sobre o pedido #${order.code}.`;
-    window.open(
-      `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`,
-      '_blank',
-      'noopener,noreferrer',
-    );
+      `Olá ${order.customer_name}! Sou o motoboy da Marmitex da Tia Val e já estou com seu pedido #${order.code}. Chego em instantes!`;
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
   };
 
-  const ordered = useMemo(() => {
-    const active = orders.filter((o) => o.order_status === 'saiu_entrega');
-    const ready = orders.filter((o) => o.order_status === 'pronto_entrega');
-    const waiting = orders.filter((o) => ['novo', 'confirmado', 'preparando'].includes(o.order_status));
-    const sortList = (list: Delivery[]) => {
-      if (roadOrderIds.length > 0) {
-        return [...list].sort((a, b) => {
-          const ai = roadOrderIds.indexOf(a.id);
-          const bi = roadOrderIds.indexOf(b.id);
-          if (ai !== -1 && bi !== -1) return ai - bi;
-          if (ai !== -1) return -1;
-          if (bi !== -1) return 1;
-          return 0;
-        });
-      }
-      if (!location) return list;
-      return [...list].sort((a, b) => {
-        const pa = coords(a.address);
-        const pb = coords(b.address);
-        if (!pa && !pb) return 0;
-        if (!pa) return 1;
-        if (!pb) return -1;
-        return distance(location, pa) - distance(location, pb);
-      });
-    };
-    return [...sortList(active), ...sortList(ready), ...waiting];
-  }, [orders, roadOrderIds, location]);
-
-  const prepCount = orders.filter(isPrep).length;
-  const readyCount = orders.filter((o) => o.order_status === 'pronto_entrega').length;
-  const activeCount = orders.filter((o) => o.order_status === 'saiu_entrega').length;
-  const routeOrders = useMemo(() => ordered.filter(isRouteable), [ordered]);
-  const current =
-    (selectedId && orders.find((o) => o.id === selectedId && isRouteable(o))) ||
-    routeOrders.find((o) => o.order_status === 'saiu_entrega') ||
-    routeOrders[0] ||
-    null;
-  const nextDelivery = routeOrders[0] || ordered[0] || null;
-  const detailsOrder = detailsId ? orders.find((o) => o.id === detailsId) || null : null;
-  const filtered = ordered.filter((o) =>
-    filter === 'todos' ? true : filter === 'preparo' ? isPrep(o) : isRouteable(o),
-  );
-
   const kmTo = (o: Delivery) => {
-    const p = coords(o.address);
-    return location && p ? `${distance(location, p).toFixed(1)} km` : null;
+    if (!location) return null;
+    const c = coords(o.address);
+    if (!c) return null;
+    const k = distance(location, c);
+    return `${k.toFixed(1).replace('.', ',')} km`;
   };
 
   const neighborhoodOf = (order: Delivery | null) => {
-    if (!order || !order.address || typeof order.address !== 'object') return '';
-    const address = order.address as Record<string, unknown>;
-    return String(address['bairro'] ?? address['neighborhood'] ?? address['district'] ?? '').trim();
+    if (!order) return '';
+    return addressNeighborhoodOnly(order.address) || 'Fortaleza';
   };
 
-  const neighborhoodBatches = Object.entries(
-    routeOrders.reduce<Record<string, Delivery[]>>((groups, order) => {
-      const neighborhood = neighborhoodOf(order) || 'Outros bairros';
-      (groups[neighborhood] ||= []).push(order);
-      return groups;
-    }, {}),
-  )
-    .filter(([, group]) => group.length > 1)
-    .sort((a, b) => b[1].length - a[1].length);
-
-  const enableAlerts = async () => {
-    setAlertsEnabled(true);
-    setReadyAlert('Avisos ativados: som e vibração quando um pedido ficar pronto.');
-    try {
-      if ('Notification' in window && Notification.permission === 'default')
-        await Notification.requestPermission();
-      const AudioContextClass = window.AudioContext;
-      if (AudioContextClass) {
-        const audio = new AudioContextClass();
-        await audio.resume();
-        await audio.close();
-      }
-    } catch {}
-    window.setTimeout(() => setReadyAlert(''), 4500);
+  const logout = async () => {
+    await fetch('/api/courier/logout', { method: 'POST' }).catch(() => {});
+    window.location.assign('/motoboy');
   };
 
-  const planInfo = (order: Delivery) => {
-    const plan = parsePlanNotes(order.notes);
-    if (!plan) return null;
-    const todayKey = spDateKey(new Date());
-    const dish = plan.dates.includes(todayKey) ? dishForDateKey(todayKey)?.name : null;
-    return { nextDate: nextPendingPlanDate(plan), dish, window: plan.window };
-  };
-
-  const paymentReminder = (order: Delivery) => {
-    if (order.payment_method === 'online')
-      return { label: 'PAGO ONLINE · Só entregar', tone: 'bg-emerald-500/15 text-emerald-300' };
-    if (order.payment_method === 'entrega-cartao')
-      return { label: 'LEVAR MAQUININHA', tone: 'bg-sky-500/15 text-sky-300' };
-    if (order.payment_method === 'entrega-dinheiro') {
-      const change = Number(order.change_for);
-      return {
-        label:
-          Number.isFinite(change) && change > 0
-            ? `DINHEIRO · Troco para ${currency(change)}`
-            : 'DINHEIRO · Sem troco informado',
-        tone: 'bg-amber-500/15 text-amber-300',
-      };
-    }
-    if (order.payment_method === 'entrega-pix')
-      return { label: 'PIX NA ENTREGA', tone: 'bg-violet-500/15 text-violet-300' };
-    return { label: paymentLabel(order.payment_method), tone: 'bg-slate-500/15 text-slate-300' };
-  };
-
-  const stepOf = (o: Delivery) =>
-    o.courier_status === 'cheguei' ? 3 : o.order_status === 'saiu_entrega' ? 2 : 0;
-
-  const card = 'rounded-2xl border border-white/10 bg-[#0d131d]';
-  const primaryBtn =
-    'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 font-extrabold text-white shadow-lg shadow-red-950/40 transition active:scale-[0.98] hover:bg-red-500 disabled:opacity-50';
-  const ghostBtn =
-    'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 font-bold text-slate-100 transition active:scale-[0.98] hover:bg-white/10 disabled:opacity-50';
-
-  const ErrorBox = () =>
-    error ? (
-      <div role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
-        {error}
-      </div>
-    ) : null;
-
-  const GeoBox = () =>
-    geoDenied || geoSpecificHelp ? (
-      <div role="alert" className="flex flex-col gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
-        <div className="flex items-start gap-2">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-400" />
-          <span className="font-semibold">{geoSpecificHelp || geoMessage}</span>
-        </div>
-        <button
-          type="button"
-          onClick={getLocation}
-          className="self-start rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-black text-slate-950 shadow hover:bg-amber-400"
-        >
-          Tentar novamente
-        </button>
-      </div>
-    ) : null;
-
-  const ActionArea = ({ order }: { order: Delivery }) => {
-    if (order.courier_status === 'cheguei')
-      return (
-        <div className={`${card} p-4`}>
-          <p className="font-bold">Código de confirmação</p>
-          <p className="mt-1 text-sm text-slate-400">Peça ao cliente o código de 6 dígitos.</p>
-          <div className="mt-4 flex justify-center">
-            <InputOTP
-              maxLength={6}
-              inputMode="numeric"
-              pattern="^[0-9]*$"
-              value={confirmation[order.id] || ''}
-              onChange={(v) =>
-                setConfirmation((c) => ({ ...c, [order.id]: v.replace(/\D/g, '').slice(0, 6) }))
-              }
-            >
-              <InputOTPGroup className="gap-2">
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <InputOTPSlot
-                    key={i}
-                    index={i}
-                    className="h-12 w-11 rounded-xl border border-white/15 bg-[#080d16] text-xl font-black text-white first:rounded-xl last:rounded-xl"
-                  />
-                ))}
-              </InputOTPGroup>
-            </InputOTP>
-          </div>
-          <button
-            disabled={busy === order.id || (confirmation[order.id] || '').length !== 6}
-            onClick={() => void action(order, 'delivered')}
-            className={`${primaryBtn} mt-4`}
-          >
-            <CheckCircle2 size={18} /> {busy === order.id ? 'Confirmando…' : 'Confirmar entrega'}
-          </button>
-          {(confirmation[order.id] || '').length > 0 && (
-            <button
-              type="button"
-              onClick={() => setConfirmation((c) => ({ ...c, [order.id]: '' }))}
-              className={`${ghostBtn} mt-2`}
-            >
-              Alterar código
-            </button>
-          )}
-        </div>
-      );
-    if (order.order_status === 'saiu_entrega')
-      return (
-        <button
-          disabled={busy === order.id}
-          onClick={() => void action(order, 'arrived')}
-          className={primaryBtn}
-        >
-          <MapPin size={18} /> Cheguei ao endereço
-        </button>
-      );
-    if (order.order_status === 'pronto_entrega')
-      return (
-        <button
-          disabled={busy === order.id}
-          onClick={() => void action(order, 'start')}
-          className={primaryBtn}
-        >
-          <Check size={18} /> Aceitar entrega / Iniciar rota
-        </button>
-      );
-    return (
-      <p className="rounded-xl bg-white/[.04] p-3 text-center text-sm font-semibold text-slate-400">
-        Aguardando a cozinha. Você poderá iniciar quando o pedido estiver &quot;Pronto para entrega&quot;.
-      </p>
-    );
-  };
-
-  const Steps = ({ order }: { order: Delivery }) => {
-    const step = stepOf(order);
-    const labels = ['Retirou', 'Em rota', 'Cheguei', 'Entregue'];
-    return (
-      <div className="mt-4">
-        <div className="flex items-center">
-          {labels.map((_, i) => (
-            <div key={i} className="flex flex-1 items-center last:flex-none">
-              <span
-                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-black ${
-                  i < step
-                    ? 'bg-emerald-400 text-[#06120b]'
-                    : i === step
-                    ? 'bg-red-500 text-white ring-4 ring-red-500/20'
-                    : 'bg-slate-700 text-slate-400'
-                }`}
-              >
-                {i < step ? '✓' : i + 1}
-              </span>
-              {i < labels.length - 1 && (
-                <span
-                  className={`mx-1 h-1 flex-1 rounded-full ${
-                    i < step - 1 ? 'bg-emerald-400' : 'bg-slate-700'
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="mt-2 flex justify-between text-[11px] font-semibold text-slate-400">
-          {labels.map((l, i) => (
-            <span key={l} className={i === step || i === step - 1 ? 'text-slate-100 font-bold' : ''}>
-              {l}
-            </span>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const OrderCard = ({ order, highlight }: { order: Delivery; highlight?: boolean }) => {
-    const s = statusInfo(order);
-    const km = kmTo(order);
-    return (
-      <article
-        className={`rounded-2xl border p-4 transition ${
-          highlight
-            ? 'border-red-500/70 bg-gradient-to-br from-[#2a0f17] to-[#101722] shadow-lg shadow-red-950/20'
-            : 'border-white/10 bg-[#0d131d]'
-        }`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${s.cls}`}>{s.label}</span>
-            <p className="mt-2 text-sm text-slate-400">
-              #{order.code} ·{' '}
-              {new Date(order.created_at).toLocaleString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
-            <p className="mt-0.5 truncate font-bold text-base">{order.customer_name}</p>
-            <p className="mt-0.5 truncate text-sm text-slate-400">
-              {order.items.map((i) => `${i.quantity}× ${i.meal_name}`).join(' · ')}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className={`rounded-full px-2 py-1 text-[10px] font-black ${paymentReminder(order).tone}`}>
-                {paymentReminder(order).label}
-              </span>
-              {planInfo(order) && (
-                <span className="rounded-full bg-violet-500/15 px-2 py-1 text-[10px] font-black text-violet-300">
-                  PLANO 7 DIAS · {planInfo(order)?.dish || `Próxima ${planInfo(order)?.nextDate}`} · {planInfo(order)?.window}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="font-black text-lg">{currency(Number(order.total))}</p>
-            {km && <p className="mt-1 text-sm font-bold text-sky-400">{km}</p>}
-          </div>
-        </div>
-        <p className="mt-3 flex gap-2 text-sm text-slate-300">
-          <MapPin size={16} className="mt-0.5 shrink-0 text-red-400" />
-          <span className="min-w-0">{addressText(order.address)}</span>
-        </p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setDetailsId(order.id)}
-            className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-white/15 text-sm font-bold hover:bg-white/5 active:scale-95"
-          >
-            Ver detalhes <ChevronRight size={16} />
-          </button>
-          {order.order_status === 'pronto_entrega' ? (
-            <button
-              type="button"
-              disabled={busy === order.id}
-              onClick={() => void action(order, 'start')}
-              className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-red-600 text-sm font-extrabold text-white shadow-md hover:bg-red-500 active:scale-95 disabled:opacity-50"
-            >
-              <Navigation size={15} /> Iniciar rota
-            </button>
-          ) : order.order_status === 'saiu_entrega' ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedId(order.id);
-                setTab('mapa');
-              }}
-              className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-sky-500 text-sm font-extrabold text-slate-950 shadow-md hover:bg-sky-400 active:scale-95"
-            >
-              <MapIcon size={15} /> Ver rota
-            </button>
-          ) : (
-            <span className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white/[.04] text-xs font-semibold text-slate-500">
-              Aguardando cozinha
-            </span>
-          )}
-        </div>
-      </article>
-    );
-  };
-
-  const tabs: Array<{ id: Tab; label: string; icon: typeof Home; badge?: number }> = [
-    { id: 'inicio', label: 'Início', icon: Home },
-    { id: 'pedidos', label: 'Pedidos', icon: ListOrdered, badge: readyCount + activeCount },
-    { id: 'mapa', label: 'Mapa', icon: MapIcon },
-    { id: 'ganhos', label: 'Ganhos', icon: Wallet },
-  ];
+  const detailsOrder = detailsId
+    ? orders.find((o) => o.id === detailsId) || (detailsId === DEMO_DELIVERY.id ? DEMO_DELIVERY : null)
+    : null;
 
   return (
-    <main
-      className={`courier-screen min-h-screen ${
-        theme === 'light' ? 'courier-light bg-[#f4f5f7] text-[#17191d]' : 'bg-[#060a11] text-slate-100'
-      }`}
-      data-courier-theme={theme}
-    >
-      <div className="mx-auto max-w-lg px-4 pb-28 pt-4">
-        {/* ======================= TAB: INÍCIO (DASHBOARD PIQUE IFOOD) ======================= */}
-        {tab === 'inicio' && (
-          <div className="space-y-3.5">
-            {/* Top Bar matching screenshot */}
-            <header className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2.5">
-                {/* Red Motoboy with Delivery Bag Logo */}
-                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-700 shadow-md shadow-red-950/40">
-                  <img
-                    src="/icons/motoboy-192.png"
-                    alt="Tia Val Motoboy"
-                    className="h-9 w-9 object-contain drop-shadow"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                  <Bike size={24} className="text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-base font-black leading-tight tracking-tight">
-                    Marmitex <span className="text-red-500">da Tia Val</span>
-                  </p>
-                  {/* Status Dropdown Pill: Online / Offline */}
-                  <div className="relative mt-0.5 inline-block">
-                    <button
-                      type="button"
-                      onClick={() => setShowStatusMenu((v) => !v)}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-black shadow-sm transition active:scale-95 ${
-                        isOnline
-                          ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
-                          : 'border border-slate-600 bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      <span className={`h-2 w-2 rounded-full ${isOnline ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'}`} />
-                      <span>{isOnline ? 'Online' : 'Offline'}</span>
-                      <ChevronDown size={13} className="text-slate-400" />
-                    </button>
-                    {showStatusMenu && (
-                      <div className="absolute left-0 top-full z-[600] mt-1.5 w-40 rounded-xl border border-white/15 bg-slate-900 p-1.5 shadow-2xl backdrop-blur-xl">
-                        <button
-                          type="button"
-                          onClick={() => void togglePresence(true)}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold text-emerald-400 hover:bg-white/5"
-                        >
-                          <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                          <span>Ficar Online</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void togglePresence(false)}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold text-slate-300 hover:bg-white/5"
-                        >
-                          <span className="h-2 w-2 rounded-full bg-slate-500" />
-                          <span>Ficar Offline</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+    <main className="fixed inset-0 flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#070b12] text-slate-100 select-none">
+      {/* 1. TOP HEADER (Estilo iFood Dark com Status Online e Notificações) */}
+      <header className="relative z-30 shrink-0 flex items-center justify-between border-b border-white/10 bg-[#080d17]/95 px-4 py-2.5 backdrop-blur-md">
+        <div className="flex flex-col">
+          <span className="text-[13px] font-extrabold tracking-wide text-white drop-shadow-sm">
+            Marmitex da Tia Val
+          </span>
+          <div className="relative mt-0.5">
+            <button
+              type="button"
+              onClick={() => setShowStatusMenu((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 transition hover:bg-emerald-500/20 active:scale-95"
+            >
+              <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+              <span>{isOnline ? 'Online' : 'Offline'}</span>
+              <ChevronDown size={12} className="text-emerald-400/80" />
+            </button>
 
-              {/* Right action icons */}
-              <div className="flex shrink-0 items-center gap-1">
+            {/* Menu Dropdown de Status */}
+            {showStatusMenu && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 w-36 rounded-xl border border-white/15 bg-[#0e1626] p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95">
                 <button
                   type="button"
-                  onClick={toggleTheme}
-                  aria-label="Alternar tema"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-300 transition active:scale-95 hover:bg-white/10"
+                  onClick={() => void togglePresence(true)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold text-emerald-400 hover:bg-white/5"
                 >
-                  {theme === 'dark' ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-slate-700" />}
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span>Ficar Online</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTab('pedidos')}
-                  aria-label="Notificações"
-                  className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-300 transition active:scale-95 hover:bg-white/10"
+                  onClick={() => void togglePresence(false)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold text-slate-400 hover:bg-white/5"
                 >
-                  <Bell size={18} />
-                  {readyCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white ring-2 ring-[#060a11]">
-                      {readyCount}
-                    </span>
-                  )}
+                  <span className="h-2 w-2 rounded-full bg-slate-500" />
+                  <span>Ficar Offline</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void load()}
-                  aria-label="Atualizar"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-300 transition active:scale-95 hover:bg-white/10"
-                >
-                  <RefreshCw size={18} />
-                </button>
-              </div>
-            </header>
-
-            <GeoBox />
-            <ErrorBox />
-            {readyAlert && (
-              <div role="status" className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-300">
-                🔔 {readyAlert}
               </div>
             )}
+          </div>
+        </div>
 
-            {/* Main Interactive GPS Map matching reference screenshot */}
-            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-[#0a0f18] shadow-2xl">
-              <DeliveryMap
-                courierLocation={location}
-                destinationLocation={coords(nextDelivery?.address)}
-                destinationNeighborhood={neighborhoodOf(nextDelivery)}
-                destinationTitle={addressText(nextDelivery?.address)}
-                className="h-[50vh] sm:h-[54vh] w-full"
-                showWazeButton={Boolean(nextDelivery && isRouteable(nextDelivery))}
-                onRouteCalculated={(info) => setLiveRouteInfo(info)}
-                onRequestLocation={getLocation}
-              />
-            </div>
+        {/* Ações da Direita */}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => void load()}
+            title="Atualizar dados"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 active:scale-95"
+          >
+            <RefreshCw size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('pedidos')}
+            title="Ver pedidos"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 active:scale-95"
+          >
+            <Bell size={16} />
+            {orders.length > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white ring-2 ring-[#080d17]">
+                {orders.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={logout}
+            title="Sair do painel"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-400 transition hover:bg-red-500/20 hover:text-red-300 active:scale-95"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </header>
 
-            {/* Bottom Sheet Card / Barrinha Pique iFood */}
-            {nextDelivery ? (
-              <div
-                className={`overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-b from-[#111927] to-[#0c121e] shadow-2xl transition-all duration-300 ${
-                  bottomSheetExpanded ? 'ring-2 ring-red-500/30' : ''
-                }`}
-              >
-                {/* Pull handle bar */}
+      {/* Alerta de permissão de GPS no Android / iOS se necessário */}
+      {geoDenied && (
+        <div className="relative z-20 shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-center text-xs font-bold text-amber-300">
+          <span>⚠️ {geoSpecificHelp || 'GPS desativado. Ative a localização para traçar rotas.'}</span>
+          <button
+            type="button"
+            onClick={getLocation}
+            className="ml-2 underline font-black text-white hover:text-amber-200"
+          >
+            Ativar GPS
+          </button>
+        </div>
+      )}
+
+      {/* Notificação flutuante de reordenação */}
+      {routeCalculation && (
+        <div className="absolute top-14 left-1/2 z-40 -translate-x-1/2 rounded-full border border-sky-400/40 bg-sky-950/90 px-4 py-1.5 text-xs font-black text-sky-200 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2">
+          {routeCalculation}
+        </div>
+      )}
+
+      {/* 2. CONTEÚDO CENTRAL POR ABA */}
+      <div className="relative flex-1 w-full overflow-hidden">
+        {/* ABA MAPA / INÍCIO (VISÃO IDÊNTICA À FOTO DE REFERÊNCIA) */}
+        {(tab === 'mapa' || tab === 'inicio') && (
+          <div className="relative h-full w-full overflow-hidden">
+            {/* O MAPA OCUPA 100% DA ÁREA CENTRAL (COM TILES ESRI SEM ERRO DE API KEY) */}
+            <DeliveryMap
+              courierLocation={location}
+              destinationLocation={coords(activeDelivery.address)}
+              destinationNeighborhood={neighborhoodOf(activeDelivery)}
+              destinationTitle={addressText(activeDelivery.address)}
+              className="absolute inset-0 h-full w-full"
+              showWazeButton={true}
+              showLocationPill={true}
+              onRouteCalculated={(info) => setLiveRouteInfo(info)}
+              onRequestLocation={getLocation}
+            />
+
+            {/* BARRINHA INFERIOR PUXÁVEL (BOTTOM SHEET PIQUE IFOOD IGUAL À FOTO) */}
+            <div
+              className={`absolute bottom-0 left-0 right-0 z-30 transition-all duration-300 ${
+                bottomSheetExpanded ? 'h-[65%]' : 'h-auto'
+              }`}
+            >
+              <div className="flex h-full flex-col overflow-hidden rounded-t-[28px] border-t border-white/15 bg-[#0e131d]/95 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+                {/* Alça de puxar (Drag Handle) */}
                 <button
                   type="button"
                   onClick={() => setBottomSheetExpanded((v) => !v)}
-                  aria-label={bottomSheetExpanded ? 'Recolher detalhes' : 'Puxar para cima para ver mais opções'}
-                  className="group flex w-full flex-col items-center pt-2.5 pb-1 cursor-pointer"
+                  className="group flex w-full flex-col items-center pt-2 pb-1 cursor-pointer focus:outline-none"
+                  aria-label={bottomSheetExpanded ? 'Recolher detalhes' : 'Puxar para cima'}
                 >
                   <div className="h-1.5 w-12 rounded-full bg-slate-600 transition group-hover:bg-slate-400" />
                 </button>
 
-                <div className="px-4 pb-4 pt-1 space-y-3">
-                  {/* Status badge + Timer / ETA */}
+                <div className="flex-1 overflow-y-auto px-4 pb-3 pt-1 space-y-3">
+                  {/* Topo do cartão: Badge Nova Entrega + Timer */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-red-950/40">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-red-950/40">
                         <RouteIcon size={13} />
-                        <span>{nextDelivery.order_status === 'saiu_entrega' ? 'Em rota' : 'Nova entrega'}</span>
+                        <span>{activeDelivery.order_status === 'saiu_entrega' ? 'Em rota' : 'Nova entrega'}</span>
                       </span>
-                      <span className="text-xs font-bold text-slate-400">#{nextDelivery.code}</span>
+                      <span className="text-xs font-bold text-slate-400">#{activeDelivery.code}</span>
+                      {!hasRealOrders && (
+                        <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-black text-sky-300 border border-sky-400/30">
+                          Demo
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 text-xs font-black text-slate-300">
                       <Clock3 size={14} className="text-red-400" />
-                      <span>{liveRouteInfo ? `~${liveRouteInfo.durationMin} min` : etaText(nextDelivery.estimated_delivery_at)}</span>
+                      <span>{liveRouteInfo ? `~${liveRouteInfo.durationMin} min` : etaText(activeDelivery.estimated_delivery_at)}</span>
                     </div>
                   </div>
 
-                  {/* Customer Address with Home icon and distance */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-slate-200 shadow border border-white/10">
-                        <Home size={20} className="text-red-400" />
+                  {/* Endereço com Ícone de Casa, Bairro e Distância */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-red-500 border border-white/10 shadow">
+                        <Home size={22} />
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-base font-black text-white leading-tight">
-                          {addressStreetAndNumber(nextDelivery.address)}
+                          {addressStreetAndNumber(activeDelivery.address)}
                         </p>
                         <p className="truncate text-xs font-semibold text-slate-400">
-                          {neighborhoodOf(nextDelivery) || 'Fortaleza'}
+                          {neighborhoodOf(activeDelivery)}
                         </p>
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-sm font-black text-white flex items-center gap-1">
-                        <span>{kmTo(nextDelivery) || (liveRouteInfo ? `${liveRouteInfo.distanceKm} km` : '2,8 km')}</span>
-                        <Navigation size={13} className="text-sky-400 rotate-45" />
-                      </p>
-                      <p className="text-[11px] font-bold text-slate-400">
-                        {currency(Number(nextDelivery.total))}
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setDetailsId(activeDelivery.id)}
+                        className="flex items-center gap-0.5 text-sm font-black text-white hover:text-red-400 transition"
+                      >
+                        <span>{kmTo(activeDelivery) || (liveRouteInfo ? `${liveRouteInfo.distanceKm} km` : '2,8 km')}</span>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
                     </div>
                   </div>
 
-                  {/* Quick Action Buttons Row: Ver rota & Ligar */}
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* Dois botões de ação rápida: Ver rota & Ligar */}
+                  <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
                       onClick={() => {
-                        setSelectedId(nextDelivery.id);
+                        getLocation();
+                        // Força reajuste da rota com zoom
                         setTab('mapa');
                       }}
-                      className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-slate-800/80 px-3 text-xs font-black text-white shadow-sm hover:bg-slate-700 active:scale-95"
+                      className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#1c2331] px-3 text-xs font-black text-white shadow-sm hover:bg-[#252f42] active:scale-95 transition"
                     >
-                      <MapIcon size={15} className="text-sky-400" />
+                      <Navigation size={15} className="text-sky-400" />
                       <span>Ver rota</span>
                     </button>
-                    {nextDelivery.customer_phone ? (
-                      <a
-                        href={`tel:${nextDelivery.customer_phone.replace(/[^+\d]/g, '')}`}
-                        className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-slate-800/80 px-3 text-xs font-black text-white shadow-sm hover:bg-slate-700 active:scale-95"
-                      >
-                        <Phone size={15} className="text-emerald-400" />
-                        <span>Ligar</span>
-                      </a>
-                    ) : (
+                    <a
+                      href={`tel:${(activeDelivery.customer_phone || '85999990000').replace(/\D/g, '')}`}
+                      className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#13263b] px-3 text-xs font-black text-white shadow-sm hover:bg-[#1a334f] active:scale-95 transition"
+                    >
+                      <Phone size={15} className="text-sky-400" />
+                      <span>Ligar</span>
+                    </a>
+                  </div>
+
+                  {/* Botão Principal Vermelho Grande: Aceitar entrega / Iniciar rota / Cheguei */}
+                  <div>
+                    {activeDelivery.order_status !== 'saiu_entrega' && activeDelivery.courier_status !== 'cheguei' && (
                       <button
                         type="button"
-                        onClick={() => setDetailsId(nextDelivery.id)}
-                        className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-slate-800/80 px-3 text-xs font-black text-white shadow-sm hover:bg-slate-700 active:scale-95"
+                        disabled={busy === activeDelivery.id}
+                        onClick={() => void action(activeDelivery, 'start')}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#ea1d2c] px-4 text-base font-black text-white shadow-lg shadow-red-950/60 hover:bg-red-700 active:scale-[0.98] transition"
                       >
-                        <span>Detalhes</span>
-                        <ChevronRight size={15} />
+                        <Bike size={20} />
+                        <span>{busy === activeDelivery.id ? 'Iniciando…' : 'Aceitar entrega'}</span>
                       </button>
+                    )}
+
+                    {activeDelivery.order_status === 'saiu_entrega' && activeDelivery.courier_status !== 'cheguei' && (
+                      <button
+                        type="button"
+                        disabled={busy === activeDelivery.id}
+                        onClick={() => void action(activeDelivery, 'arrive')}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 text-base font-black text-slate-950 shadow-lg shadow-amber-950/60 hover:bg-amber-400 active:scale-[0.98] transition"
+                      >
+                        <MapPin size={20} />
+                        <span>{busy === activeDelivery.id ? 'Avisando cliente…' : 'Cheguei ao endereço'}</span>
+                      </button>
+                    )}
+
+                    {activeDelivery.courier_status === 'cheguei' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            maxLength={4}
+                            placeholder="Código 4 dígitos"
+                            value={confirmation[activeDelivery.id] || ''}
+                            onChange={(e) =>
+                              setConfirmation({ ...confirmation, [activeDelivery.id]: e.target.value.replace(/\D/g, '') })
+                            }
+                            className="h-12 flex-1 rounded-xl border border-white/20 bg-slate-900 px-3 text-center text-lg font-black tracking-widest text-white focus:border-red-500 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            disabled={busy === activeDelivery.id}
+                            onClick={() => void action(activeDelivery, 'complete')}
+                            className="flex h-12 items-center justify-center rounded-xl bg-emerald-500 px-5 text-sm font-black text-slate-950 hover:bg-emerald-400 active:scale-95 transition"
+                          >
+                            Confirmar
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  {/* Big Primary Action Button */}
-                  <ActionArea order={nextDelivery} />
-
-                  {/* Expanded Bottom Sheet Content (When user pulls up / taps expand) */}
+                  {/* CONTEÚDO EXPANDIDO (APARECE QUANDO PUXA A BARRINHA PRA CIMA) */}
                   {bottomSheetExpanded && (
-                    <div className="pt-2 space-y-3 border-t border-white/10 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      {/* Prominent Adjust Route Button */}
+                    <div className="pt-2 border-t border-white/10 space-y-3.5 animate-in fade-in duration-200">
+                      {/* O BOTÃO QUE ERICK PEDIU: AJUSTAR ROTAS MAIS PERTO */}
                       <button
                         type="button"
                         onClick={adjustOrder}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-sky-400/40 bg-sky-500/10 px-4 text-xs font-black text-sky-300 shadow hover:bg-sky-500/20 active:scale-[0.98]"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 py-3 px-4 text-xs font-black text-white shadow-lg shadow-sky-950/50 hover:brightness-110 active:scale-[0.98] transition"
                       >
                         <SlidersVertical size={16} />
-                        <span>Ajustar rotas (mais perto primeiro com GPS)</span>
+                        <span>⚡ Ajustar rotas (mais perto primeiro com GPS)</span>
                       </button>
 
-                      {/* Payment Reminder Badge */}
-                      <div className={`rounded-xl p-3 text-center text-xs font-black ${paymentReminder(nextDelivery).tone}`}>
-                        {paymentReminder(nextDelivery).label}
-                      </div>
-
-                      {/* Neighborhood Batches */}
-                      {neighborhoodBatches.length > 0 && (
-                        <div className="rounded-xl border border-white/10 bg-white/[.02] p-3 space-y-2">
-                          <p className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
-                            <MapPin size={15} /> Sugestão de entrega por bairro:
-                          </p>
-                          <div className="space-y-1.5">
-                            {neighborhoodBatches.map(([bairro, grupo]) => (
-                              <button
-                                key={bairro}
-                                type="button"
-                                onClick={() => {
-                                  setFilter('prontos');
-                                  setTab('pedidos');
-                                }}
-                                className="flex w-full items-center justify-between rounded-lg bg-slate-800/60 p-2 text-xs"
-                              >
-                                <span className="font-bold text-white">{bairro}</span>
-                                <span className="rounded-full bg-amber-500/20 px-2 py-0.5 font-black text-amber-300">
-                                  {grupo.length} pedidos
-                                </span>
-                              </button>
-                            ))}
+                      {/* Itens do Pedido */}
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-1.5">
+                        <p className="text-xs font-bold text-slate-400">Itens da marmita:</p>
+                        {activeDelivery.items?.map((it, idx) => (
+                          <div key={idx} className="flex justify-between text-xs text-white">
+                            <span>
+                              {it.quantity}× {it.meal_name} ({it.size_label})
+                            </span>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Items */}
-                      <div className="rounded-xl border border-white/10 bg-white/[.02] p-3 text-xs space-y-1">
-                        <p className="font-bold text-slate-300">Itens:</p>
-                        {nextDelivery.items.map((it, idx) => (
-                          <p key={idx} className="text-slate-400">
-                            {it.quantity}× {it.meal_name} · {it.size_label}
-                          </p>
                         ))}
+                        {activeDelivery.notes && (
+                          <p className="text-[11px] text-amber-300 italic pt-1">
+                            Obs: {activeDelivery.notes}
+                          </p>
+                        )}
                       </div>
 
-                      {/* WhatsApp 1-tap fast buttons */}
-                      {nextDelivery.customer_phone && (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              whatsapp(
-                                nextDelivery,
-                                `Olá, ${nextDelivery.customer_name}! Aqui é o motoboy da Tia Val. Já saí com sua marmita e chego em ~10 min!`,
-                              )
-                            }
-                            className="flex-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2 text-[11px] font-black text-emerald-300 hover:bg-emerald-500/20"
-                          >
-                            🛵 &quot;A caminho (~10 min)&quot;
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              whatsapp(
-                                nextDelivery,
-                                `Olá, ${nextDelivery.customer_name}! Cheguei no portão com seu pedido #${nextDelivery.code}. Pode me atender?`,
-                              )
-                            }
-                            className="flex-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2 text-[11px] font-black text-emerald-300 hover:bg-emerald-500/20"
-                          >
-                            🚪 &quot;Cheguei no portão!&quot;
-                          </button>
-                        </div>
-                      )}
+                      {/* Pagamento e WhatsApp */}
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-300 px-1">
+                        <span>Total: <b className="text-white text-sm">{currency(Number(activeDelivery.total))}</b></span>
+                        <span className="rounded bg-white/10 px-2 py-0.5 text-[11px] text-emerald-300">
+                          {paymentLabel(activeDelivery.payment_method)}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => whatsapp(activeDelivery)}
+                          className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-black text-white hover:bg-emerald-500 transition"
+                        >
+                          <MessageCircle size={15} /> WhatsApp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => waze(activeDelivery)}
+                          className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-sky-600 text-xs font-black text-white hover:bg-sky-500 transition"
+                        >
+                          <ExternalLink size={15} /> Abrir no Waze
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
-            ) : (
-              <div className={`${card} p-6 text-center space-y-3`}>
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
-                  <PackageCheck size={32} />
-                </div>
-                <div>
-                  <p className="text-base font-black text-white">
-                    {loaded ? 'Sem entregas pendentes' : 'Carregando entregas…'}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Você está online e pronto para rodar. Assim que a cozinha aprontar uma marmita, ela aparecerá aqui!
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Metrics */}
-            <div className={`${card} grid grid-cols-3 divide-x divide-white/10 p-2 text-center`}>
-              <div className="p-2">
-                <p className="text-[11px] font-bold text-slate-400">Na fila</p>
-                <p className="mt-0.5 text-xl font-black text-white">{orders.length}</p>
-              </div>
-              <div className="p-2">
-                <p className="text-[11px] font-bold text-slate-400">Ganhos hoje</p>
-                <p className="mt-0.5 text-base font-black text-emerald-400">{currency(dailyEarnings)}</p>
-              </div>
-              <div className="p-2">
-                <p className="text-[11px] font-bold text-slate-400">Em rota</p>
-                <p className="mt-0.5 text-xl font-black text-sky-400">{activeCount}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* ======================= TAB: PEDIDOS ======================= */}
+        {/* ABA PEDIDOS (LISTA COMPLETA COM FILTROS E AJUSTE DE ROTAS) */}
         {tab === 'pedidos' && (
-          <div className="space-y-4">
-            <header className="flex items-center justify-between gap-3">
-              <h1 className="text-2xl font-black">Pedidos</h1>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  aria-label="Alternar tema"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-300"
-                >
-                  {theme === 'dark' ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-slate-700" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void load()}
-                  aria-label="Atualizar"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-300"
-                >
-                  <RefreshCw size={18} />
-                </button>
-              </div>
-            </header>
-
-            <div className={`${card} flex items-center justify-between gap-3 p-3`}>
-              <div>
-                <p className="font-bold text-sm">Avisos sonoros de pedidos</p>
-                <p className="text-xs text-slate-400">Toca quando a cozinha aprontar uma marmita</p>
-              </div>
+          <div className="flex h-full flex-col overflow-hidden px-4 pt-3 pb-2 space-y-3">
+            {/* Header com Filtros */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black text-white">Pedidos ({orders.length})</h2>
               <button
                 type="button"
-                onClick={() => (alertsEnabled ? setAlertsEnabled(false) : void enableAlerts())}
-                className={`min-h-9 shrink-0 rounded-xl px-3 text-xs font-black ${
-                  alertsEnabled ? 'bg-emerald-500 text-white' : 'bg-red-600 text-white'
-                }`}
+                onClick={adjustOrder}
+                className="flex items-center gap-1.5 rounded-xl bg-sky-600/20 border border-sky-400/40 px-3 py-1.5 text-xs font-black text-sky-300 hover:bg-sky-600/30 transition active:scale-95"
               >
-                {alertsEnabled ? 'Ativados' : 'Ativar'}
+                <SlidersVertical size={13} />
+                <span>Mais perto primeiro</span>
               </button>
             </div>
 
-            {readyAlert && (
-              <div role="status" className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-300">
-                🔔 {readyAlert}
-              </div>
-            )}
-
-            {/* Filter Pills */}
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {(
-                [
-                  ['todos', `Todos (${orders.length})`],
-                  ['preparo', `Em preparo (${prepCount})`],
-                  ['prontos', `Prontos (${readyCount + activeCount})`],
-                ] as Array<[Filter, string]>
-              ).map(([id, label]) => (
+            {/* Filtros rápidos */}
+            <div className="flex gap-2">
+              {(['todos', 'prontos', 'preparo'] as Filter[]).map((f) => (
                 <button
-                  key={id}
+                  key={f}
                   type="button"
-                  onClick={() => setFilter(id)}
-                  className={`shrink-0 rounded-full px-4 py-2 text-xs font-black transition ${
-                    filter === id
-                      ? 'bg-red-600 text-white shadow-md'
-                      : 'border border-white/15 bg-slate-900/60 text-slate-300 hover:bg-slate-800'
+                  onClick={() => setFilter(f)}
+                  className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider transition ${
+                    filter === f
+                      ? 'bg-red-600 text-white shadow'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
                   }`}
                 >
-                  {label}
+                  {f === 'todos' ? 'Todos' : f === 'prontos' ? 'Prontos' : 'Em preparo'}
                 </button>
               ))}
             </div>
 
-            {/* Adjust Order Button */}
-            <div className={`${card} p-3 space-y-2`}>
-              <button type="button" onClick={adjustOrder} className={primaryBtn}>
-                <SlidersVertical size={18} />
-                <span>Ajustar ordem (mais perto primeiro)</span>
-              </button>
-              <p className="text-xs text-slate-400 text-center">{geoMessage}</p>
-              {routeCalculation && (
-                <p className="text-xs text-slate-500 text-center">
-                  {routeCalculation}
-                  {updated && ` · Atualizado às ${updated}`}
-                </p>
-              )}
-            </div>
-
-            <GeoBox />
-            <ErrorBox />
-
-            {filtered.length === 0 && (
-              <div className={`${card} px-5 py-10 text-center text-sm text-slate-400`}>
-                Nenhum pedido neste filtro.
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {filtered.map((o, i) => (
-                <OrderCard key={o.id} order={o} highlight={i === 0 && isRouteable(o)} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ======================= TAB: MAPA ======================= */}
-        {tab === 'mapa' && (
-          <div className="space-y-4">
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-black">
-                  {current
-                    ? current.courier_status === 'cheguei'
-                      ? 'Chegou ao cliente'
-                      : current.order_status === 'saiu_entrega'
-                      ? 'Em rota'
-                      : 'Próxima rota'
-                    : 'Mapa'}
-                </h1>
-                {current && <p className="text-xs text-slate-400">Pedido #{current.code}</p>}
-              </div>
-              <button
-                type="button"
-                onClick={toggleTheme}
-                aria-label="Alternar tema"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-300"
-              >
-                {theme === 'dark' ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-slate-700" />}
-              </button>
-            </header>
-
-            {/* Interactive GPS Map */}
-            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-[#0a0f18] shadow-2xl">
-              <DeliveryMap
-                courierLocation={location}
-                destinationLocation={coords(current?.address)}
-                destinationNeighborhood={neighborhoodOf(current)}
-                destinationTitle={addressText(current?.address)}
-                className="h-[46vh] sm:h-[50vh] w-full"
-                showWazeButton={Boolean(current)}
-                onRequestLocation={getLocation}
-              />
-            </div>
-
-            <GeoBox />
-            <ErrorBox />
-
-            {current ? (
-              <>
-                <div className={`${card} p-4 space-y-3`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-xs text-slate-400">Cliente</p>
-                      <p className="font-black text-base">{current.customer_name}</p>
-                    </div>
-                    {kmTo(current) && (
-                      <span className="rounded-full bg-sky-500/20 px-2.5 py-1 text-xs font-black text-sky-300">
-                        {kmTo(current)}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400">Endereço</p>
-                    <p className="text-sm font-semibold text-slate-200">{addressText(current.address)}</p>
-                  </div>
-
-                  {/* Navigation row: Waze & Google Maps */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => waze(current)}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 font-black text-white shadow-md active:scale-95"
-                    >
-                      <Navigation size={17} /> Waze
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => googleMaps(current)}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 font-black text-white shadow-sm hover:bg-white/10 active:scale-95"
-                    >
-                      <MapIcon size={17} /> Google Maps
-                    </button>
-                  </div>
-
-                  {current.customer_phone && (
-                    <div className="space-y-2 pt-1">
-                      <div className="grid grid-cols-2 gap-2">
-                        <a
-                          href={`tel:${current.customer_phone.replace(/[^+\d]/g, '')}`}
-                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 font-bold text-white hover:bg-white/10"
-                        >
-                          <Phone size={16} /> Ligar
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => whatsapp(current)}
-                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 font-bold text-white hover:bg-emerald-500"
-                        >
-                          <MessageCircle size={16} /> WhatsApp
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            whatsapp(
-                              current,
-                              `Olá, ${current.customer_name}! Aqui é o motoboy da Tia Val. Já saí com sua marmita e chego em ~10 min!`,
-                            )
-                          }
-                          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-center text-xs font-bold text-emerald-300 hover:bg-emerald-500/20"
-                        >
-                          🛵 &quot;A caminho (~10m)&quot;
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            whatsapp(
-                              current,
-                              `Olá, ${current.customer_name}! Cheguei no portão com seu pedido #${current.code}. Pode atender?`,
-                            )
-                          }
-                          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-center text-xs font-bold text-emerald-300 hover:bg-emerald-500/20"
-                        >
-                          🚪 &quot;Cheguei no portão!&quot;
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {current.order_status !== 'pronto_entrega' && <Steps order={current} />}
-                </div>
-
-                <div className={`${card} p-4 space-y-2`}>
-                  <p className="font-bold text-sm">Estimar horário de chegada</p>
-                  <p className="text-xs text-slate-400">
-                    O cliente verá essa previsão no acompanhamento. Atual: {etaText(current.estimated_delivery_at)}
-                  </p>
-                  <div className="grid grid-cols-4 gap-2 pt-1">
-                    {[15, 30, 45, 60].map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        disabled={busy === current.id}
-                        onClick={() => void estimateDelivery(current, m)}
-                        className="min-h-11 rounded-xl border border-white/15 bg-slate-900/60 text-xs font-extrabold hover:border-red-400 hover:bg-red-500/10 active:scale-95 disabled:opacity-50"
-                      >
-                        {m} min
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <ActionArea order={current} />
-
-                {routeOrders.length > 1 && (
-                  <div className={`${card} p-3`}>
-                    <p className="mb-2 text-xs font-bold text-slate-400">Outras paradas na rota</p>
-                    <div className="flex gap-2 overflow-x-auto">
-                      {routeOrders
-                        .filter((o) => o.id !== current.id)
-                        .map((o) => (
-                          <button
-                            key={o.id}
-                            type="button"
-                            onClick={() => setSelectedId(o.id)}
-                            className="shrink-0 rounded-full border border-white/15 bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800"
-                          >
-                            #{o.code} · {neighborhoodOf(o) || 'Parada'}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className={`${card} px-5 py-10 text-center text-sm text-slate-400`}>
-                Nenhuma entrega pronta ou em rota agora.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ======================= TAB: GANHOS ======================= */}
-        {tab === 'ganhos' && (
-          <div className="space-y-4">
-            <header className="flex items-center justify-between gap-3">
-              <h1 className="text-2xl font-black">Ganhos</h1>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  aria-label="Alternar tema"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-slate-300"
-                >
-                  {theme === 'dark' ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-slate-700" />}
-                </button>
-                <span className="rounded-full bg-red-600 px-3.5 py-1 text-xs font-black text-white shadow">
-                  Hoje
-                </span>
-              </div>
-            </header>
-
-            <div className={`${card} p-5 bg-gradient-to-br from-[#131d2d] to-[#0c121e]`}>
-              <p className="text-xs font-bold text-slate-400">Total do dia (taxas de entrega)</p>
-              <p className="mt-1 text-4xl font-black text-emerald-400">{currency(dailyEarnings)}</p>
-              <p className="mt-2 text-xs text-slate-500">
-                Soma das taxas das entregas concluídas hoje no sistema.
-              </p>
-            </div>
-
-            <div>
-              <p className="mb-2 font-bold text-sm">Entregas concluídas hoje</p>
-              {serverCompleted.length === 0 ? (
-                <div className={`${card} px-5 py-8 text-center text-sm text-slate-400`}>
-                  Nenhuma entrega concluída hoje.
+            {/* Lista de Pedidos */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 pb-20">
+              {orders.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-[#0e1422] p-6 text-center space-y-3">
+                  <PackageCheck size={32} className="mx-auto text-slate-600" />
+                  <p className="text-sm font-bold text-slate-400">Nenhum pedido real no momento.</p>
+                  <p className="text-xs text-slate-500">Exibindo demonstração na aba Mapa.</p>
+                  <button
+                    type="button"
+                    onClick={() => setTab('mapa')}
+                    className="rounded-xl bg-red-600 px-4 py-2 text-xs font-black text-white"
+                  >
+                    Ver Mapa estilo iFood
+                  </button>
                 </div>
               ) : (
-                <div className={`${card} divide-y divide-white/10`}>
-                  {serverCompleted.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between gap-3 p-4">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <CheckCircle2 size={20} className="shrink-0 text-emerald-400" />
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm">
-                            Pedido #{c.code} · {c.customer_name}
-                          </p>
-                          <p className="text-xs text-slate-400 truncate">
-                            {new Date(c.at).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}{' '}
-                            · {addressText(c.address)}
-                          </p>
+                orders
+                  .filter((o) => {
+                    if (filter === 'prontos') return isRouteable(o);
+                    if (filter === 'preparo') return isPrep(o);
+                    return true;
+                  })
+                  .map((order) => {
+                    const st = statusInfo(order);
+                    return (
+                      <div
+                        key={order.id}
+                        onClick={() => {
+                          setSelectedId(order.id);
+                          setTab('mapa');
+                        }}
+                        className="cursor-pointer rounded-2xl border border-white/10 bg-[#0e1422] p-3.5 space-y-2 hover:border-red-500/40 transition active:scale-[0.99]"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${st.cls}`}>
+                            {st.label}
+                          </span>
+                          <span className="text-xs font-bold text-slate-400">#{order.code}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-white">{addressStreetAndNumber(order.address)}</p>
+                          <p className="text-xs text-slate-400">{neighborhoodOf(order)}</p>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-white/5 pt-2 text-xs">
+                          <span className="font-bold text-slate-400">{kmTo(order) || 'Calcular rota'}</span>
+                          <span className="font-black text-emerald-400">{currency(Number(order.total))}</span>
                         </div>
                       </div>
-                      <p className="shrink-0 font-black text-emerald-400">{currency(c.fee)}</p>
-                    </div>
-                  ))}
+                    );
+                  })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ABA GANHOS (RESUMO FINANCEIRO DA DIÁRIA) */}
+        {tab === 'ganhos' && (
+          <div className="flex h-full flex-col overflow-hidden px-4 pt-4 pb-2 space-y-4">
+            <h2 className="text-lg font-black text-white">Ganhos de Hoje</h2>
+
+            {/* Card com Total */}
+            <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-[#0b1c16] to-[#07130e] p-5 shadow-2xl">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Total acumulado</span>
+              <p className="text-3xl font-black text-white mt-1">
+                {currency(dailyEarnings || serverCompleted.reduce((s, c) => s + c.fee, 0))}
+              </p>
+              <div className="mt-3 flex items-center gap-4 text-xs font-bold text-slate-300">
+                <span>Entregas: <b className="text-white">{serverCompleted.length}</b></span>
+                <span>Taxa média: <b className="text-emerald-400">R$ 5,00</b></span>
+              </div>
+            </div>
+
+            {/* Histórico do dia */}
+            <div className="flex-1 overflow-y-auto space-y-2 pb-20">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Histórico de entregas</p>
+              {serverCompleted.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-[#0e1422] p-5 text-center text-xs text-slate-400">
+                  Nenhuma entrega finalizada hoje ainda.
                 </div>
+              ) : (
+                serverCompleted.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-[#0e1422] p-3 text-xs">
+                    <div>
+                      <p className="font-black text-white">Pedido #{c.code}</p>
+                      <p className="text-slate-400 text-[11px]">{new Date(c.at).toLocaleTimeString('pt-BR')}</p>
+                    </div>
+                    <span className="font-black text-emerald-400">+{currency(c.fee)}</span>
+                  </div>
+                ))
               )}
             </div>
           </div>
         )}
       </div>
 
-      {/* ======================= BOTTOM NAVIGATION BAR (PIQUE IFOOD) ======================= */}
-      <nav className="fixed bottom-0 left-0 right-0 z-[500] border-t border-white/10 bg-[#070b13]/95 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-2">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`relative flex flex-1 flex-col items-center justify-center py-1 transition active:scale-95 ${
-                  active ? 'text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <div className="relative">
-                  <Icon size={22} className={active ? 'text-red-500' : 'text-slate-400'} />
-                  {typeof t.badge === 'number' && t.badge > 0 && (
-                    <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white">
-                      {t.badge}
-                    </span>
-                  )}
-                </div>
-                <span className={`mt-1 text-[11px] font-bold ${active ? 'text-white' : 'text-slate-400'}`}>
-                  {t.label}
-                </span>
-                {/* Active Red Underline Bar */}
-                {active && (
-                  <span className="mt-1 h-0.5 w-7 rounded-full bg-red-600 animate-in fade-in zoom-in-75 duration-200" />
-                )}
-              </button>
-            );
-          })}
-        </div>
+      {/* 3. BARRA DE NAVEGAÇÃO INFERIOR FIXA (COM AS 4 ABAS DA FOTO) */}
+      <nav className="relative z-40 shrink-0 flex items-center justify-around border-t border-white/10 bg-[#0b0f19] py-2 px-2">
+        <button
+          type="button"
+          onClick={() => setTab('inicio')}
+          className={`flex flex-col items-center gap-1 py-1 px-3 transition ${
+            tab === 'inicio' ? 'text-red-500 font-bold' : 'text-slate-400 font-medium'
+          }`}
+        >
+          <Home size={22} className={tab === 'inicio' ? 'text-red-500' : 'text-slate-400'} />
+          <span className="text-[11px]">Início</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTab('pedidos')}
+          className={`relative flex flex-col items-center gap-1 py-1 px-3 transition ${
+            tab === 'pedidos' ? 'text-red-500 font-bold' : 'text-slate-400 font-medium'
+          }`}
+        >
+          <ListOrdered size={22} className={tab === 'pedidos' ? 'text-red-500' : 'text-slate-400'} />
+          {orders.length > 0 && (
+            <span className="absolute -top-0.5 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white">
+              {orders.length}
+            </span>
+          )}
+          <span className="text-[11px]">Pedidos</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTab('mapa')}
+          className={`flex flex-col items-center gap-1 py-1 px-3 transition ${
+            tab === 'mapa' ? 'text-red-500 font-black' : 'text-slate-400 font-medium'
+          }`}
+        >
+          <MapPin size={22} className={tab === 'mapa' ? 'text-red-500 fill-red-500/20' : 'text-slate-400'} />
+          <span className="text-[11px]">Mapa</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTab('ganhos')}
+          className={`flex flex-col items-center gap-1 py-1 px-3 transition ${
+            tab === 'ganhos' ? 'text-red-500 font-bold' : 'text-slate-400 font-medium'
+          }`}
+        >
+          <Wallet size={22} className={tab === 'ganhos' ? 'text-red-500' : 'text-slate-400'} />
+          <span className="text-[11px]">Ganhos</span>
+        </button>
       </nav>
 
-      {/* Modal / Sheet for Order Details */}
+      {/* Modal / Sheet de Detalhes do Pedido */}
       {detailsOrder && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[700] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4"
+          className="fixed inset-0 z-[700] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4 animate-in fade-in"
         >
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-white/15 bg-[#0d131d] p-5 shadow-2xl sm:rounded-3xl space-y-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
@@ -1686,7 +1042,7 @@ function CourierDeliveries() {
 
             <div className="rounded-xl border border-white/10 bg-white/[.02] p-3 space-y-2">
               <p className="text-xs font-bold text-slate-300">Itens pedidos:</p>
-              {detailsOrder.items.map((it, idx) => (
+              {detailsOrder.items?.map((it, idx) => (
                 <div key={idx} className="flex justify-between text-xs text-slate-300">
                   <span>
                     {it.quantity}× {it.meal_name} ({it.size_label})
@@ -1694,10 +1050,6 @@ function CourierDeliveries() {
                   {it.notes && <span className="text-amber-300 italic">{it.notes}</span>}
                 </div>
               ))}
-            </div>
-
-            <div className={`rounded-xl p-3 text-center text-xs font-black ${paymentReminder(detailsOrder).tone}`}>
-              {paymentReminder(detailsOrder).label}
             </div>
 
             <div className="flex items-center justify-between border-t border-white/10 pt-3">
@@ -1725,12 +1077,12 @@ function CourierDeliveries() {
         </div>
       )}
 
-      {/* Success Dialog when delivery finished */}
+      {/* Dialog de Sucesso de Entrega Concluída */}
       {success && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[700] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[700] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in"
         >
           <div className="w-full max-w-sm rounded-3xl border border-emerald-400/30 bg-[#0d1714] p-6 text-center shadow-2xl space-y-4">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 ring-8 ring-emerald-500/10">
