@@ -686,8 +686,8 @@ function CourierDeliveries() {
 
             {/* BARRINHA INFERIOR PUXÁVEL (BOTTOM SHEET PIQUE IFOOD IGUAL À FOTO) */}
             <div
-              className={`absolute bottom-0 left-0 right-0 z-30 transition-all duration-300 ${
-                bottomSheetExpanded ? 'h-[65%]' : 'h-auto'
+              className={`absolute bottom-0 left-0 right-0 z-[500] transition-all duration-300 pointer-events-auto ${
+                bottomSheetExpanded ? 'h-[65%]' : 'h-auto max-h-[55%]'
               }`}
             >
               <div className="flex h-full flex-col overflow-hidden rounded-t-[28px] border-t border-white/15 bg-[#0e131d]/95 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl">

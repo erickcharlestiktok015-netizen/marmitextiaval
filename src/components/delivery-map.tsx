@@ -465,9 +465,9 @@ export function DeliveryMap({
         </button>
       </div>
 
-      {/* Floating Bottom Left: Minha Localização */}
+      {/* Floating Minha Localização (posicionado no topo para nunca colidir com a barrinha inferior) */}
       {showLocationPill && (
-        <div className="absolute bottom-4 left-3.5 z-[400]">
+        <div className="absolute top-3.5 left-3.5 z-[400]">
           <button
             type="button"
             onClick={handleRecenter}
