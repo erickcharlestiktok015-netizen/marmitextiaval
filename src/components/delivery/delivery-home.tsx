@@ -238,9 +238,23 @@ export function DeliveryHome() {
         <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><Heart className="size-4 fill-primary text-primary" /> 6 anos de comida caseira no Primeiro de Maio</p>
 
         <div className="mt-4 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border text-center">
-          <div className="px-2 py-3"><Clock className="mx-auto size-5 text-primary" /><p className="mt-1 text-sm font-bold">15–25 min</p><p className="text-xs text-muted-foreground">entrega</p></div>
-          <div className="px-2 py-3"><Bike className="mx-auto size-5 text-primary" /><p className="mt-1 text-sm font-bold">{formatPrice(deliveryFeePerKm)}/km</p><p className="text-xs text-muted-foreground">taxa motoboy</p></div>
-          <div className="px-2 py-3"><Store className="mx-auto size-5 text-primary" /><p className="mt-1 text-sm font-bold">Grátis</p><p className="text-xs text-muted-foreground">retirada</p></div>
+          <div className="px-2 py-3">
+            <Clock className="mx-auto size-5 text-primary" />
+            <p className="mt-1 text-sm font-bold">15–25 min</p>
+            <p className="text-xs text-muted-foreground">entrega</p>
+          </div>
+          <div className="px-1.5 py-3">
+            <Bike className="mx-auto size-5 text-success" />
+            <p className="mt-1 text-sm font-extrabold text-foreground">
+              <span className="text-success">Grátis</span> <span className="text-xs font-semibold text-muted-foreground">(1º de Maio)</span>
+            </p>
+            <p className="text-[11px] text-muted-foreground">{formatPrice(deliveryFeePerKm)}/km outros bairros</p>
+          </div>
+          <div className="px-2 py-3">
+            <Store className="mx-auto size-5 text-primary" />
+            <p className="mt-1 text-sm font-bold">Grátis</p>
+            <p className="text-xs text-muted-foreground">retirada</p>
+          </div>
         </div>
 
         <div className="da-trust-marquee mt-3" aria-label="Pagamento seguro, entrega acompanhada e opções para pagar na entrega">
@@ -342,9 +356,6 @@ export function DeliveryHome() {
           {['Escolha o tamanho e toque em +', 'Coloque seu endereço: a taxa sai na hora', 'Pague com Pix, cartão ou na entrega', 'Acompanhe o motoboy até a sua porta'].map((t, i) => <li key={t} className="flex items-center gap-3"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-sm font-bold text-primary">{i + 1}</span>{t}</li>)}
         </ol>
         <a href={mapsUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm"><MapPin className="size-5 shrink-0 text-primary" /><span className="flex-1">Rua Padre Cyr Assumpção, 289 — Primeiro de Maio, BH<small className="block text-muted-foreground">{openingHours.weekdays} · {openingHours.sunday}</small></span><ChevronRight className="size-4 text-muted-foreground" /></a>
-        <a href={whatsappHelp('Olá, Tia Val! Quero fazer um pedido.')} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm"><MessageCircle className="size-5 shrink-0 text-success" /><span className="flex-1">Dúvidas? Fale no WhatsApp<small className="block text-muted-foreground">{contacts.phoneLabel}</small></span><ChevronRight className="size-4 text-muted-foreground" /></a>
-        <a href={contacts.phone} className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm"><Phone className="size-5 shrink-0 text-primary" /><span className="flex-1">Ligar no telefone fixo<small className="block text-muted-foreground">{contacts.phoneLabel} · Mesmo número do WhatsApp</small></span><ChevronRight className="size-4 text-muted-foreground" /></a>
-        <a href={contacts.instagram || 'https://www.instagram.com/marmitexdatiaval/'} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm"><Instagram className="size-5 shrink-0 text-[#d62976]" /><span className="flex-1">Instagram da Tia Val<small className="block text-muted-foreground">@marmitexdatiaval</small></span><ChevronRight className="size-4 text-muted-foreground" /></a>
       </section>
     </div>
 

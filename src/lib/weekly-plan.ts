@@ -95,6 +95,7 @@ export type PlanMeta = {
   dates: string[]; // 7 datas AAAA-MM-DD
   window: PlanWindow;
   perDayFee: number;
+  completedDates?: string[]; // datas concluídas no painel ou entregues
 };
 
 const PLAN_PREFIX = 'PLANO7:';
@@ -109,23 +110,39 @@ export function parsePlanNotes(notes: string | null | undefined): PlanMeta | nul
     if (!Array.isArray(raw.dates) || raw.dates.length !== PLAN_DAYS) return null;
     if (raw.dates.some(d => typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d))) return null;
     if (typeof raw.window !== 'string' || !(planWindows as readonly string[]).includes(raw.window)) return null;
-    return {
+    const base: PlanMeta = {
       sizeId: raw.sizeId,
       withCoke: raw.withCoke !== false,
       dates: raw.dates as string[],
       window: raw.window as PlanWindow,
       perDayFee: typeof raw.perDayFee === 'number' ? raw.perDayFee : 0,
     };
+    if (Array.isArray(raw.completedDates) && raw.completedDates.length > 0) {
+      base.completedDates = raw.completedDates.filter(d => typeof d === 'string' && base.dates.includes(d));
+    }
+    return base;
   } catch {
     return null;
   }
 }
 
-// Quantas entregas do plano já deveriam ter acontecido até hoje (1 a 7).
+// Quantas entregas do plano já foram concluídas ou deveriam ter acontecido (0 a 7).
 export function planDeliveredCount(meta: PlanMeta, today = new Date()): number {
+  if (meta.completedDates && Array.isArray(meta.completedDates) && meta.completedDates.length > 0) {
+    return Math.min(PLAN_DAYS, meta.completedDates.length);
+  }
   const todayKey = spDateKey(today);
   const elapsed = meta.dates.filter(d => d <= todayKey).length;
   return Math.max(1, Math.min(PLAN_DAYS, elapsed));
+}
+
+// Próxima data agendada do plano que ainda não foi entregue.
+export function nextPendingPlanDate(meta: PlanMeta): string | null {
+  const completed = new Set(meta.completedDates ?? []);
+  for (const d of meta.dates) {
+    if (!completed.has(d)) return d;
+  }
+  return null;
 }
 
 export const planItemName = 'Plano 7 Dias — Marmita Completa';
