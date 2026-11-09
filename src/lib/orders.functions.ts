@@ -106,7 +106,7 @@ export const createOrder = createServerFn({ method: 'POST' })
         notes: item.notes ?? null,
       })));
 
-      void touchCustomerRecord(data.customer.phone, data.customer.name);
+      await touchCustomerRecord(data.customer.phone, data.customer.name);
       stage = 'sending InitiateCheckout to Meta';
       try {
         const { sendFacebookServerEvent, currentRequestInfo } = await import('@/lib/facebook-capi.server');
@@ -337,7 +337,7 @@ export const getCustomerOrdersByPhone = createServerFn({ method: 'POST' })
     }).parse(input)
   )
   .handler(async ({ data }) => {
-    void touchCustomerRecord(data.phone, data.name);
+    await touchCustomerRecord(data.phone, data.name);
     const raw = data.phone.replace(/\D/g, '');
     const cleanPhone = raw.startsWith('55') && raw.length >= 12 ? raw.slice(2) : raw;
     if (cleanPhone.length < 10) {

@@ -111,10 +111,7 @@ export function DeliveryHome() {
         }
       }
       setSaved(readSavedOrders());
-    const initialCustomer = readCustomer();
-    if (initialCustomer?.phone) {
-      fetchOrdersByPhone(initialCustomer.phone);
-    }
+
     } catch (err) {
       console.error('Falha ao buscar pedidos por telefone:', err);
       setLoginError(err instanceof Error ? err.message : 'Não foi possível carregar os pedidos do banco agora.');
@@ -147,6 +144,14 @@ export function DeliveryHome() {
     } catch { /* sacola vazia */ }
     setBagLoaded(true);
     return () => window.clearInterval(t);
+  }, []);
+
+  // Sincroniza cliente ativo no servidor
+  useEffect(() => {
+    const c = readCustomer();
+    if (c?.phone) {
+      void lookupCustomerOrders(c.phone, c.name).catch(() => {});
+    }
   }, []);
   useEffect(() => { if (bagLoaded) try { localStorage.setItem(BAG_KEY, JSON.stringify(bag)); } catch { /* opcional */ } }, [bag, bagLoaded]);
 

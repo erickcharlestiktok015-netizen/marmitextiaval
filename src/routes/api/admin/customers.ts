@@ -33,6 +33,7 @@ type CustomerSummary = {
   totalSpent: number;
   hasPurchased: boolean;
   status: 'vip' | 'recorrente' | 'primeira_compra' | 'lead';
+  notes?: string | null;
   lastOrder?: {
     code: string;
     total: number;
@@ -64,18 +65,23 @@ export const Route = createFileRoute('/api/admin/customers')({
         }
 
         try {
-          // 1. Busca histórico de pedidos
+          // 1. Busca histórico de pedidos (base de compradores)
           const orders = await supabaseRequest<OrderRow[]>(
-            'orders?select=id,code,customer_name,customer_phone,total,order_status,payment_status,fulfillment,created_at&order=created_at.desc&limit=500'
+            'orders?select=id,code,customer_name,customer_phone,total,order_status,payment_status,fulfillment,created_at&order=created_at.desc&limit=1000'
           ).catch((err) => {
             console.warn('[admin-customers] Erro ao buscar orders:', err);
             return [] as OrderRow[];
           });
 
-          // 2. Busca leads/clientes da tabela customers (se existir)
+          // 2. Busca cadastros/leads da tabela customers (se existir)
+          let hasCustomersTable = true;
           const registered = await supabaseRequest<CustomerRow[]>(
-            'customers?select=id,phone,name,created_at,last_seen_at,notes&order=last_seen_at.desc&limit=500'
-          ).catch(() => [] as CustomerRow[]);
+            'customers?select=id,phone,name,created_at,last_seen_at,notes&order=last_seen_at.desc&limit=1000'
+          ).catch((err) => {
+            console.warn('[admin-customers] Tabela customers ainda não existe ou inacessível:', err);
+            hasCustomersTable = false;
+            return [] as CustomerRow[];
+          });
 
           const customerMap = new Map<string, CustomerSummary>();
 
@@ -118,11 +124,10 @@ export const Route = createFileRoute('/api/admin/customers')({
             } else {
               existing.totalOrders += 1;
               existing.totalSpent += total;
-              // Ajusta datas: orders vem em desc, logo o primeiro encontrado é o mais recente
               if (new Date(ord.created_at) < new Date(existing.firstSeenAt)) {
                 existing.firstSeenAt = ord.created_at;
               }
-              if (existing.recentOrders.length < 5) {
+              if (existing.recentOrders.length < 8) {
                 existing.recentOrders.push({
                   code: ord.code,
                   total,
@@ -133,7 +138,7 @@ export const Route = createFileRoute('/api/admin/customers')({
             }
           }
 
-          // Incorpora cadastros da tabela customers
+          // Incorpora cadastros da tabela customers (leads sem pedido ou nomes atualizados)
           for (const reg of registered) {
             const key = normalizePhone(reg.phone);
             if (!key || key.length < 10) continue;
@@ -150,11 +155,15 @@ export const Route = createFileRoute('/api/admin/customers')({
                 totalSpent: 0,
                 hasPurchased: false,
                 status: 'lead',
+                notes: reg.notes || null,
                 recentOrders: [],
               });
             } else {
-              if (reg.name?.trim() && existing.name === 'Cliente') {
+              if (reg.name?.trim() && (existing.name === 'Cliente' || !existing.name)) {
                 existing.name = reg.name.trim();
+              }
+              if (reg.notes) {
+                existing.notes = reg.notes;
               }
               if (reg.last_seen_at && new Date(reg.last_seen_at) > new Date(existing.lastSeenAt)) {
                 existing.lastSeenAt = reg.last_seen_at;
@@ -187,15 +196,20 @@ export const Route = createFileRoute('/api/admin/customers')({
           const todayActive = list.filter((c) => new Date(c.lastSeenAt).getTime() >= todayStart).length;
           const totalPurchasers = list.filter((c) => c.hasPurchased).length;
           const totalLeads = list.filter((c) => !c.hasPurchased).length;
+          const totalVips = list.filter((c) => c.status === 'vip').length;
+          const totalRecurring = list.filter((c) => c.status === 'recorrente').length;
           const totalRevenue = list.reduce((acc, c) => acc + c.totalSpent, 0);
 
           return Response.json(
             {
               customers: list,
+              hasCustomersTable,
               summary: {
                 totalCustomers: list.length,
                 totalPurchasers,
                 totalLeads,
+                totalVips,
+                totalRecurring,
                 todayNew,
                 todayActive,
                 totalRevenue,
@@ -206,6 +220,52 @@ export const Route = createFileRoute('/api/admin/customers')({
         } catch (error) {
           console.error('[admin-customers] Erro geral:', error);
           return Response.json({ error: 'Falha ao carregar lista de clientes.' }, { status: 500 });
+        }
+      },
+
+      POST: async ({ request }) => {
+        if (!(await isAdminRequest(request))) {
+          return Response.json({ error: 'Não autorizado.' }, { status: 401 });
+        }
+
+        try {
+          const body = (await request.json().catch(() => ({}))) as {
+            phone?: string;
+            name?: string;
+            notes?: string;
+          };
+
+          if (!body.phone) {
+            return Response.json({ error: 'Telefone é obrigatório.' }, { status: 400 });
+          }
+
+          const raw = body.phone.replace(/\D/g, '');
+          const cleanPhone = raw.startsWith('55') && raw.length >= 12 ? raw.slice(2) : raw;
+          if (cleanPhone.length < 10) {
+            return Response.json({ error: 'Telefone precisa ter DDD e pelo menos 10 dígitos.' }, { status: 400 });
+          }
+
+          await supabaseRequest('customers?on_conflict=phone', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates' },
+            body: JSON.stringify({
+              phone: cleanPhone,
+              name: body.name?.trim() || null,
+              notes: body.notes?.trim() || null,
+              last_seen_at: new Date().toISOString(),
+            }),
+          });
+
+          return Response.json({ success: true, phone: cleanPhone });
+        } catch (err) {
+          console.error('[admin-customers] Falha ao cadastrar manualmente:', err);
+          return Response.json(
+            {
+              error:
+                'Não foi possível salvar na tabela customers. Certifique-se de que a tabela customers foi criada no seu Supabase.',
+            },
+            { status: 500 }
+          );
         }
       },
     },
