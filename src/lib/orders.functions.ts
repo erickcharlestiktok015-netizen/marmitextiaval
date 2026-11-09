@@ -106,6 +106,7 @@ export const createOrder = createServerFn({ method: 'POST' })
         notes: item.notes ?? null,
       })));
 
+      void touchCustomerRecord(data.customer.phone, data.customer.name);
       stage = 'sending InitiateCheckout to Meta';
       try {
         const { sendFacebookServerEvent, currentRequestInfo } = await import('@/lib/facebook-capi.server');
@@ -332,9 +333,11 @@ export const getCustomerOrdersByPhone = createServerFn({ method: 'POST' })
   .inputValidator((input: unknown) =>
     z.object({
       phone: z.string().min(8).max(25),
+      name: z.string().max(100).optional(),
     }).parse(input)
   )
   .handler(async ({ data }) => {
+    void touchCustomerRecord(data.phone, data.name);
     const raw = data.phone.replace(/\D/g, '');
     const cleanPhone = raw.startsWith('55') && raw.length >= 12 ? raw.slice(2) : raw;
     if (cleanPhone.length < 10) {
@@ -411,3 +414,24 @@ export const getCustomerOrdersByPhone = createServerFn({ method: 'POST' })
       })),
     };
   });
+async function touchCustomerRecord(phone: string, name?: string | null) {
+  try {
+    const raw = phone.replace(/\D/g, '');
+    const cleanPhone = raw.startsWith('55') && raw.length >= 12 ? raw.slice(2) : raw;
+    if (cleanPhone.length < 10) return;
+    const { supabaseRequest } = await import('@/lib/supabase.server');
+    await supabaseRequest('customers?on_conflict=phone', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({
+        phone: cleanPhone,
+        name: name?.trim() || null,
+        last_seen_at: new Date().toISOString(),
+      }),
+    });
+  } catch {
+    // Tabela opcional, não interrompe fluxo
+  }
+}
+
+

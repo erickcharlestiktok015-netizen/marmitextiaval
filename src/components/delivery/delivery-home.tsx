@@ -94,7 +94,7 @@ export function DeliveryHome() {
     setOrdersLoading(true);
     setLoginError('');
     try {
-      const res = await lookupCustomerOrders(digits);
+      const res = await lookupCustomerOrders(digits, customerNameToSave);
       const updatedCustomer: SavedCustomer = {
         name: customerNameToSave?.trim() || res.customerName || customer?.name || '',
         phone: res.phone,

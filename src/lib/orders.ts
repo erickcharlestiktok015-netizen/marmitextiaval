@@ -72,11 +72,11 @@ export type CustomerOrder = {
   items: Array<{ mealName: string; sizeLabel: string; quantity: number }>;
 };
 
-export async function lookupCustomerOrders(phone: string): Promise<{
+export async function lookupCustomerOrders(phone: string, name?: string): Promise<{
   phone: string;
   customerName: string | null;
   orders: CustomerOrder[];
 }> {
   const { getCustomerOrdersByPhone } = await import('@/lib/orders.functions');
-  return getCustomerOrdersByPhone({ data: { phone } });
+  return getCustomerOrdersByPhone({ data: { phone, name } });
 }

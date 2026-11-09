@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AcompanharRouteImport } from './routes/acompanhar'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as GestaoRouteImport } from './routes/gestao'
 import { Route as MotoboyRouteImport } from './routes/motoboy'
 import { Route as PagamentoRouteImport } from './routes/pagamento'
 import { Route as MotoboyEntregasRouteImport } from './routes/motoboy/entregas'
+import { Route as ApiAdminCustomersRouteImport } from './routes/api/admin/customers'
 import { Route as ApiAdminLoginRouteImport } from './routes/api/admin/login'
 import { Route as ApiAdminLogoutRouteImport } from './routes/api/admin/logout'
 import { Route as ApiAdminOrdersRouteImport } from './routes/api/admin/orders'
@@ -40,6 +42,11 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GestaoRoute = GestaoRouteImport.update({
+  id: '/gestao',
+  path: '/gestao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MotoboyRoute = MotoboyRouteImport.update({
   id: '/motoboy',
   path: '/motoboy',
@@ -54,6 +61,11 @@ const MotoboyEntregasRoute = MotoboyEntregasRouteImport.update({
   id: '/entregas',
   path: '/entregas',
   getParentRoute: () => MotoboyRoute,
+} as any)
+const ApiAdminCustomersRoute = ApiAdminCustomersRouteImport.update({
+  id: '/api/admin/customers',
+  path: '/api/admin/customers',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAdminLoginRoute = ApiAdminLoginRouteImport.update({
   id: '/api/admin/login',
@@ -106,9 +118,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/acompanhar': typeof AcompanharRoute
   '/admin': typeof AdminRoute
+  '/gestao': typeof GestaoRoute
   '/motoboy': typeof MotoboyRouteWithChildren
   '/pagamento': typeof PagamentoRoute
   '/motoboy/entregas': typeof MotoboyEntregasRoute
+  '/api/admin/customers': typeof ApiAdminCustomersRoute
   '/api/admin/login': typeof ApiAdminLoginRoute
   '/api/admin/logout': typeof ApiAdminLogoutRoute
   '/api/admin/orders': typeof ApiAdminOrdersRoute
@@ -123,9 +137,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/acompanhar': typeof AcompanharRoute
   '/admin': typeof AdminRoute
+  '/gestao': typeof GestaoRoute
   '/motoboy': typeof MotoboyRouteWithChildren
   '/pagamento': typeof PagamentoRoute
   '/motoboy/entregas': typeof MotoboyEntregasRoute
+  '/api/admin/customers': typeof ApiAdminCustomersRoute
   '/api/admin/login': typeof ApiAdminLoginRoute
   '/api/admin/logout': typeof ApiAdminLogoutRoute
   '/api/admin/orders': typeof ApiAdminOrdersRoute
@@ -141,9 +157,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/acompanhar': typeof AcompanharRoute
   '/admin': typeof AdminRoute
+  '/gestao': typeof GestaoRoute
   '/motoboy': typeof MotoboyRouteWithChildren
   '/pagamento': typeof PagamentoRoute
   '/motoboy/entregas': typeof MotoboyEntregasRoute
+  '/api/admin/customers': typeof ApiAdminCustomersRoute
   '/api/admin/login': typeof ApiAdminLoginRoute
   '/api/admin/logout': typeof ApiAdminLogoutRoute
   '/api/admin/orders': typeof ApiAdminOrdersRoute
@@ -160,9 +178,11 @@ export interface FileRouteTypes {
     | '/'
     | '/acompanhar'
     | '/admin'
+    | '/gestao'
     | '/motoboy'
     | '/pagamento'
     | '/motoboy/entregas'
+    | '/api/admin/customers'
     | '/api/admin/login'
     | '/api/admin/logout'
     | '/api/admin/orders'
@@ -177,9 +197,11 @@ export interface FileRouteTypes {
     | '/'
     | '/acompanhar'
     | '/admin'
+    | '/gestao'
     | '/motoboy'
     | '/pagamento'
     | '/motoboy/entregas'
+    | '/api/admin/customers'
     | '/api/admin/login'
     | '/api/admin/logout'
     | '/api/admin/orders'
@@ -194,9 +216,11 @@ export interface FileRouteTypes {
     | '/'
     | '/acompanhar'
     | '/admin'
+    | '/gestao'
     | '/motoboy'
     | '/pagamento'
     | '/motoboy/entregas'
+    | '/api/admin/customers'
     | '/api/admin/login'
     | '/api/admin/logout'
     | '/api/admin/orders'
@@ -212,8 +236,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcompanharRoute: typeof AcompanharRoute
   AdminRoute: typeof AdminRoute
+  GestaoRoute: typeof GestaoRoute
   MotoboyRoute: typeof MotoboyRouteWithChildren
   PagamentoRoute: typeof PagamentoRoute
+  ApiAdminCustomersRoute: typeof ApiAdminCustomersRoute
   ApiAdminLoginRoute: typeof ApiAdminLoginRoute
   ApiAdminLogoutRoute: typeof ApiAdminLogoutRoute
   ApiAdminOrdersRoute: typeof ApiAdminOrdersRoute
@@ -248,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/gestao': {
+      id: '/gestao'
+      path: '/gestao'
+      fullPath: '/gestao'
+      preLoaderRoute: typeof GestaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/motoboy': {
       id: '/motoboy'
       path: '/motoboy'
@@ -268,6 +301,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/motoboy/entregas'
       preLoaderRoute: typeof MotoboyEntregasRouteImport
       parentRoute: typeof MotoboyRoute
+    }
+    '/api/admin/customers': {
+      id: '/api/admin/customers'
+      path: '/api/admin/customers'
+      fullPath: '/api/admin/customers'
+      preLoaderRoute: typeof ApiAdminCustomersRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/admin/login': {
       id: '/api/admin/login'
@@ -350,8 +390,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcompanharRoute: AcompanharRoute,
   AdminRoute: AdminRoute,
+  GestaoRoute: GestaoRoute,
   MotoboyRoute: MotoboyRouteWithChildren,
   PagamentoRoute: PagamentoRoute,
+  ApiAdminCustomersRoute: ApiAdminCustomersRoute,
   ApiAdminLoginRoute: ApiAdminLoginRoute,
   ApiAdminLogoutRoute: ApiAdminLogoutRoute,
   ApiAdminOrdersRoute: ApiAdminOrdersRoute,

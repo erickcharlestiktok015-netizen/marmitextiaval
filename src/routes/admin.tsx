@@ -4,7 +4,7 @@ import {
   AlertCircle,
   Ban, Bell, Bike, CheckCircle2, ChefHat, Check, ChevronDown, ChevronRight, Clock3, CreditCard, Banknote,
   LayoutDashboard, LineChart, LogOut, MapPin, Menu, MessageCircle, MoreVertical, Phone, QrCode,
-  ReceiptText, RefreshCw, ShieldCheck, ShoppingBag, Store, User, UtensilsCrossed, Wallet, X, BookOpen, CalendarDays, Hourglass,
+  ReceiptText, RefreshCw, ShieldCheck, ShoppingBag, Store, User, Users, UtensilsCrossed, Wallet, X, BookOpen, CalendarDays, Hourglass,
   CalendarCheck, Sparkles, TrendingUp, ArrowRight,
 } from 'lucide-react';
 import {
@@ -372,7 +372,10 @@ function AdminPage() {
           )}
           <div className="border-t border-slate-700/50 pt-6">
             <p className="mb-2 text-center text-sm text-slate-400">Ou entre como entregador</p>
-            <a href="/motoboy" className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-rose-500/50 bg-rose-500/10 text-rose-400 font-medium hover:bg-rose-500/20">
+            <a href="/gestao" className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-blue-500/40 bg-blue-500/10 text-blue-300 text-xs font-semibold hover:bg-blue-500/20">
+            <Users className="h-4 w-4" /> Gestão de Clientes
+          </a>
+          <a href="/motoboy" className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-rose-500/50 bg-rose-500/10 text-rose-400 font-medium hover:bg-rose-500/20">
               <Bike className="h-5 w-5" /> Área do motoboy
             </a>
           </div>
@@ -463,6 +466,9 @@ function AdminPage() {
         </nav>
 
         <div className="mt-auto pt-4 border-t border-slate-800 space-y-2">
+          <a href="/gestao" className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-blue-500/40 bg-blue-500/10 text-blue-300 text-xs font-semibold hover:bg-blue-500/20">
+            <Users className="h-4 w-4" /> Gestão de Clientes
+          </a>
           <a href="/motoboy" className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-400 text-xs font-semibold hover:bg-rose-500/20">
             <Bike className="h-4 w-4" /> App do Motoboy
           </a>
