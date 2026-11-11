@@ -9,6 +9,7 @@ import { clearCustomer, formatPhone, maskPhoneInput, orderStatusBadgeClass, orde
 import { lookupCustomerOrders, type CustomerOrder } from '@/lib/orders';
 import { ContactDock } from '@/components/restaurant/contact-dock';
 import { BannerCarousel } from '@/components/delivery/banner-carousel';
+import { MotoboySplash } from '@/components/delivery/motoboy-splash';
 import { PlanSheet } from '@/components/delivery/plan-sheet';
 import { PLAN_DAYS, planSizes, planDateLabel, planDeliveredCount, spDateKey } from '@/lib/weekly-plan';
 import logoBannerAsset from '@/assets/marmitex-logo-banner.png';
@@ -61,6 +62,13 @@ export function DeliveryHome() {
       return next;
     });
   };
+  const handleSplashComplete = () => {
+    const c = readCustomer();
+    if (!c?.phone) {
+      setOrdersOpen(true);
+    }
+  };
+
   const [open, setOpen] = useState<boolean | null>(null);
   const [todayMeal, setTodayMeal] = useState<Meal>(() => getTodayMeal());
   const [tomorrowMeal, setTomorrowMeal] = useState<Meal>(() => getTomorrowMeal());
@@ -111,6 +119,13 @@ export function DeliveryHome() {
         }
       }
       setSaved(readSavedOrders());
+
+      // Se for novo cadastro / lead sem pedidos anteriores, fecha o modal após breve confirmação para ver o cardápio
+      if (!res.orders || res.orders.length === 0) {
+        window.setTimeout(() => {
+          setOrdersOpen(false);
+        }, 450);
+      }
 
     } catch (err) {
       console.error('Falha ao buscar pedidos por telefone:', err);
@@ -165,6 +180,10 @@ export function DeliveryHome() {
   const qtyOf = (mealId: string, sId: string) => lines.filter(l => l.mealId === mealId && l.sizeId === sId).reduce((n, l) => n + l.quantity, 0);
 
   const addToBag = (meal: Meal, size: MealSize, quantity: number, itemNotes = '') => {
+    if (!customer?.phone) {
+      setOrdersOpen(true);
+      return;
+    }
     const key = `${meal.id}-${size.id}-${itemNotes.trim()}`;
     setBag(items => items.some(i => i.key === key)
       ? items.map(i => i.key === key ? { ...i, quantity: Math.min(20, i.quantity + quantity) } : i)
@@ -190,6 +209,10 @@ export function DeliveryHome() {
   };
 
   const openItem = (meal: Meal, when: 'hoje' | 'amanha', preselect?: MealSize) => {
+    if (!customer?.phone) {
+      setOrdersOpen(true);
+      return;
+    }
     setItemSheet({ meal, when });
     setSizeId(preselect?.id ?? '');
     setQty(1);
@@ -197,6 +220,10 @@ export function DeliveryHome() {
   };
   const sheetSize = itemSheet?.meal.sizes.find(s => s.id === sizeId);
   const confirmItem = () => {
+    if (!customer?.phone) {
+      setOrdersOpen(true);
+      return;
+    }
     if (!itemSheet || !sheetSize) return;
     if (itemSheet.when === 'amanha') {
       setReserve({ meal: itemSheet.meal, size: sheetSize, quantity: qty, notes: notes.trim() });
@@ -215,6 +242,7 @@ export function DeliveryHome() {
   const sheetClass = 'delivery-app inset-x-0 mx-auto flex max-h-[94dvh] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-3xl border-0 p-0';
 
   return <div className={`delivery-app min-h-screen ${theme === "dark" ? "theme-dark bg-[#141412]" : "bg-secondary"}`} data-theme={theme}>
+    <MotoboySplash onComplete={handleSplashComplete} />
     <div className={`mx-auto min-h-screen max-w-lg ${theme === "dark" ? "bg-[#1b1a17]" : "bg-background"} pb-32 shadow-card`}>
       {/* Capa */}
       <header className="relative">
@@ -291,11 +319,11 @@ export function DeliveryHome() {
       </section>
 
       {/* Banners em destaque */}
-      <BannerCarousel onOpenPlan={() => setPlanOpen(true)} />
+      <BannerCarousel onOpenPlan={() => { if (!customer?.phone) { setOrdersOpen(true); return; } setPlanOpen(true); }} />
 
       {/* Plano 7 Dias em destaque */}
       <section className="px-4 pt-4">
-        <button type="button" onClick={() => setPlanOpen(true)} className="relative w-full overflow-hidden rounded-2xl border-2 border-primary bg-gradient-to-br from-primary to-primary/80 p-4 text-left text-primary-foreground shadow-card transition active:scale-[.99]" aria-label="Conhecer o Plano 7 Dias">
+        <button type="button" onClick={() => { if (!customer?.phone) { setOrdersOpen(true); return; } setPlanOpen(true); }} className="relative w-full overflow-hidden rounded-2xl border-2 border-primary bg-gradient-to-br from-primary to-primary/80 p-4 text-left text-primary-foreground shadow-card transition active:scale-[.99]" aria-label="Conhecer o Plano 7 Dias">
           <span className="pointer-events-none absolute -right-6 -top-6 size-24 rounded-full bg-white/15 blur-xl" aria-hidden />
           <span className="flex items-center gap-2"><CalendarCheck className="size-5" /><span className="text-[11px] font-extrabold uppercase tracking-[0.14em]">Plano 7 Dias · mais vendido</span></span>
           <span className="mt-1.5 block text-xl font-black leading-tight">7 marmitas + 7 Coca-Colas</span>
@@ -382,7 +410,7 @@ export function DeliveryHome() {
 
     {/* Sacola fixa */}
     {count > 0 && !bagOpen && <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg p-3 da-bag-enter">
-      <button key={bump} type="button" onClick={() => { setBagStep('bag'); setBagOpen(true); }} className="flex min-h-14 w-full items-center gap-3 rounded-xl bg-primary px-4 text-primary-foreground shadow-bag active:scale-[.98] transition">
+      <button key={bump} type="button" onClick={() => { if (!customer?.phone) { setOrdersOpen(true); return; } setBagStep('bag'); setBagOpen(true); }} className="flex min-h-14 w-full items-center gap-3 rounded-xl bg-primary px-4 text-primary-foreground shadow-bag active:scale-[.98] transition">
         <span className="da-pop relative grid size-9 place-items-center"><ShoppingBag className="size-6" /><span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-primary-foreground text-[11px] font-extrabold text-primary">{count}</span></span>
         <span className="flex-1 text-center text-base font-bold">Ver sacola</span>
         <span className="text-base font-bold tabular-nums">{formatPrice(subtotal)}</span>
@@ -672,6 +700,15 @@ export function DeliveryHome() {
                 Assim que você concluir um pedido pelo site com o número {formatPhone(customer.phone)}, ele aparecerá aqui
                 para acompanhar.
               </p>
+              <Button
+                type="button"
+                variant="cta"
+                size="lg"
+                className="w-full mt-3 font-bold shadow-md"
+                onClick={() => setOrdersOpen(false)}
+              >
+                Ver cardápio e escolher marmita
+              </Button>
             </div>
           ) : saved.length > 0 ? (
             <div className="space-y-3">
