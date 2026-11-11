@@ -33,6 +33,8 @@ import {
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { dishForDateKey, nextPendingPlanDate, parsePlanNotes, spDateKey } from '@/lib/weekly-plan';
 import { DeliveryMap, type GeoPoint } from '@/components/delivery-map';
+import { restaurantLocation } from '@/lib/restaurant-data';
+import { pickRouteOrder, shouldShowRoute } from '@/lib/courier-route';
 
 export type Delivery = {
   id: string;
@@ -302,12 +304,17 @@ function CourierDeliveries() {
     }
   }, []);
 
+  const lastSentRef = useRef(0);
   const sendLocation = async (point: Geo) => {
+    // Envia a posição para o cliente acompanhar (mesmo endpoint de pedidos, ação "location").
+    const now = Date.now();
+    if (now - lastSentRef.current < 10000) return;
+    lastSentRef.current = now;
     try {
-      await fetch('/api/courier/location', {
-        method: 'POST',
+      await fetch('/api/courier/orders', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(point),
+        body: JSON.stringify({ action: 'location', latitude: point.latitude, longitude: point.longitude }),
       });
     } catch {
       // offline silent
@@ -427,19 +434,38 @@ function CourierDeliveries() {
       const found = orderedOrders.find((o) => o.id === selectedId);
       if (found) return found;
     }
-    return orderedOrders.find((o) => isRouteable(o)) || orderedOrders[0] || null;
+    return pickRouteOrder(orderedOrders, selectedId);
   }, [hasRealOrders, orderedOrders, selectedId]);
+
+  // Endereços sem coordenadas salvas: busca no mapa pelo texto (cache por pedido).
+  const [geocoded, setGeocoded] = useState<Record<string, Geo | null>>({});
+  useEffect(() => {
+    const o = activeDelivery;
+    if (!o || coords(o.address) || o.id in geocoded) return;
+    const ctrl = new AbortController();
+    const q = addressText(o.address);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { signal: ctrl.signal, headers: { Accept: 'application/json' } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: Array<{ lat: string; lon: string }>) => {
+        const lat = Number(rows[0]?.lat), lon = Number(rows[0]?.lon);
+        setGeocoded((g) => ({ ...g, [o.id]: Number.isFinite(lat) && Number.isFinite(lon) ? { latitude: lat, longitude: lon } : null }));
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [activeDelivery, geocoded]);
+  const destOf = (o: Delivery | null): Geo | null => (o ? coords(o.address) ?? geocoded[o.id] ?? null : null);
+  const routeOrigin: Geo = location ?? { latitude: restaurantLocation.lat, longitude: restaurantLocation.lng };
 
   const currentIndex = activeDelivery ? orderedOrders.findIndex((o) => o.id === activeDelivery.id) : -1;
   const handleNextDelivery = () => {
     if (orderedOrders.length <= 1) return;
     const nextIdx = (currentIndex + 1) % orderedOrders.length;
-    setSelectedId(orderedOrders[nextIdx].id);
+    setSelectedId(orderedOrders[nextIdx]?.id ?? null);
   };
   const handlePrevDelivery = () => {
     if (orderedOrders.length <= 1) return;
     const prevIdx = (currentIndex - 1 + orderedOrders.length) % orderedOrders.length;
-    setSelectedId(orderedOrders[prevIdx].id);
+    setSelectedId(orderedOrders[prevIdx]?.id ?? null);
   };
 
   const handleViewRoute = (order: Delivery) => {
@@ -679,12 +705,12 @@ function CourierDeliveries() {
           <div className="relative h-full w-full overflow-hidden">
             {/* O MAPA OCUPA 100% DA ÁREA CENTRAL (COM TILES ESRI SEM ERRO DE API KEY) */}
             <DeliveryMap
-              courierLocation={location}
-              destinationLocation={activeDelivery ? coords(activeDelivery.address) : null}
+              courierLocation={routeOrigin}
+              destinationLocation={destOf(activeDelivery)}
               destinationNeighborhood={activeDelivery ? neighborhoodOf(activeDelivery) : ''}
               destinationTitle={activeDelivery ? addressText(activeDelivery.address) : ''}
               className="absolute inset-0 h-full w-full"
-              showRoute={Boolean(activeDelivery && routeActiveFor === activeDelivery.id)}
+              showRoute={shouldShowRoute(activeDelivery, routeActiveFor)}
               showWazeButton={false}
               showLocationPill={true}
               onRouteCalculated={(info) => setLiveRouteInfo(info)}
@@ -702,27 +728,27 @@ function CourierDeliveries() {
                 <button
                   type="button"
                   onClick={(event) => {
-                    if ((event.currentTarget as HTMLButtonElement).dataset.swiped === 'true') {
-                      (event.currentTarget as HTMLButtonElement).dataset.swiped = 'false';
+                    if ((event.currentTarget as HTMLButtonElement).dataset["swiped"] === 'true') {
+                      (event.currentTarget as HTMLButtonElement).dataset["swiped"] = 'false';
                       return;
                     }
                     setBottomSheetExpanded((v) => !v);
                   }}
                   onTouchStart={(event) => {
                     const startY = event.touches[0]?.clientY ?? 0;
-                    (event.currentTarget as HTMLButtonElement).dataset.startY = String(startY);
+                    (event.currentTarget as HTMLButtonElement).dataset["startY"] = String(startY);
                   }}
                   onTouchEnd={(event) => {
-                    const startY = Number((event.currentTarget as HTMLButtonElement).dataset.startY || 0);
+                    const startY = Number((event.currentTarget as HTMLButtonElement).dataset["startY"] || 0);
                     const endY = event.changedTouches[0]?.clientY ?? startY;
                     const delta = startY - endY;
                     if (delta > 25) {
                       setBottomSheetExpanded(true);
-                      (event.currentTarget as HTMLButtonElement).dataset.swiped = 'true';
+                      (event.currentTarget as HTMLButtonElement).dataset["swiped"] = 'true';
                     }
                     if (delta < -25) {
                       setBottomSheetExpanded(false);
-                      (event.currentTarget as HTMLButtonElement).dataset.swiped = 'true';
+                      (event.currentTarget as HTMLButtonElement).dataset["swiped"] = 'true';
                     }
                   }}
                   className="group flex w-full flex-col items-center pt-2 pb-1 cursor-pointer touch-none focus:outline-none"
@@ -837,6 +863,7 @@ function CourierDeliveries() {
                                   const to = next.findIndex((item) => item.id === order.id);
                                   if (from < 0 || to < 0) return;
                                   const [moved] = next.splice(from, 1);
+                                  if (!moved) return;
                                   next.splice(to, 0, moved);
                                   setRoadOrderIds(next.map((item) => item.id));
                                   setDraggedOrderId(null);
@@ -846,12 +873,16 @@ function CourierDeliveries() {
                                   <div className="flex shrink-0 flex-col">
                                     <button type="button" aria-label={`Mover pedido ${order.code} para cima`} disabled={index === 0} onClick={() => {
                                       const next = [...orderedOrders];
-                                      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                                      const a = next[index - 1], b = next[index];
+                                      if (!a || !b) return;
+                                      next[index - 1] = b; next[index] = a;
                                       setRoadOrderIds(next.map((item) => item.id));
                                     }} className="rounded p-0.5 text-slate-400 disabled:opacity-30"><ChevronUp size={14} /></button>
                                     <button type="button" aria-label={`Mover pedido ${order.code} para baixo`} disabled={index === orderedOrders.length - 1} onClick={() => {
                                       const next = [...orderedOrders];
-                                      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                                      const a = next[index], b = next[index + 1];
+                                      if (!a || !b) return;
+                                      next[index] = b; next[index + 1] = a;
                                       setRoadOrderIds(next.map((item) => item.id));
                                     }} className="rounded p-0.5 text-slate-400 disabled:opacity-30"><ChevronDown size={14} /></button>
                                   </div>

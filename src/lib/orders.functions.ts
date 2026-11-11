@@ -379,8 +379,7 @@ export const getCustomerOrdersByPhone = createServerFn({ method: 'POST' })
           `order_items?select=order_id,meal_name,size_label,quantity&order_id=in.(${orderIds.map((id) => encodeURIComponent(id)).join(',')})&order=created_at.asc`
         );
         for (const it of itemRows) {
-          if (!itemsMap[it.order_id]) itemsMap[it.order_id] = [];
-          itemsMap[it.order_id].push({
+          (itemsMap[it.order_id] ??= []).push({
             mealName: it.meal_name,
             sizeLabel: it.size_label,
             quantity: it.quantity,
