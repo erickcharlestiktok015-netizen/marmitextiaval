@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { DeliveryFee, type FeeResult } from '@/components/restaurant/delivery-fee';
 import { ConfettiBurst } from '@/components/restaurant/confetti-burst';
 import { checkOrderPaymentStatus, type OnlinePaymentMethod, type SubmitResult } from '@/lib/orders';
+import { lookupCustomerOrders } from '@/lib/orders';
 import { contacts, deliveryFeePerKm, formatPrice } from '@/lib/restaurant-data';
 import { readCustomer, saveCustomer, saveOrder, savePlanMeta, trackingHref } from '@/lib/my-orders';
 import { trackInitiateCheckout, trackPurchase } from '@/components/facebook-pixel';
@@ -192,7 +193,7 @@ export function PlanSheet({ onDone }: { onDone?: () => void }) {
 
       <fieldset className="space-y-3"><legend className={sectionTitle}>5 · Seus dados e pagamento</legend>
         <input className="da-field" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" autoComplete="name" maxLength={80} aria-label="Nome" />
-        <input className="da-field" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} placeholder="(31) 99999-9999" inputMode="tel" autoComplete="tel" aria-label="Telefone" />
+        <input className="da-field" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} onBlur={() => { const d = phone.replace(/\D/g, ""); if (d.length >= 10) void lookupCustomerOrders(d, name).catch(() => {}); }} placeholder="(31) 99999-9999" inputMode="tel" autoComplete="tel" aria-label="Telefone" />
         <div className="grid grid-cols-2 gap-2">
           <button type="button" aria-pressed={payment === 'online'} onClick={() => setPayment('online')} className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-3 text-left transition ${payment === 'online' ? 'border-primary bg-accent' : 'border-border bg-card'}`}>
             <Smartphone className={`size-5 ${payment === 'online' ? 'text-primary' : 'text-muted-foreground'}`} />

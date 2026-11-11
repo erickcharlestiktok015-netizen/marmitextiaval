@@ -5,6 +5,7 @@ import { DeliveryFee, type FeeResult } from '@/components/restaurant/delivery-fe
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { calculateTotals, checkOrderPaymentStatus, submitOrder, type Order, type OrderItem, type PaymentMethod, type SubmitResult, type OnlinePaymentMethod } from '@/lib/orders';
+import { lookupCustomerOrders } from '@/lib/orders';
 import { contacts, deliveryFeePerKm, formatPrice } from '@/lib/restaurant-data';
 import { ConfettiBurst } from '@/components/restaurant/confetti-burst';
 import { trackPurchase, trackInitiateCheckout } from '@/components/facebook-pixel';
@@ -125,7 +126,7 @@ export function CheckoutForm({ items, when, initialFee, onBack, onDone }: { item
       <fieldset className="space-y-3"><legend className={sectionTitle}>Seus dados</legend>
         {remembered && <p className="text-xs text-muted-foreground">Preenchemos com os dados do seu último pedido.</p>}
         <input className="da-field" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" autoComplete="name" maxLength={80} aria-label="Nome" />
-        <input className="da-field" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} placeholder="(31) 99999-9999" inputMode="tel" autoComplete="tel" aria-label="Telefone" />
+        <input className="da-field" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} onBlur={() => { const d = phone.replace(/\D/g, ""); if (d.length >= 10) void lookupCustomerOrders(d, name).catch(() => {}); }} placeholder="(31) 99999-9999" inputMode="tel" autoComplete="tel" aria-label="Telefone" />
         {payment === 'online' && onlineMethod === 'pix' && <input className="da-field" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Seu e-mail para o pagamento Pix" autoComplete="email" maxLength={254} aria-label="E-mail para pagamento Pix" required />}
       </fieldset>
 

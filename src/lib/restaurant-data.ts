@@ -61,8 +61,8 @@ export const strogonoffMeal: Meal = {
   id: 'strogonoff',
   name: 'Strogonoff',
   description: 'Strogonoff cremoso, com arroz soltinho e batata palha.',
-  video: novoHost + '4edafc47-2031-459a-a011-e53af21d3ff2/strogonoff.mp4',
-  poster: novoHost + '10daedcf-920f-4b0c-a238-325e16dec0c3/poster-strogonoff.jpg',
+  video: '/videos/strogonoff.mp4',
+  poster: '/videos/poster-strogonoff.jpg',
   badge: null,
   sizes: [
     { id: 'pequena', label: 'Pequena · 500ml', price: 16 },

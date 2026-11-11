@@ -12,7 +12,7 @@ export function Promotions() {
     <div className="tomorrow-grid">{tomorrowDishes.map((dish, index) => <article key={dish.id} className={`tomorrow-card${index === 0 ? ' is-next' : ''}`}>
       <span className="tomorrow-badge">{dish.badge}</span>
       {dish.video
-        ? <video className="tomorrow-media" src={dish.video} poster={dish.poster} autoPlay muted loop playsInline preload="auto" aria-label={dish.name + ' — vídeo ilustrativo'} onCanPlay={event => { event.currentTarget.play().catch(() => {}); }} />
+        ? <video className="tomorrow-media" src={dish.video} poster={dish.poster} autoPlay muted loop playsInline preload="auto" aria-label={dish.name + ' — vídeo ilustrativo'} onCanPlay={event => { event.currentTarget.play().catch(() => {}); }} onEnded={event => { event.currentTarget.currentTime = 0; void event.currentTarget.play().catch(() => {}); }} />
         : <img className="tomorrow-media" src={dish.image} alt={dish.name} loading="lazy" />}
       <div className="tomorrow-dish"><span className="tomorrow-num">0{index + 1}</span><div><h3>{dish.name}</h3><p>{dish.description}</p></div></div>
     </article>)}</div>

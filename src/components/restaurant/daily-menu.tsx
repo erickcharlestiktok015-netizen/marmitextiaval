@@ -8,7 +8,7 @@ import { contacts, formatPrice, meals, type Meal, type MealSize } from '@/lib/re
 
 function MealMedia({ meal, className }: { meal: Meal; className?: string }) {
   if (meal.image) return <img className={className} src={meal.image} alt={meal.name} loading="lazy" />;
-  return <video className={className} src={meal.video} poster={meal.poster} autoPlay muted loop playsInline preload="auto" aria-label={meal.name + ' — vídeo ilustrativo'} onCanPlay={event => { event.currentTarget.play().catch(() => {}); }} />;
+  return <video className={className} src={meal.video} poster={meal.poster} autoPlay muted loop playsInline preload="auto" aria-label={meal.name + ' — vídeo ilustrativo'} onCanPlay={event => { event.currentTarget.play().catch(() => {}); }} onEnded={event => { event.currentTarget.currentTime = 0; void event.currentTarget.play().catch(() => {}); }} />;
 }
 
 export function MealCard({ meal, selected, onSelect }: { meal: Meal; selected: boolean; onSelect: () => void }) {

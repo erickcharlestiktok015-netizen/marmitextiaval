@@ -30,7 +30,7 @@ function DishVideo({ meal, className, controls = false }: { meal: Meal; classNam
     if (v.paused) { void v.play().catch(() => {}); setPaused(false); } else { v.pause(); setPaused(true); }
   };
   return <div className={`relative overflow-hidden bg-muted ${className ?? ''}`}>
-    <video ref={ref} className="size-full object-cover" src={meal.video} poster={meal.poster} autoPlay muted loop playsInline preload="metadata" aria-label={`${meal.name} — vídeo do prato`} onCanPlay={e => { if (!paused) e.currentTarget.play().catch(() => {}); }} />
+    <video ref={ref} className="size-full object-cover" src={meal.video} poster={meal.poster} autoPlay muted loop playsInline preload="metadata" aria-label={`${meal.name} — vídeo do prato`} onCanPlay={e => { if (!paused) e.currentTarget.play().catch(() => {}); }} onEnded={e => { if (!paused) { e.currentTarget.currentTime = 0; void e.currentTarget.play().catch(() => {}); } }} />
     {controls && <button type="button" onClick={e => { e.stopPropagation(); toggle(); }} aria-label={paused ? 'Tocar vídeo' : 'Pausar vídeo'} className="absolute bottom-3 right-3 grid size-9 place-items-center rounded-full bg-card/90 text-foreground shadow-card backdrop-blur">{paused ? <Play className="size-4" /> : <Pause className="size-4" />}</button>}
   </div>;
 }

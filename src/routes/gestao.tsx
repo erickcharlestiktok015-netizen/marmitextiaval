@@ -31,6 +31,7 @@ import {
   Layers,
   ArrowUpDown,
   FileCode2,
+  Menu,
 } from 'lucide-react';
 
 type RecentOrder = {
@@ -58,8 +59,8 @@ type Customer = {
     paymentStatus: string;
     createdAt: string;
     fulfillment: string;
-  };
-  recentOrders: RecentOrder[];
+  } | null;
+  recentOrders?: RecentOrder[];
 };
 
 type Summary = {
@@ -72,6 +73,8 @@ type Summary = {
   todayActive: number;
   totalRevenue: number;
 };
+
+type NavTab = 'leads' | 'compradores' | 'recorrentes' | 'vips' | 'primeira' | 'hoje' | 'todos' | 'metricas';
 
 export const Route = createFileRoute('/gestao')({
   component: GestaoPage,
@@ -99,11 +102,13 @@ const timeAgo = (iso: string) => {
   if (diffMin < 60) return `Há ${diffMin} min`;
   const diffHours = Math.floor(diffMin / 60);
   if (diffHours < 24) return `Há ${diffHours}h`;
-  const diffDays = Math.floor(diffHours / 24);
+  const diffDays = Math.floor(diffDaysCalc(diffMs));
   if (diffDays === 1) return 'Ontem';
   if (diffDays < 7) return `Há ${diffDays} dias`;
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
+
+const diffDaysCalc = (ms: number) => ms / (1000 * 60 * 60 * 24);
 
 const formatFullDate = (iso: string) => {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -139,24 +144,7 @@ const whatsappCustomerUrl = (phone: string, name: string, status: Customer['stat
   return `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
 };
 
-const orderStatusBadge = (status: string) => {
-  switch (status) {
-    case 'concluido':
-      return { label: 'Concluído', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' };
-    case 'saiu_entrega':
-      return { label: 'Em entrega', color: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' };
-    case 'preparando':
-      return { label: 'Na cozinha', color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
-    case 'confirmado':
-      return { label: 'Confirmado', color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' };
-    case 'cancelado':
-      return { label: 'Cancelado', color: 'bg-rose-500/15 text-rose-300 border-rose-500/30' };
-    default:
-      return { label: status, color: 'bg-slate-700/40 text-slate-300 border-slate-600/30' };
-  }
-};
-
-const SQL_MIGRATION_CODE = `-- Marmitex da Tia Val: Tabela de Leads e Cadastros
+const SQL_MIGRATION_CODE = `-- Tabela de clientes e leads cadastrados no site
 create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),
   phone text not null unique,
@@ -170,86 +158,86 @@ create index if not exists customers_phone_idx on public.customers (phone);
 create index if not exists customers_created_at_idx on public.customers (created_at desc);
 create index if not exists customers_last_seen_at_idx on public.customers (last_seen_at desc);
 
-alter table public.customers enable row level security;`;
+-- Permitir acesso às consultas da aplicação
+alter table public.customers enable row level security;
+create policy "Acesso irrestrito pelo service role" on public.customers
+  for all to service_role using (true) with check (true);
+create policy "Leitura publica customers" on public.customers
+  for select using (true);
+create policy "Gravacao publica customers" on public.customers
+  for insert with check (true);
+create policy "Atualizacao publica customers" on public.customers
+  for update using (true);
+`;
 
-function GestaoPage() {
+export function GestaoPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [loadingLogin, setLoadingLogin] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [hasCustomersTable, setHasCustomersTable] = useState<boolean>(true);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [hasCustomersTable, setHasCustomersTable] = useState(true);
 
+  // Navegação da Sidebar
+  const [activeTab, setActiveTab] = useState<NavTab>('leads');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Busca e Ordenação
   const [searchTerm, setSearchTerm] = useState('');
-  const [tabFilter, setTabFilter] = useState<'todos' | 'vips' | 'recorrentes' | 'primeira' | 'leads' | 'hoje'>('todos');
   const [sortBy, setSortBy] = useState<'recente' | 'pedidos' | 'valor' | 'nome'>('recente');
+
+  // Modais e utilitários
   const [expandedPhone, setExpandedPhone] = useState<string | null>(null);
-
-  // Estados de cópia e modais
-  const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
-  const [copiedSql, setCopiedSql] = useState(false);
   const [showSqlModal, setShowSqlModal] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-
-  // Form de novo cliente manual
-  const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
   const [newNotes, setNewNotes] = useState('');
-  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState('');
 
-  // Carrega clientes
+  // Busca dados de clientes
   const fetchCustomers = useCallback(async (silent = false) => {
     if (!silent) setIsRefreshing(true);
     try {
-      const res = await fetch('/api/admin/customers', { cache: 'no-store' });
+      const res = await fetch('/api/admin/customers');
       if (res.status === 401) {
         setAuthenticated(false);
         setLoading(false);
         setIsRefreshing(false);
         return;
       }
-      if (res.ok) {
-        const data = (await res.json()) as {
-          customers: Customer[];
-          summary: Summary;
-          hasCustomersTable?: boolean;
-        };
-        setCustomers(data.customers || []);
-        setSummary(data.summary || null);
-        if (typeof data.hasCustomersTable === 'boolean') {
-          setHasCustomersTable(data.hasCustomersTable);
-        }
-        setAuthenticated(true);
-        setLastUpdated(new Date());
-      }
+      if (!res.ok) throw new Error('Falha ao carregar dados');
+
+      const data = await res.json();
+      setCustomers(data.customers || []);
+      setSummary(data.summary || null);
+      setHasCustomersTable(data.hasCustomersTable !== false);
+      setAuthenticated(true);
     } catch (err) {
-      console.error('Falha ao carregar clientes:', err);
+      console.warn('Erro ao carregar clientes:', err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
   }, []);
 
-  // Polling em tempo real a cada 4 segundos
+  // Polling automático em tempo real (4 segundos)
   useEffect(() => {
     fetchCustomers();
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       fetchCustomers(true);
     }, 4000);
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [fetchCustomers]);
 
   // Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) return;
-    setLoadingLogin(true);
     setLoginError('');
     try {
       const res = await fetch('/api/admin/login', {
@@ -258,109 +246,100 @@ function GestaoPage() {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        setPassword('');
         setAuthenticated(true);
         fetchCustomers();
       } else {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setLoginError(data.error || 'Senha incorreta.');
+        setLoginError('Senha incorreta.');
       }
     } catch {
-      setLoginError('Erro de conexão ao tentar fazer login.');
-    } finally {
-      setLoadingLogin(false);
+      setLoginError('Erro ao tentar conectar.');
     }
   };
 
   // Logout
   const handleLogout = async () => {
-    try {
-      await fetch('/api/admin/logout', { method: 'POST' });
-    } finally {
-      setAuthenticated(false);
-    }
+    await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
+    setAuthenticated(false);
+    setPassword('');
   };
 
-  // Copiar telefone com feedback
-  const handleCopyPhone = (phone: string) => {
-    const d = phone.replace(/\D/g, '');
-    navigator.clipboard.writeText(d).then(() => {
-      setCopiedPhone(phone);
-      setTimeout(() => setCopiedPhone(null), 2000);
-    });
-  };
-
-  // Copiar SQL de migração
+  // Copiar SQL
   const handleCopySql = () => {
-    navigator.clipboard.writeText(SQL_MIGRATION_CODE).then(() => {
-      setCopiedSql(true);
-      setTimeout(() => setCopiedSql(false), 2500);
-    });
+    navigator.clipboard.writeText(SQL_MIGRATION_CODE);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 2500);
   };
 
-  // Cadastrar cliente manual
-  const handleCreateCustomer = async (e: React.FormEvent) => {
+  // Cadastrar manual
+  const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    const digits = newPhone.replace(/\D/g, '');
-    if (digits.length < 10) {
-      setAddError('Digite o telefone com DDD (mínimo 10 números).');
+    setAddError('');
+    const raw = newPhone.replace(/\D/g, '');
+    if (raw.length < 10) {
+      setAddError('Informe um telefone válido com DDD (mínimo 10 dígitos).');
       return;
     }
-    setSavingCustomer(true);
-    setAddError('');
+    setAddSaving(true);
     try {
       const res = await fetch('/api/admin/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: digits,
+          phone: raw,
           name: newName,
           notes: newNotes,
         }),
       });
-      if (res.ok) {
-        setShowAddModal(false);
-        setNewPhone('');
-        setNewName('');
-        setNewNotes('');
-        await fetchCustomers();
-      } else {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setAddError(data.error || 'Falha ao cadastrar cliente.');
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Não foi possível cadastrar');
       }
-    } catch {
-      setAddError('Erro de conexão.');
+      setShowAddModal(false);
+      setNewName('');
+      setNewPhone('');
+      setNewNotes('');
+      fetchCustomers();
+    } catch (err: any) {
+      setAddError(err.message || 'Erro ao salvar contato.');
     } finally {
-      setSavingCustomer(false);
+      setAddSaving(false);
     }
   };
 
-  // Contadores para as abas
+  // Contadores calculados para as abas da sidebar
   const tabCounts = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+    const leads = customers.filter((c) => c.status === 'lead' || !c.hasPurchased).length;
+    const compradores = customers.filter((c) => c.hasPurchased).length;
+    const vips = customers.filter((c) => c.status === 'vip').length;
+    const recorrentes = customers.filter((c) => c.status === 'recorrente').length;
+    const primeira = customers.filter((c) => c.status === 'primeira_compra').length;
+    const hoje = customers.filter((c) => {
+      const lastSeen = new Date(c.lastSeenAt).getTime();
+      const firstSeen = new Date(c.firstSeenAt).getTime();
+      return lastSeen >= todayStart || firstSeen >= todayStart;
+    }).length;
+
     return {
       todos: customers.length,
-      vips: customers.filter((c) => c.status === 'vip').length,
-      recorrentes: customers.filter((c) => c.status === 'recorrente').length,
-      primeira: customers.filter((c) => c.status === 'primeira_compra').length,
-      leads: customers.filter((c) => c.status === 'lead').length,
-      hoje: customers.filter((c) => {
-        const lastSeen = new Date(c.lastSeenAt).getTime();
-        const firstSeen = new Date(c.firstSeenAt).getTime();
-        return lastSeen >= todayStart || firstSeen >= todayStart;
-      }).length,
+      leads,
+      compradores,
+      vips,
+      recorrentes,
+      primeira,
+      hoje,
     };
   }, [customers]);
 
-  // Filtragem e ordenação dos clientes
+  // Lista filtrada e ordenada de acordo com a aba selecionada na sidebar
   const filteredCustomers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
     const list = customers.filter((c) => {
-      // Busca por nome ou telefone
       const matchesSearch =
         !term ||
         c.name.toLowerCase().includes(term) ||
@@ -369,32 +348,30 @@ function GestaoPage() {
 
       if (!matchesSearch) return false;
 
-      // Filtro de abas
-      if (tabFilter === 'vips') return c.status === 'vip';
-      if (tabFilter === 'recorrentes') return c.status === 'recorrente';
-      if (tabFilter === 'primeira') return c.status === 'primeira_compra';
-      if (tabFilter === 'leads') return c.status === 'lead';
-      if (tabFilter === 'hoje') {
+      if (activeTab === 'leads') return c.status === 'lead' || !c.hasPurchased;
+      if (activeTab === 'compradores') return c.hasPurchased;
+      if (activeTab === 'vips') return c.status === 'vip';
+      if (activeTab === 'recorrentes') return c.status === 'recorrente';
+      if (activeTab === 'primeira') return c.status === 'primeira_compra';
+      if (activeTab === 'hoje') {
         const lastSeen = new Date(c.lastSeenAt).getTime();
         const firstSeen = new Date(c.firstSeenAt).getTime();
         return lastSeen >= todayStart || firstSeen >= todayStart;
       }
-      return true;
+      return true; // 'todos' ou 'metricas'
     });
 
-    // Ordenação
     list.sort((a, b) => {
       if (sortBy === 'pedidos') return b.totalOrders - a.totalOrders;
       if (sortBy === 'valor') return b.totalSpent - a.totalSpent;
       if (sortBy === 'nome') return a.name.localeCompare(b.name);
-      // Padrão: mais recente
       return new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime();
     });
 
     return list;
-  }, [customers, searchTerm, tabFilter, sortBy]);
+  }, [customers, searchTerm, activeTab, sortBy]);
 
-  // Tela de login
+  // Tela de Login
   if (authenticated === false) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-slate-100">
@@ -405,7 +382,7 @@ function GestaoPage() {
             </div>
             <h1 className="mt-4 text-2xl font-black text-white">Tia Val · Gestão</h1>
             <p className="mt-1 text-xs text-slate-400">
-              Acompanhamento de cadastros e clientes em tempo real
+              Painel exclusivo de contatos, clientes e leads em tempo real
             </p>
           </div>
 
@@ -420,74 +397,441 @@ function GestaoPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Digite a senha..."
                 autoFocus
-                className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-3 text-sm font-semibold text-white outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm font-semibold text-white placeholder-slate-500 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
               />
             </div>
-
-            {loginError && (
-              <p className="rounded-lg bg-rose-500/10 p-2.5 text-center text-xs font-bold text-rose-400">
-                {loginError}
-              </p>
-            )}
-
+            {loginError && <p className="text-xs font-semibold text-rose-400">{loginError}</p>}
             <button
               type="submit"
-              disabled={loadingLogin || !password}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 py-3 text-sm font-black text-white shadow-md shadow-rose-900/30 transition hover:brightness-110 active:scale-[.99] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 py-3 text-sm font-black text-white shadow-lg shadow-rose-950/40 transition hover:brightness-110 active:scale-[0.99]"
             >
-              {loadingLogin ? 'Entrando...' : 'Acessar Painel de Gestão'}
+              <span>Acessar Painel de Gestão</span>
+              <ArrowRight className="h-4 w-4" />
             </button>
           </form>
+        </div>
+      </div>
+    );
+  }
 
-          <div className="mt-6 text-center">
-            <Link to="/admin" className="text-xs font-semibold text-slate-400 hover:text-white">
-              ← Voltar ao painel da cozinha
-            </Link>
-          </div>
+  // Carregamento inicial
+  if (loading && authenticated === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-300">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="h-8 w-8 animate-spin text-rose-500" />
+          <p className="text-sm font-bold">Carregando painel de gestão...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0d1117] pb-16 text-slate-100 antialiased">
-      {/* Header Superior Moderno */}
-      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-[#161b22]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+    <div className="flex min-h-screen bg-[#0b0e14] text-slate-100">
+      {/* SIDEBAR LATERAL ESQUERDA (DESKTOP & TABLET) */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-800 bg-[#0f141d] transition-transform duration-200 lg:static lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0 shadow-2xl shadow-black' : '-translate-x-full'
+        }`}
+      >
+        {/* Topo da Sidebar */}
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800 px-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-red-600 via-rose-500 to-amber-500 font-bold text-white shadow-lg shadow-rose-950/40">
-              <Users className="h-6 w-6" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-rose-600 text-white font-black shadow-md shadow-rose-950/50">
+              <Users className="h-4 w-4" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-black tracking-tight text-white">Tia Val · Gestão de Clientes</span>
-                <span className="hidden rounded-full bg-gradient-to-r from-rose-500/20 to-amber-500/20 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-300 border border-amber-500/30 sm:inline-block">
-                  Painel do Dono
+              <h2 className="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                <span>Tia Val</span>
+                <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-rose-300">
+                  Gestão
                 </span>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+              </h2>
+              <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                 </span>
-                <span className="font-semibold text-emerald-400">Ao vivo</span>
-                {lastUpdated && (
-                  <span className="text-slate-400">
-                    · atualizado às {lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
-                )}
+                <span>Ao vivo · 4s</span>
               </div>
             </div>
           </div>
+          {/* Botão fechar sidebar no mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
+        {/* Botão de Adicionar Contato em Destaque */}
+        <div className="p-3 pb-1">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 py-2.5 text-xs font-black text-white shadow-md shadow-rose-950/40 transition hover:brightness-110 active:scale-[0.99]"
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span>+ Novo Cliente / Lead</span>
+          </button>
+        </div>
+
+        {/* Menu de Abas da Sidebar */}
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500">
+            Categorias de Contato
+          </div>
+
+          {/* 1. Leads (Só se cadastrou) - Destaque máximo! */}
+          <button
+            onClick={() => {
+              setActiveTab('leads');
+              setSidebarOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+              activeTab === 'leads'
+                ? 'bg-rose-500/20 text-rose-200 border border-rose-500/40 shadow-sm'
+                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/20 text-rose-400">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <div className="text-left">
+                <span className="block font-black">Só se cadastrou</span>
+                <span className="block text-[10px] font-normal text-rose-300/80">Leads sem compra</span>
+              </div>
+            </div>
+            <span className="rounded-full bg-rose-500/30 px-2 py-0.5 text-[11px] font-black text-rose-200">
+              {tabCounts.leads}
+            </span>
+          </button>
+
+          {/* 2. Compradores */}
+          <button
+            onClick={() => {
+              setActiveTab('compradores');
+              setSidebarOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+              activeTab === 'compradores'
+                ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 shadow-sm'
+                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+                <ShoppingBag className="h-3.5 w-3.5" />
+              </div>
+              <div className="text-left">
+                <span className="block font-black">Já compraram</span>
+                <span className="block text-[10px] font-normal text-slate-400">Clientes com pedidos</span>
+              </div>
+            </div>
+            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-black text-emerald-300">
+              {tabCounts.compradores}
+            </span>
+          </button>
+
+          {/* 3. Recorrentes */}
+          <button
+            onClick={() => {
+              setActiveTab('recorrentes');
+              setSidebarOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+              activeTab === 'recorrentes'
+                ? 'bg-blue-500/20 text-blue-200 border border-blue-500/40 shadow-sm'
+                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
+                <Repeat className="h-3.5 w-3.5" />
+              </div>
+              <div className="text-left">
+                <span className="block font-black">Recorrentes</span>
+                <span className="block text-[10px] font-normal text-slate-400">2 a 4 pedidos</span>
+              </div>
+            </div>
+            <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[11px] font-black text-blue-300">
+              {tabCounts.recorrentes}
+            </span>
+          </button>
+
+          {/* 4. VIPs */}
+          <button
+            onClick={() => {
+              setActiveTab('vips');
+              setSidebarOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+              activeTab === 'vips'
+                ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40 shadow-sm'
+                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
+                <Crown className="h-3.5 w-3.5" />
+              </div>
+              <div className="text-left">
+                <span className="block font-black">Clientes VIPs</span>
+                <span className="block text-[10px] font-normal text-slate-400">5+ marmitas</span>
+              </div>
+            </div>
+            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-black text-amber-300">
+              {tabCounts.vips}
+            </span>
+          </button>
+
+          {/* 5. 1º Pedido */}
+          <button
+            onClick={() => {
+              setActiveTab('primeira');
+              setSidebarOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+              activeTab === 'primeira'
+                ? 'bg-teal-500/20 text-teal-200 border border-teal-500/40 shadow-sm'
+                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-500/20 text-teal-400">
+                <UserCheck className="h-3.5 w-3.5" />
+              </div>
+              <div className="text-left">
+                <span className="block font-black">1º Pedido</span>
+                <span className="block text-[10px] font-normal text-slate-400">Novos compradores</span>
+              </div>
+            </div>
+            <span className="rounded-full bg-teal-500/20 px-2 py-0.5 text-[11px] font-black text-teal-300">
+              {tabCounts.primeira}
+            </span>
+          </button>
+
+          {/* 6. Ativos Hoje */}
+          <button
+            onClick={() => {
+              setActiveTab('hoje');
+              setSidebarOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+              activeTab === 'hoje'
+                ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 shadow-sm'
+                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400">
+                <Clock className="h-3.5 w-3.5" />
+              </div>
+              <div className="text-left">
+                <span className="block font-black">Ativos Hoje</span>
+                <span className="block text-[10px] font-normal text-slate-400">Acessaram hoje</span>
+              </div>
+            </div>
+            <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[11px] font-black text-cyan-300">
+              +{tabCounts.hoje}
+            </span>
+          </button>
+
+          {/* 7. Todos */}
+          <button
+            onClick={() => {
+              setActiveTab('todos');
+              setSidebarOpen(false);
+            }}
+            className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+              activeTab === 'todos'
+                ? 'bg-slate-700/60 text-white border border-slate-600 shadow-sm'
+                : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800 text-slate-300">
+                <Users className="h-3.5 w-3.5" />
+              </div>
+              <div className="text-left">
+                <span className="block font-black">Todos os Contatos</span>
+                <span className="block text-[10px] font-normal text-slate-400">Base completa</span>
+              </div>
+            </div>
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-black text-slate-300">
+              {tabCounts.todos}
+            </span>
+          </button>
+
+          {/* Divisor */}
+          <div className="pt-2">
+            <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500">
+              Painel Financeiro
+            </div>
+
+            {/* 8. Métricas */}
+            <button
+              onClick={() => {
+                setActiveTab('metricas');
+                setSidebarOpen(false);
+              }}
+              className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                activeTab === 'metricas'
+                  ? 'bg-purple-500/20 text-purple-200 border border-purple-500/40 shadow-sm'
+                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/20 text-purple-400">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                </div>
+                <div className="text-left">
+                  <span className="block font-black">Resumo & Métricas</span>
+                  <span className="block text-[10px] font-normal text-slate-400">Faturamento e médias</span>
+                </div>
+              </div>
+              <DollarSign className="h-4 w-4 text-purple-400" />
+            </button>
+          </div>
+        </nav>
+
+        {/* Rodapé da Sidebar */}
+        <div className="shrink-0 border-t border-slate-800 p-3 space-y-1.5 bg-[#0b0e14]">
+          <Link
+            to="/admin"
+            className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <div className="flex items-center gap-2">
+              <Store className="h-4 w-4 text-amber-400" />
+              <span>Painel da Cozinha</span>
+            </div>
+            <ArrowRight className="h-3.5 w-3.5 text-slate-500" />
+          </Link>
+
+          <Link
+            to="/"
+            className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            <div className="flex items-center gap-2">
+              <ExternalLink className="h-4 w-4 text-emerald-400" />
+              <span>Ver Cardápio do Site</span>
+            </div>
+            <span className="text-[10px] text-slate-500">Cliente</span>
+          </Link>
+
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-800/80 py-2 text-xs font-bold text-slate-400 transition hover:bg-rose-950/40 hover:text-rose-300"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Sair do Painel</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* OVERLAY MOBILE DA SIDEBAR */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/70 backdrop-blur-sm lg:hidden"
+        />
+      )}
+
+      {/* ÁREA PRINCIPAL DA DIREITA */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header Superior da Área Principal */}
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-slate-800 bg-[#0f141d]/90 px-4 backdrop-blur-md sm:px-6">
+          <div className="flex items-center gap-3">
+            {/* Botão de abrir menu no mobile */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="rounded-xl border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:text-white lg:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            {/* Título dinâmico da aba ativa */}
+            <div>
+              <h1 className="text-base font-black text-white sm:text-lg flex items-center gap-2">
+                {activeTab === 'leads' && (
+                  <>
+                    <Sparkles className="h-5 w-5 text-rose-400" />
+                    <span>Só se cadastraram (Leads)</span>
+                  </>
+                )}
+                {activeTab === 'compradores' && (
+                  <>
+                    <ShoppingBag className="h-5 w-5 text-emerald-400" />
+                    <span>Clientes Compradores</span>
+                  </>
+                )}
+                {activeTab === 'recorrentes' && (
+                  <>
+                    <Repeat className="h-5 w-5 text-blue-400" />
+                    <span>Clientes Recorrentes (2 a 4 pedidos)</span>
+                  </>
+                )}
+                {activeTab === 'vips' && (
+                  <>
+                    <Crown className="h-5 w-5 text-amber-400" />
+                    <span>Clientes VIPs (5+ pedidos)</span>
+                  </>
+                )}
+                {activeTab === 'primeira' && (
+                  <>
+                    <UserCheck className="h-5 w-5 text-teal-400" />
+                    <span>Primeira Compra</span>
+                  </>
+                )}
+                {activeTab === 'hoje' && (
+                  <>
+                    <Clock className="h-5 w-5 text-cyan-400" />
+                    <span>Contatos Ativos Hoje</span>
+                  </>
+                )}
+                {activeTab === 'todos' && (
+                  <>
+                    <Users className="h-5 w-5 text-slate-300" />
+                    <span>Todos os Contatos Cadastrados</span>
+                  </>
+                )}
+                {activeTab === 'metricas' && (
+                  <>
+                    <TrendingUp className="h-5 w-5 text-purple-400" />
+                    <span>Resumo Geral & Métricas</span>
+                  </>
+                )}
+              </h1>
+              <p className="text-[11px] text-slate-400 hidden sm:block">
+                {activeTab === 'leads' &&
+                  'Pessoas que digitaram o telefone no site mas ainda não fecharam marmita. Chame no WhatsApp com uma oferta rápida!'}
+                {activeTab === 'compradores' &&
+                  'Base completa de quem já pediu na Tia Val. Acompanhe frequência e ticket de compra.'}
+                {activeTab === 'recorrentes' &&
+                  'Clientes que já pediram de 2 a 4 vezes e gostam do tempero.'}
+                {activeTab === 'vips' &&
+                  'Seus clientes mais fiéis de marmita (5 ou mais pedidos). Merecem atenção especial!'}
+                {activeTab === 'primeira' &&
+                  'Compraram pela 1ª vez recentemente. Ótimo momento para pedir avaliação e fidelizar.'}
+                {activeTab === 'hoje' &&
+                  'Pessoas que interagiram com o site ou fizeram pedidos hoje.'}
+                {activeTab === 'todos' &&
+                  'Visão unificada de toda a base de números cadastrados no sistema.'}
+                {activeTab === 'metricas' &&
+                  'Indicadores financeiros, volume de vendas e taxa de conversão.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Ações do Header */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-3 py-2 text-xs font-bold text-white shadow-md shadow-rose-950/40 transition hover:brightness-110 active:scale-95"
             >
               <PlusCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">+ Novo Cliente / Lead</span>
-              <span className="sm:hidden">+ Novo</span>
+              <span className="hidden sm:inline">+ Novo</span>
             </button>
 
             <button
@@ -498,627 +842,457 @@ function GestaoPage() {
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-rose-400' : ''}`} />
             </button>
-
-            <Link
-              to="/admin"
-              className="hidden items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-slate-700 hover:text-white md:flex"
-            >
-              <Store className="h-3.5 w-3.5 text-amber-400" />
-              <span>Cozinha</span>
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              title="Sair do painel"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-400 transition hover:bg-rose-950/40 hover:text-rose-300"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
-        {/* Banner de Aviso de Ativação do Supabase caso a tabela de leads não exista */}
-        {!hasCustomersTable && (
-          <div className="mb-6 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-4 sm:p-5 text-amber-200 shadow-lg">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
-                  <AlertTriangle className="h-5 w-5" />
+        {/* Conteúdo com Scroll */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {/* BANNER DO SUPABASE CASO A TABELA NÃO EXISTA */}
+          {!hasCustomersTable && (
+            <div className="mb-6 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent p-4 sm:p-5 text-amber-200 shadow-xl">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-amber-100 text-sm sm:text-base">
+                      Crie a tabela customers no Supabase para listar quem só se cadastra
+                    </h3>
+                    <p className="mt-0.5 text-xs text-amber-300/90 leading-relaxed max-w-2xl">
+                      Os compradores que já pediram marmita aparecem normalmente. Mas para salvar e listar as pessoas que apenas colocam o telefone no site sem comprar (leads), execute a query SQL no editor do seu Supabase.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-black text-amber-100 text-sm sm:text-base">
-                    Ative a captura de novos números sem pedido (Leads)
-                  </h3>
-                  <p className="mt-0.5 text-xs text-amber-300/90 leading-relaxed">
-                    Os 61 clientes que já compraram aparecem normalmente abaixo. Para registrar também quem apenas digita o telefone para olhar o cardápio (sem comprar), crie a tabela <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-amber-200">customers</code> no seu Supabase.
+
+                <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
+                  <button
+                    onClick={handleCopySql}
+                    className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-4 py-2.5 text-xs font-black text-slate-950 shadow-md transition hover:bg-amber-300 active:scale-95"
+                  >
+                    {copiedSql ? (
+                      <>
+                        <Check className="h-4 w-4 text-emerald-950" />
+                        <span>SQL Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        <span>Copiar SQL</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setShowSqlModal(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-amber-400/40 bg-black/40 px-3.5 py-2.5 text-xs font-bold text-amber-200 hover:bg-black/60"
+                  >
+                    <FileCode2 className="h-4 w-4" />
+                    <span>Ver Código</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VISÃO ESPECÍFICA: RESUMO & MÉTRICAS */}
+          {activeTab === 'metricas' && summary && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-2xl border border-slate-800 bg-[#141922] p-5">
+                  <p className="text-xs font-bold text-slate-400">Total de Cadastros</p>
+                  <p className="mt-2 text-3xl font-black text-white">{summary.totalCustomers}</p>
+                  <p className="mt-1 text-xs text-slate-500">Base total identificada</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
+                  <p className="text-xs font-bold text-emerald-400">Já Compraram</p>
+                  <p className="mt-2 text-3xl font-black text-emerald-300">{summary.totalPurchasers}</p>
+                  <p className="mt-1 text-xs text-emerald-400/70">
+                    {summary.totalCustomers > 0
+                      ? `${Math.round((summary.totalPurchasers / summary.totalCustomers) * 100)}% de conversão`
+                      : '0%'}
                   </p>
                 </div>
+                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5">
+                  <p className="text-xs font-bold text-rose-400">Só se Cadastraram (Leads)</p>
+                  <p className="mt-2 text-3xl font-black text-rose-300">{summary.totalLeads}</p>
+                  <p className="mt-1 text-xs text-rose-400/70">Oportunidade para WhatsApp</p>
+                </div>
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+                  <p className="text-xs font-bold text-amber-400">Clientes VIPs</p>
+                  <p className="mt-2 text-3xl font-black text-amber-300">{tabCounts.vips}</p>
+                  <p className="mt-1 text-xs text-amber-400/70">5 ou mais marmitas pedidas</p>
+                </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
-                <button
-                  onClick={handleCopySql}
-                  className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-2 text-xs font-black text-slate-950 shadow-md transition hover:bg-amber-300 active:scale-95"
-                >
-                  {copiedSql ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-900" />
-                      <span>Copiado!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5" />
-                      <span>Copiar SQL</span>
-                    </>
+              <div className="rounded-2xl border border-slate-800 bg-[#141922] p-6">
+                <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-emerald-400" />
+                  <span>Desempenho Financeiro Acumulado</span>
+                </h3>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4">
+                    <p className="text-xs text-slate-400 font-medium">Faturamento Total dos Pedidos</p>
+                    <p className="mt-1 text-2xl font-black text-emerald-400">{formatMoney(summary.totalRevenue)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4">
+                    <p className="text-xs text-slate-400 font-medium">Ticket Médio por Comprador</p>
+                    <p className="mt-1 text-2xl font-black text-blue-400">
+                      {summary.totalPurchasers > 0
+                        ? formatMoney(summary.totalRevenue / summary.totalPurchasers)
+                        : 'R$ 0,00'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4">
+                    <p className="text-xs text-slate-400 font-medium">Cadastros / Pedidos Hoje</p>
+                    <p className="mt-1 text-2xl font-black text-cyan-400">+{summary.todayActive}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VISÃO DE LISTA DE CLIENTES / LEADS */}
+          {activeTab !== 'metricas' && (
+            <div className="space-y-4">
+              {/* Barra de Filtro e Busca Rápida */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-800 bg-[#141922] p-3.5">
+                {/* Input de Busca */}
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar por nome, DDD ou número..."
+                    className="w-full rounded-xl border border-slate-700/80 bg-slate-900 pl-10 pr-10 py-2 text-sm font-semibold text-white placeholder-slate-500 outline-none transition focus:border-rose-500"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   )}
-                </button>
+                </div>
 
-                <button
-                  onClick={() => setShowSqlModal(true)}
-                  className="flex items-center gap-1 rounded-xl border border-amber-400/40 bg-black/30 px-3 py-2 text-xs font-bold text-amber-200 hover:bg-black/50"
-                >
-                  <FileCode2 className="h-3.5 w-3.5" />
-                  <span>Ver código</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Resumo / Métricas com visual Premium */}
-        {summary && (
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-            {/* Total de Clientes */}
-            <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#161b22] p-4 shadow-sm transition hover:border-slate-700">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Total Clientes</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
-                  <Users className="h-4 w-4" />
+                {/* Ordenação */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                    <ArrowUpDown className="h-3.5 w-3.5" /> Ordenar:
+                  </span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="rounded-xl border border-slate-700/80 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-rose-500"
+                  >
+                    <option value="recente">Mais recente primeiro</option>
+                    <option value="pedidos">Mais pedidos</option>
+                    <option value="valor">Maior valor gasto (R$)</option>
+                    <option value="nome">Nome (A - Z)</option>
+                  </select>
                 </div>
               </div>
-              <p className="mt-2 text-2xl font-black text-white sm:text-3xl">{summary.totalCustomers}</p>
-              <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
-                <span className="font-bold text-emerald-400">{summary.totalPurchasers}</span> compradores
-              </div>
-            </div>
 
-            {/* Clientes VIPs */}
-            <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-[#161b22] p-4 shadow-sm transition hover:border-amber-500/50">
-              <div className="flex items-center justify-between text-amber-300">
-                <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">Clientes VIPs</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300">
-                  <Crown className="h-4 w-4" />
+              {/* Informação do grupo */}
+              <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                <span>
+                  Mostrando <strong className="text-white">{filteredCustomers.length}</strong> contatos nesta aba
+                </span>
+                {searchTerm && (
+                  <span>
+                    Filtrado por: <strong className="text-rose-400">"{searchTerm}"</strong>
+                  </span>
+                )}
+              </div>
+
+              {/* Lista Vazia */}
+              {filteredCustomers.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-slate-800 bg-[#141922]/50 p-12 text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-slate-500">
+                    <Users className="h-7 w-7" />
+                  </div>
+                  <h3 className="mt-4 text-base font-bold text-white">Nenhum contato encontrado</h3>
+                  <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
+                    {searchTerm
+                      ? 'Nenhum resultado corresponde à sua busca. Tente buscar outro nome ou telefone.'
+                      : activeTab === 'leads'
+                      ? 'Ainda não há leads registrados sem compra. Assim que alguém digitar o telefone no site ou você cadastrar manualmente, aparecerá aqui.'
+                      : 'Nenhum cliente nessa categoria no momento.'}
+                  </p>
+                  {activeTab === 'leads' && !hasCustomersTable && (
+                    <button
+                      onClick={() => setShowSqlModal(true)}
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-xs font-black text-slate-950 hover:bg-amber-300"
+                    >
+                      <Copy className="h-4 w-4" />
+                      <span>Ver SQL para Ativar Leads</span>
+                    </button>
+                  )}
                 </div>
-              </div>
-              <p className="mt-2 text-2xl font-black text-amber-300 sm:text-3xl">
-                {summary.totalVips ?? customers.filter((c) => c.status === 'vip').length}
-              </p>
-              <p className="mt-1 text-[11px] text-amber-400/80 font-medium">5+ pedidos cada</p>
-            </div>
-
-            {/* Novos / Ativos Hoje */}
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-emerald-500/5 to-[#161b22] p-4 shadow-sm transition hover:border-emerald-500/50">
-              <div className="flex items-center justify-between text-emerald-300">
-                <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">Ativos Hoje</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
-                  <UserPlus className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-black text-emerald-400 sm:text-3xl">
-                +{summary.todayActive}
-              </p>
-              <p className="mt-1 text-[11px] text-emerald-400/80 font-medium">
-                {summary.todayNew > 0 ? `+${summary.todayNew} cadastros novos` : 'Clientes ativos hoje'}
-              </p>
-            </div>
-
-            {/* Leads no Site */}
-            <div className="relative overflow-hidden rounded-2xl border border-rose-500/30 bg-gradient-to-b from-rose-500/5 to-[#161b22] p-4 shadow-sm transition hover:border-rose-500/50">
-              <div className="flex items-center justify-between text-rose-300">
-                <span className="text-[11px] font-black uppercase tracking-wider text-rose-400">Leads no Site</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/15 text-rose-300">
-                  <Sparkles className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="mt-2 text-2xl font-black text-rose-300 sm:text-3xl">{summary.totalLeads}</p>
-              <p className="mt-1 text-[11px] text-rose-400/80 font-medium">Sem pedido feito ainda</p>
-            </div>
-
-            {/* Faturamento Acumulado */}
-            <div className="col-span-2 sm:col-span-4 lg:col-span-1 relative overflow-hidden rounded-2xl border border-slate-800 bg-[#161b22] p-4 shadow-sm transition hover:border-slate-700">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Total Faturado</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-                  <DollarSign className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="mt-2 text-xl font-black text-emerald-400 sm:text-2xl">
-                {formatMoney(summary.totalRevenue)}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-400">
-                Média: {summary.totalPurchasers > 0 ? formatMoney(summary.totalRevenue / summary.totalPurchasers) : 'R$ 0,00'}/cliente
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Barra de Filtros, Busca e Ordenação */}
-        <div className="mb-6 space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* Campo de Busca */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nome, DDD ou número..."
-                className="w-full rounded-xl border border-slate-700/80 bg-[#161b22] pl-10 pr-10 py-2.5 text-sm font-semibold text-white placeholder-slate-500 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
               )}
-            </div>
 
-            {/* Ordenação */}
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                <ArrowUpDown className="h-3.5 w-3.5" /> Ordenar:
-              </span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="rounded-xl border border-slate-700/80 bg-[#161b22] px-3 py-2 text-xs font-bold text-slate-200 outline-none focus:border-rose-500"
-              >
-                <option value="recente">Mais recentes primeiro</option>
-                <option value="pedidos">Mais pedidos feitos</option>
-                <option value="valor">Maior valor gasto (R$)</option>
-                <option value="nome">Nome (A - Z)</option>
-              </select>
-            </div>
-          </div>
+              {/* Grid de Cards de Contatos */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredCustomers.map((c) => {
+                  const isLead = c.status === 'lead' || !c.hasPurchased;
+                  const isExpanded = expandedPhone === c.phone;
 
-          {/* Abas de Filtro com badges */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setTabFilter('todos')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                tabFilter === 'todos'
-                  ? 'bg-rose-600 text-white shadow-md shadow-rose-950/40'
-                  : 'border border-slate-800 bg-[#161b22] text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <span>Todos</span>
-              <span className="rounded-full bg-black/30 px-1.5 py-0.2 text-[10px] font-black">
-                {tabCounts.todos}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setTabFilter('vips')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                tabFilter === 'vips'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-950/40'
-                  : 'border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-              }`}
-            >
-              <Crown className="h-3 w-3" />
-              <span>VIPs (5+)</span>
-              <span className="rounded-full bg-black/30 px-1.5 py-0.2 text-[10px] font-black">
-                {tabCounts.vips}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setTabFilter('recorrentes')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                tabFilter === 'recorrentes'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-950/40'
-                  : 'border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
-              }`}
-            >
-              <Repeat className="h-3 w-3" />
-              <span>Recorrentes (2 a 4)</span>
-              <span className="rounded-full bg-black/30 px-1.5 py-0.2 text-[10px] font-black">
-                {tabCounts.recorrentes}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setTabFilter('primeira')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                tabFilter === 'primeira'
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
-                  : 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-              }`}
-            >
-              <ShoppingBag className="h-3 w-3" />
-              <span>1º Pedido</span>
-              <span className="rounded-full bg-black/30 px-1.5 py-0.2 text-[10px] font-black">
-                {tabCounts.primeira}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setTabFilter('leads')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                tabFilter === 'leads'
-                  ? 'bg-rose-500 text-white shadow-md shadow-rose-950/40'
-                  : 'border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
-              }`}
-            >
-              <Sparkles className="h-3 w-3" />
-              <span>Leads (Sem pedido)</span>
-              <span className="rounded-full bg-black/30 px-1.5 py-0.2 text-[10px] font-black">
-                {tabCounts.leads}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setTabFilter('hoje')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                tabFilter === 'hoje'
-                  ? 'bg-slate-200 text-slate-900 font-black shadow-md'
-                  : 'border border-slate-800 bg-[#161b22] text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <Clock className="h-3 w-3" />
-              <span>Ativos Hoje</span>
-              <span className="rounded-full bg-black/30 px-1.5 py-0.2 text-[10px] font-black">
-                {tabCounts.hoje}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Lista de Clientes em Cards Modernos ("Fácil de ver cada um") */}
-        <div className="space-y-3.5">
-          {filteredCustomers.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-800 bg-[#161b22]/50 py-16 text-center text-slate-400">
-              <Users className="mx-auto h-12 w-12 text-slate-600" />
-              <p className="mt-3 text-lg font-bold text-slate-200">Nenhum cliente encontrado</p>
-              <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
-                {searchTerm
-                  ? 'Tente buscar com outro nome ou número de telefone.'
-                  : 'Assim que novos clientes acessarem ou fizerem pedidos, aparecerão aqui automaticamente.'}
-              </p>
-            </div>
-          ) : (
-            filteredCustomers.map((customer) => {
-              const isExpanded = expandedPhone === customer.phone;
-              const isLead = !customer.hasPurchased;
-
-              // Cor temática do card baseado no status
-              let badgeTheme = {
-                badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-                badgeText: '1º Pedido Feito',
-                avatarBg: 'bg-gradient-to-tr from-emerald-600 to-teal-500 text-white',
-                borderHover: 'hover:border-emerald-500/40',
-              };
-
-              if (customer.status === 'vip') {
-                badgeTheme = {
-                  badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-                  badgeText: `👑 VIP · ${customer.totalOrders} pedidos`,
-                  avatarBg: 'bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 font-black',
-                  borderHover: 'hover:border-amber-500/50',
-                };
-              } else if (customer.status === 'recorrente') {
-                badgeTheme = {
-                  badgeBg: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-                  badgeText: `🔄 Recorrente · ${customer.totalOrders} pedidos`,
-                  avatarBg: 'bg-gradient-to-tr from-blue-600 to-indigo-500 text-white',
-                  borderHover: 'hover:border-blue-500/40',
-                };
-              } else if (customer.status === 'lead') {
-                badgeTheme = {
-                  badgeBg: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-                  badgeText: '🎯 Lead · Ainda não pediu',
-                  avatarBg: 'bg-gradient-to-tr from-rose-600 to-red-500 text-white',
-                  borderHover: 'hover:border-rose-500/40',
-                };
-              }
-
-              const initialLetter =
-                customer.name && customer.name !== 'Cliente' && customer.name !== 'Interessado (Lead)'
-                  ? customer.name.charAt(0).toUpperCase()
-                  : 'C';
-
-              return (
-                <div
-                  key={customer.phone}
-                  className={`overflow-hidden rounded-2xl border border-slate-800 bg-[#161b22] p-4 sm:p-5 shadow-sm transition-all duration-200 ${badgeTheme.borderHover}`}
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    {/* Bloco 1: Avatar, Nome, Status e Telefone */}
-                    <div className="flex items-start gap-3.5">
-                      <div
-                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-black shadow-md ${badgeTheme.avatarBg}`}
-                      >
-                        {initialLetter}
-                      </div>
-
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
-                            {customer.name}
-                          </h3>
-                          <span
-                            className={`rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold ${badgeTheme.badgeBg}`}
-                          >
-                            {badgeTheme.badgeText}
-                          </span>
-                        </div>
-
-                        <div className="mt-1 flex flex-wrap items-center gap-2.5 text-xs text-slate-400">
-                          {/* Telefone com botão de cópia rápida */}
-                          <div className="flex items-center gap-1 font-mono font-bold text-slate-200 bg-black/40 px-2 py-0.5 rounded-lg border border-slate-800">
-                            <span>{formatPhone(customer.phone)}</span>
-                            <button
-                              onClick={() => handleCopyPhone(customer.phone)}
-                              title="Copiar número"
-                              className="ml-1 text-slate-400 hover:text-white transition"
+                  return (
+                    <div
+                      key={c.phone}
+                      className={`relative flex flex-col justify-between overflow-hidden rounded-2xl border transition hover:border-slate-700 ${
+                        isLead
+                          ? 'border-rose-500/30 bg-[#141822]'
+                          : c.status === 'vip'
+                          ? 'border-amber-500/30 bg-[#151720]'
+                          : 'border-slate-800 bg-[#141922]'
+                      }`}
+                    >
+                      {/* Topo do Card */}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          {/* Avatar e Identificação */}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-black text-sm shadow-sm ${
+                                isLead
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                  : c.status === 'vip'
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : c.status === 'recorrente'
+                                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              }`}
                             >
-                              {copiedPhone === customer.phone ? (
-                                <Check className="h-3.5 w-3.5 text-emerald-400" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5" />
-                              )}
-                            </button>
+                              {c.name ? c.name.charAt(0).toUpperCase() : <Phone className="h-4 w-4" />}
+                            </div>
+
+                            <div className="min-w-0">
+                              <h3 className="truncate font-black text-white text-sm">
+                                {c.name || 'Cliente Sem Nome'}
+                              </h3>
+                              <p className="font-mono text-xs font-bold text-slate-300">
+                                {formatPhone(c.phone)}
+                              </p>
+                            </div>
                           </div>
 
-                          <span>·</span>
-                          <span
-                            className="flex items-center gap-1 text-slate-400"
-                            title={formatFullDate(customer.lastSeenAt)}
-                          >
-                            <Clock className="h-3.5 w-3.5 text-slate-500" />
-                            {timeAgo(customer.lastSeenAt)}
-                          </span>
-
-                          {customer.notes && (
-                            <>
-                              <span>·</span>
-                              <span className="italic text-slate-400">"{customer.notes}"</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bloco 2: Mini Indicadores (Gasto, Pedidos, Ticket Médio) */}
-                    <div className="grid grid-cols-3 gap-2 rounded-xl bg-black/30 p-2.5 border border-slate-800/80 text-center sm:gap-4 sm:px-4">
-                      <div>
-                        <span className="block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                          Total Gasto
-                        </span>
-                        <span className="text-sm font-black text-emerald-400 sm:text-base">
-                          {formatMoney(customer.totalSpent)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                          Pedidos
-                        </span>
-                        <span className="text-sm font-black text-white sm:text-base">
-                          {customer.totalOrders}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                          Média/Ped.
-                        </span>
-                        <span className="text-sm font-black text-slate-300 sm:text-base">
-                          {customer.totalOrders > 0
-                            ? formatMoney(customer.totalSpent / customer.totalOrders)
-                            : '—'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Bloco 3: Botões de Ação Imediata (WhatsApp, Ligar, Ver Pedidos) */}
-                    <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
-                      {/* WhatsApp com mensagem inteligente */}
-                      <a
-                        href={
-                          isLead
-                            ? whatsappLeadUrl(customer.phone, customer.name)
-                            : whatsappCustomerUrl(customer.phone, customer.name, customer.status)
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] px-3.5 py-2 text-xs font-black text-slate-950 shadow-md shadow-emerald-950/40 transition active:scale-95"
-                      >
-                        <MessageCircle className="h-4 w-4 fill-slate-950" />
-                        <span>Chamar no WhatsApp</span>
-                      </a>
-
-                      {/* Ligar */}
-                      <a
-                        href={`tel:${customer.phone.replace(/\D/g, '')}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition hover:bg-slate-700 hover:text-white"
-                        title="Ligar para o cliente"
-                      >
-                        <Phone className="h-4 w-4" />
-                      </a>
-
-                      {/* Abrir Histórico de Pedidos */}
-                      {customer.recentOrders.length > 0 && (
-                        <button
-                          onClick={() =>
-                            setExpandedPhone(isExpanded ? null : customer.phone)
-                          }
-                          className="flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-slate-700 hover:text-white"
-                        >
-                          <ShoppingBag className="h-3.5 w-3.5 text-rose-400" />
-                          <span>{customer.totalOrders} pedidos</span>
-                          {isExpanded ? (
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          ) : (
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Resumo do Último Pedido (Visível sempre se houver) */}
-                  {customer.lastOrder && !isExpanded && (
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/20 px-3 py-2 text-xs text-slate-400 border border-slate-800/60">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-300">
-                          Último pedido: #{customer.lastOrder.code}
-                        </span>
-                        <span>·</span>
-                        <span className="font-bold text-emerald-400">
-                          {formatMoney(customer.lastOrder.total)}
-                        </span>
-                        <span>·</span>
-                        <span>{timeAgo(customer.lastOrder.createdAt)}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${
-                            orderStatusBadge(customer.lastOrder.orderStatus).color
-                          }`}
-                        >
-                          {orderStatusBadge(customer.lastOrder.orderStatus).label}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Histórico Completo Expansível */}
-                  {isExpanded && (
-                    <div className="mt-4 border-t border-slate-800/80 pt-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-                          Histórico Recente de Pedidos ({customer.recentOrders.length})
-                        </span>
-                      </div>
-
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {customer.recentOrders.map((ord) => {
-                          const badge = orderStatusBadge(ord.orderStatus);
-                          return (
-                            <div
-                              key={ord.code}
-                              className="flex items-center justify-between rounded-xl border border-slate-800 bg-black/40 p-2.5 text-xs"
-                            >
-                              <div>
-                                <span className="font-black text-white">Pedido #{ord.code}</span>
-                                <span className="ml-2 font-bold text-emerald-400">
-                                  {formatMoney(ord.total)}
-                                </span>
-                                <p className="text-[11px] text-slate-500">
-                                  {formatFullDate(ord.createdAt)} ({timeAgo(ord.createdAt)})
-                                </p>
-                              </div>
-
-                              <span
-                                className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${badge.color}`}
-                              >
-                                {badge.label}
+                          {/* Badge de Status */}
+                          <div className="shrink-0">
+                            {isLead && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase text-rose-300">
+                                <Sparkles className="h-3 w-3" />
+                                <span>Lead</span>
                               </span>
+                            )}
+                            {c.status === 'vip' && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase text-amber-300">
+                                <Crown className="h-3 w-3" />
+                                <span>VIP</span>
+                              </span>
+                            )}
+                            {c.status === 'recorrente' && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/40 bg-blue-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase text-blue-300">
+                                <Repeat className="h-3 w-3" />
+                                <span>Recorrente</span>
+                              </span>
+                            )}
+                            {c.status === 'primeira_compra' && !isLead && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase text-emerald-300">
+                                <ShoppingBag className="h-3 w-3" />
+                                <span>1º Pedido</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Estatísticas do Contato */}
+                        <div className="mt-3.5 grid grid-cols-2 gap-2 rounded-xl bg-slate-900/80 p-2.5 text-xs">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-bold uppercase">
+                              Pedidos Feitos
+                            </span>
+                            <span className="font-black text-white">
+                              {c.totalOrders > 0 ? `${c.totalOrders} marmitas` : 'Nenhum pedido'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-bold uppercase">
+                              Total Gasto
+                            </span>
+                            <span className="font-black text-emerald-400">
+                              {c.totalSpent > 0 ? formatMoney(c.totalSpent) : 'R$ 0,00'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Tempo do Último Acesso */}
+                        <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-slate-500" />
+                            <span>Visto {timeAgo(c.lastSeenAt)}</span>
+                          </span>
+                          <span className="text-slate-500">
+                            Cadastrado {new Date(c.firstSeenAt).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+
+                        {/* Último Pedido / Notas */}
+                        {c.lastOrder && (
+                          <div className="mt-2.5 rounded-lg border border-slate-800 bg-slate-900/40 p-2 text-[11px]">
+                            <div className="flex items-center justify-between font-bold text-slate-300">
+                              <span>Último: #{c.lastOrder.code}</span>
+                              <span className="text-emerald-400">{formatMoney(c.lastOrder.total)}</span>
                             </div>
-                          );
-                        })}
+                            <div className="mt-0.5 flex items-center justify-between text-slate-400 text-[10px]">
+                              <span>Status: {c.lastOrder.orderStatus}</span>
+                              <span>{formatFullDate(c.lastOrder.createdAt)}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {c.notes && (
+                          <div className="mt-2 rounded-lg bg-slate-800/60 p-2 text-[11px] text-slate-300 italic">
+                            "{c.notes}"
+                          </div>
+                        )}
+
+                        {/* Histórico Expansível se houver pedidos */}
+                        {c.recentOrders && c.recentOrders.length > 1 && (
+                          <div className="mt-2.5">
+                            <button
+                              onClick={() => setExpandedPhone(isExpanded ? null : c.phone)}
+                              className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-white"
+                            >
+                              <span>Ver todos os {c.recentOrders.length} pedidos</span>
+                              {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                            </button>
+
+                            {isExpanded && (
+                              <div className="mt-2 space-y-1 rounded-lg border border-slate-800 bg-slate-900/90 p-2 text-[11px]">
+                                {c.recentOrders.map((ro) => (
+                                  <div
+                                    key={ro.code}
+                                    className="flex items-center justify-between py-1 border-b border-slate-800 last:border-0"
+                                  >
+                                    <span className="font-bold text-white">#{ro.code}</span>
+                                    <span className="text-slate-400">{formatFullDate(ro.createdAt)}</span>
+                                    <span className="font-bold text-emerald-400">{formatMoney(ro.total)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Botões de Ação do Card */}
+                      <div className="border-t border-slate-800 bg-[#0f131a] p-3 flex items-center gap-2">
+                        {/* WhatsApp com mensagem inteligente */}
+                        <a
+                          href={isLead ? whatsappLeadUrl(c.phone, c.name) : whatsappCustomerUrl(c.phone, c.name, c.status)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 py-2.5 text-xs font-black text-white shadow-md shadow-emerald-950/40 transition active:scale-95"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          <span>Chamar no WhatsApp</span>
+                        </a>
+
+                        {/* Ligação telefônica direta */}
+                        <a
+                          href={`tel:${c.phone}`}
+                          title="Ligar para o cliente"
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition active:scale-95"
+                        >
+                          <Phone className="h-4 w-4" />
+                        </a>
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })
+                  );
+                })}
+              </div>
+            </div>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
 
-      {/* Modal de Cadastro Manual de Cliente */}
+      {/* MODAL: CADASTRAR NOVO CLIENTE / LEAD */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-[#161b22] p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
                 <PlusCircle className="h-5 w-5 text-rose-500" />
-                <h3 className="font-black text-white text-base">Novo Cliente ou Lead</h3>
-              </div>
+                <span>Adicionar Novo Contato</span>
+              </h3>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="rounded-lg p-1 text-slate-400 hover:text-white"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateCustomer} className="mt-4 space-y-3.5">
+            <form onSubmit={handleAddCustomer} className="mt-4 space-y-3.5">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                  WhatsApp ou Telefone com DDD *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                  placeholder="(33) 99487-5161"
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-rose-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Nome do Cliente (Opcional)
+                  Nome do Contato
                 </label>
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Ex: Erick Charles"
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:border-rose-500"
+                  placeholder="Ex: João da Silva"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-rose-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Observações (Opcional)
+                  Telefone com DDD <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  placeholder="(31) 99999-9999"
+                  required
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Observações / Como Conheceu
                 </label>
                 <textarea
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
-                  placeholder="Ex: Cliente pediu pelo WhatsApp, gosta de marmita média sem cebola..."
+                  placeholder="Ex: Lead do Instagram, pediu para mandar cardápio..."
                   rows={2}
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-white outline-none focus:border-rose-500 resize-none"
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-rose-500"
                 />
               </div>
 
-              {addError && (
-                <p className="rounded-lg bg-rose-500/10 p-2 text-xs font-bold text-rose-400">
-                  {addError}
-                </p>
-              )}
+              {addError && <p className="text-xs font-bold text-rose-400">{addError}</p>}
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 rounded-xl border border-slate-700 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                  className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={savingCustomer}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 py-2.5 text-xs font-black text-white hover:brightness-110 disabled:opacity-50"
+                  disabled={addSaving}
+                  className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-5 py-2 text-xs font-black text-white hover:brightness-110 active:scale-95 disabled:opacity-50"
                 >
-                  {savingCustomer ? 'Salvando...' : 'Salvar Cliente'}
+                  {addSaving ? 'Salvando...' : 'Salvar Contato'}
                 </button>
               </div>
             </form>
@@ -1126,57 +1300,56 @@ function GestaoPage() {
         </div>
       )}
 
-      {/* Modal de Código SQL da Tabela Supabase */}
+      {/* MODAL: CÓDIGO SQL DA MIGRAÇÃO DO SUPABASE */}
       {showSqlModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-3xl border border-slate-800 bg-[#161b22] p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-[#161b22] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <FileCode2 className="h-5 w-5 text-amber-400" />
-                <h3 className="font-black text-white text-base">Código SQL da Tabela customers</h3>
+                <h3 className="text-base font-black text-white">SQL para Criar a Tabela no Supabase</h3>
               </div>
               <button
                 onClick={() => setShowSqlModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="rounded-lg p-1 text-slate-400 hover:text-white"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="mt-3 text-xs text-slate-300 leading-relaxed">
-              Abra seu <strong>Supabase</strong> no navegador, clique em <strong>SQL Editor</strong> no menu lateral esquerdo, cole o código abaixo e clique em <strong>Run</strong>. Leva menos de 30 segundos:
-            </p>
+            <div className="mt-4">
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Abra o <strong>SQL Editor</strong> no painel do seu Supabase, cole o código abaixo e clique em <strong>Run</strong>. Isso cria a tabela <code className="text-amber-300">customers</code> necessária para gravar e listar todas as pessoas que se cadastram no site sem comprar.
+              </p>
 
-            <div className="relative mt-3 rounded-2xl bg-black/70 p-4 border border-slate-800">
-              <pre className="text-[11px] font-mono text-emerald-300 overflow-x-auto whitespace-pre leading-relaxed">
-                {SQL_MIGRATION_CODE}
-              </pre>
-            </div>
+              <div className="mt-3 relative rounded-xl border border-slate-800 bg-black/60 p-4 font-mono text-xs text-amber-200 overflow-x-auto max-h-72">
+                <pre>{SQL_MIGRATION_CODE}</pre>
+              </div>
 
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={handleCopySql}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-400 py-2.5 text-xs font-black text-slate-950 hover:bg-amber-300"
-              >
-                {copiedSql ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    <span>Copiado com Sucesso!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4" />
-                    <span>Copiar Comando SQL</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => setShowSqlModal(false)}
-                className="rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
-              >
-                Fechar
-              </button>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button
+                  onClick={handleCopySql}
+                  className="flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-amber-300 active:scale-95"
+                >
+                  {copiedSql ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>Copiado com Sucesso!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      <span>Copiar Código SQL</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowSqlModal(false)}
+                  className="rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
