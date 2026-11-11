@@ -193,7 +193,7 @@ function AdminPage() {
   useEffect(() => { void loadOrders(true); }, [loadOrders]);
   useEffect(() => {
     if (!loggedIn) return;
-    const timer = window.setInterval(() => { void loadOrders(true); }, 15000);
+    const timer = window.setInterval(() => { void loadOrders(true); }, 5000);
     return () => window.clearInterval(timer);
   }, [loggedIn, loadOrders]);
 
@@ -241,6 +241,35 @@ function AdminPage() {
   };
 
   const updateStatus = (order: Order, order_status: string) => patchOrder(order, { order_status }, 'Não foi possível atualizar o pedido.');
+
+  const verifyOrderPix = async (order: Order) => {
+    setError('');
+    setBusyUpdate(order.id);
+    try {
+      const response = await fetch('/api/admin/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: order.id, action: 'verify_payment' }),
+      });
+      const data = await response.json() as { ok?: boolean; payment_status?: string; error?: string; message?: string };
+      if (!response.ok) throw new Error(data.error || 'Falha ao verificar Pix no Mercado Pago.');
+      if (data.payment_status === 'approved') {
+        playBell();
+      } else if (data.message) {
+        alert(`Mercado Pago: ${data.message}`);
+      }
+      await loadOrders(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao checar Pix.');
+    } finally {
+      setBusyUpdate(null);
+    }
+  };
+
+  const manuallyApprovePix = async (order: Order) => {
+    if (!window.confirm(`Deseja confirmar o recebimento do Pix do pedido #${order.code} (${order.customer_name}) no valor de ${money(order.total)}?`)) return;
+    await patchOrder(order, { payment_status: 'approved' }, 'Não foi possível aprovar o pagamento.');
+  };
   const updateEta = (order: Order, value: string) => patchOrder(order, { estimated_delivery_at: value ? new Date(value).toISOString() : null }, 'Não foi possível salvar a previsão.');
 
   const completePlanDeliveryToday = async (order: Order, dateToComplete: string) => {
@@ -887,7 +916,28 @@ function AdminPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {action && (
+                        {isUnpaidOnline(order) ? (
+                          <div className="flex flex-1 flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void verifyOrderPix(order)}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-400/40 bg-sky-500/20 px-3 py-2 text-xs font-bold text-sky-200 hover:bg-sky-500/30 disabled:opacity-50"
+                            >
+                              <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} />
+                              Checar Pix
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void manuallyApprovePix(order)}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-3 py-2 text-xs font-black text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-50"
+                            >
+                              <Check className="h-4 w-4" />
+                              Aprovar Pix
+                            </button>
+                          </div>
+                        ) : action && (
                           <button
                             type="button"
                             disabled={busy || action.disabled}

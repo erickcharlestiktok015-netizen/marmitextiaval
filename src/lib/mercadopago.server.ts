@@ -185,3 +185,17 @@ export async function verifyWebhookSignature(opts: { signature: string | null; r
   for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ v1.charCodeAt(i);
   return diff === 0;
 }
+
+export async function searchPaymentByCode(code: string) {
+  try {
+    const res = await fetch(`${MP_API}/v1/payments/search?external_reference=${encodeURIComponent(code)}&sort=date_created&criteria=desc`, {
+      headers: { Authorization: `Bearer ${mpAccessToken()}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { results?: Array<{ id: number; status: string; status_detail: string; external_reference: string; transaction_amount: number }> };
+    return data.results?.[0] || null;
+  } catch (err) {
+    console.error('searchPaymentByCode error:', err);
+    return null;
+  }
+}
