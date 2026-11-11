@@ -51,23 +51,67 @@ export function MotoboySplash({ onComplete }: MotoboySplashProps) {
       aria-label="Carregando o sabor da Tia Val"
     >
       <style>{`
-        @keyframes moto-ride {
+        /* Motoboy andando firme e reto no asfalto: ZERO balanço lateral, apenas a micro-vibração do motor */
+        @keyframes moto-drive {
           0%, 100% {
-            transform: translateY(0px) rotate(0deg);
-          }
-          25% {
-            transform: translateY(-4px) rotate(-1deg);
+            transform: translateY(0px);
           }
           50% {
-            transform: translateY(1.5px) rotate(0.6deg);
-          }
-          75% {
-            transform: translateY(-2px) rotate(-0.4deg);
+            transform: translateY(-1.5px);
           }
         }
-        .anim-motoboy-ride {
-          animation: moto-ride 0.36s infinite ease-in-out;
-          transform-origin: bottom center;
+        .anim-motoboy-drive {
+          animation: moto-drive 0.16s infinite ease-in-out;
+        }
+
+        /* Vento passando veloz da direita para a esquerda */
+        @keyframes wind-gust-fast {
+          0% {
+            transform: translateX(140px) scaleX(0.5);
+            opacity: 0;
+          }
+          15% {
+            opacity: 0.85;
+          }
+          85% {
+            opacity: 0.85;
+          }
+          100% {
+            transform: translateX(-160px) scaleX(1.1);
+            opacity: 0;
+          }
+        }
+        @keyframes wind-gust-medium {
+          0% {
+            transform: translateX(120px) scaleX(0.6);
+            opacity: 0;
+          }
+          20% {
+            opacity: 0.75;
+          }
+          80% {
+            opacity: 0.75;
+          }
+          100% {
+            transform: translateX(-140px) scaleX(1.2);
+            opacity: 0;
+          }
+        }
+
+        .anim-wind-1 {
+          animation: wind-gust-fast 0.42s infinite linear;
+        }
+        .anim-wind-2 {
+          animation: wind-gust-medium 0.52s infinite linear 0.14s;
+        }
+        .anim-wind-3 {
+          animation: wind-gust-fast 0.38s infinite linear 0.22s;
+        }
+        .anim-wind-4 {
+          animation: wind-gust-medium 0.48s infinite linear 0.08s;
+        }
+        .anim-wind-5 {
+          animation: wind-gust-fast 0.45s infinite linear 0.28s;
         }
       `}</style>
 
@@ -80,12 +124,37 @@ export function MotoboySplash({ onComplete }: MotoboySplashProps) {
           className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
         />
 
-        {/* Motoboy Animado (acelerando suavemente com fumaça e movimento) */}
+        {/* Cenário do Motoboy com rajadas de vento passando */}
         <div
           className="absolute left-1/2 -translate-x-1/2 w-[88%] max-w-[370px] pointer-events-none select-none"
           style={{ top: "33%" }}
         >
-          <div className="anim-motoboy-ride relative flex items-center justify-center drop-shadow-[0_12px_20px_rgba(0,0,0,0.08)]">
+          {/* Linhas de Vento passando velozes da direita para a esquerda */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Linha 1: Acima do capacete */}
+            <div
+              className="anim-wind-1 absolute top-[12%] right-[10%] h-[2.5px] w-20 rounded-full bg-gradient-to-r from-transparent via-[#9ca3af]/70 to-transparent"
+            />
+            {/* Linha 2: Frente do guidão */}
+            <div
+              className="anim-wind-2 absolute top-[36%] right-[4%] h-[3px] w-28 rounded-full bg-gradient-to-r from-transparent via-[#ea1d2c]/40 to-transparent"
+            />
+            {/* Linha 3: Meio / corpo do motoboy */}
+            <div
+              className="anim-wind-3 absolute top-[52%] right-[18%] h-[2px] w-16 rounded-full bg-gradient-to-r from-transparent via-[#9ca3af]/60 to-transparent"
+            />
+            {/* Linha 4: Atrás do baú */}
+            <div
+              className="anim-wind-4 absolute top-[28%] left-[10%] h-[2px] w-24 rounded-full bg-gradient-to-r from-transparent via-[#9ca3af]/60 to-transparent"
+            />
+            {/* Linha 5: Roda / asfalto */}
+            <div
+              className="anim-wind-5 absolute bottom-[18%] right-[8%] h-[2.5px] w-24 rounded-full bg-gradient-to-r from-transparent via-[#ea1d2c]/30 to-transparent"
+            />
+          </div>
+
+          {/* Motoboy andando reto e firme (sem balançar pro lado) */}
+          <div className="anim-motoboy-drive relative flex items-center justify-center drop-shadow-[0_12px_20px_rgba(0,0,0,0.08)]">
             <img
               src={SPLASH_MOTOBOY_IMAGE}
               alt="Motoboy Tia Val acelerando"
