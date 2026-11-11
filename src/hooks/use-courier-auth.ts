@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { loginCourier, verifyCourierSession, endCourierSession } from '@/routes/api/courier';
-import { z } from 'zod';
+import { loginCourier } from '@/routes/api/courier/login';
+import { verifyCourierSession } from '@/routes/api/courier/verify';
+import { endCourierSession } from '@/routes/api/courier/logout';
 
 export function useCourierAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
