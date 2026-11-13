@@ -9,7 +9,6 @@ import { clearCustomer, formatPhone, maskPhoneInput, orderStatusBadgeClass, orde
 import { lookupCustomerOrders, type CustomerOrder } from '@/lib/orders';
 import { ContactDock } from '@/components/restaurant/contact-dock';
 import { BannerCarousel } from '@/components/delivery/banner-carousel';
-import { MotoboySplash } from '@/components/delivery/motoboy-splash';
 import { PlanSheet } from '@/components/delivery/plan-sheet';
 import { PLAN_DAYS, planSizes, planDateLabel, planDeliveredCount, spDateKey } from '@/lib/weekly-plan';
 import logoBannerAsset from '@/assets/marmitex-logo-banner.png';
@@ -62,12 +61,7 @@ export function DeliveryHome() {
       return next;
     });
   };
-  const handleSplashComplete = () => {
-    const c = readCustomer();
-    if (!c?.phone) {
-      setOrdersOpen(true);
-    }
-  };
+
 
   const [open, setOpen] = useState<boolean | null>(null);
   const [todayMeal, setTodayMeal] = useState<Meal>(() => getTodayMeal());
@@ -242,7 +236,6 @@ export function DeliveryHome() {
   const sheetClass = 'delivery-app inset-x-0 mx-auto flex max-h-[94dvh] w-full max-w-lg flex-col gap-0 overflow-hidden rounded-t-3xl border-0 p-0';
 
   return <div className={`delivery-app min-h-screen ${theme === "dark" ? "theme-dark bg-[#141412]" : "bg-secondary"}`} data-theme={theme}>
-    <MotoboySplash onComplete={handleSplashComplete} />
     <div className={`mx-auto min-h-screen max-w-lg ${theme === "dark" ? "bg-[#1b1a17]" : "bg-background"} pb-32 shadow-card`}>
       {/* Capa */}
       <header className="relative">
