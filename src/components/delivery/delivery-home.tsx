@@ -155,11 +155,13 @@ export function DeliveryHome() {
     return () => window.clearInterval(t);
   }, []);
 
-  // Sincroniza cliente ativo no servidor
+  // Sincroniza cliente ativo no servidor ou abre login de início se não tiver cadastro
   useEffect(() => {
     const c = readCustomer();
     if (c?.phone) {
       void lookupCustomerOrders(c.phone, c.name).catch(() => {});
+    } else {
+      setOrdersOpen(true);
     }
   }, []);
   useEffect(() => { if (bagLoaded) try { localStorage.setItem(BAG_KEY, JSON.stringify(bag)); } catch { /* opcional */ } }, [bag, bagLoaded]);
