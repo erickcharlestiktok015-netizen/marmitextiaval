@@ -66,10 +66,10 @@ export const spDateKey = (date: Date): string => {
 
 const parseKey = (key: string): Date => new Date(`${key}T12:00:00-03:00`);
 
-// Próximos dias úteis para agendar (seg–sáb), a partir de amanhã, até juntar `count` dias.
+// Próximos dias úteis para agendar (seg–sáb), a partir de hoje (se aberto de seg a sáb) ou próximo dia útil, até juntar `count` dias.
 export function nextPlanDays(count = 14, from = new Date()): string[] {
   const days: string[] = [];
-  const cursor = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+  const cursor = new Date(from);
   while (days.length < count) {
     const key = spDateKey(cursor);
     const weekday = parseKey(key).getDay();
