@@ -18,6 +18,7 @@ import {
   planPrice,
   planSizes,
   planWindows,
+  spDateKey,
   submitPlanOrder,
   type PlanSizeId,
   type PlanWindow,
@@ -178,7 +179,7 @@ export function PlanSheet({ onDone }: { onDone?: () => void }) {
             const on = dates.includes(key);
             const disabled = !on && dates.length >= PLAN_DAYS;
             return <button key={key} type="button" aria-pressed={on} disabled={disabled} onClick={() => toggleDate(key)} className={`flex flex-col items-start gap-0.5 rounded-2xl border-2 p-3 text-left transition disabled:opacity-40 ${on ? 'border-primary bg-accent' : 'border-border bg-card'}`}>
-              <span className="flex w-full items-center justify-between"><strong className="text-sm capitalize">{planDateLabel(key)}</strong>{on && <Check className="size-4 text-primary" />}</span>
+              <span className="flex w-full items-center justify-between"><strong className="text-sm capitalize">{key === spDateKey(new Date()) ? `Hoje · ${planDateLabel(key)}` : planDateLabel(key)}</strong>{on && <Check className="size-4 text-primary" />}</span>
               <small className="text-xs leading-snug text-muted-foreground">{dish?.name ?? 'Prato do dia'}</small>
             </button>;
           })}
